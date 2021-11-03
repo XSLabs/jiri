@@ -145,10 +145,33 @@ func patchProject(jirix *jiri.X, local project.Project, ref, branch, remote stri
 		if err := scm.SetUpstream(branch, "origin/"+remote); err != nil {
 			return false, fmt.Errorf("setting upstream to 'origin/%s': %s", remote, err)
 		}
-		if err := scm.CheckoutBranch(branch, local.GitSubmodules); err != nil {
-			return false, err
+		branchBase = branch
+	}
+
+	// Perform rebases prior to checking out the new branch to avoid unnecesary
+	// file writes.
+	if patchRebaseFlag {
+		if patchRebaseRevision != "" {
+			if err := rebaseProjectWRevision(jirix, local, branchBase, patchRebaseRevision); err != nil {
+				return false, err
+			}
+		} else {
+			if err := rebaseProject(jirix, local, branchBase, remote); err != nil {
+				return false, err
+			}
 		}
-	} else if err := scm.CheckoutBranch(branchBase, local.GitSubmodules); err != nil {
+
+		// The cherry pick stanza below relies on the ref being present at
+		// FETCH_HEAD. This will not be true after a rebase, as the rebase
+		// functions perform fetches of their own.
+		if cherryPickFlag {
+			if err := scm.FetchRefspec("origin", ref); err != nil {
+				return false, err
+			}
+		}
+	}
+
+	if err := scm.CheckoutBranch(branchBase, local.GitSubmodules); err != nil {
 		return false, err
 	}
 	if cherryPickFlag {
@@ -181,9 +204,9 @@ func patchProject(jirix *jiri.X, local project.Project, ref, branch, remote stri
 	return true, nil
 }
 
-// rebaseProject rebases the current branch on top of a given branch.
-func rebaseProject(jirix *jiri.X, project project.Project, remoteBranch string) error {
-	jirix.Logger.Infof("Rebasing project %s(%s)\n", project.Name, project.Path)
+// rebaseProject rebases one branch of a project on top of a remote branch.
+func rebaseProject(jirix *jiri.X, project project.Project, branch, remoteBranch string) error {
+	jirix.Logger.Infof("Rebasing branch %s in project %s(%s)\n", branch, project.Name, project.Path)
 	scm := gitutil.New(jirix, gitutil.RootDirOpt(project.Path))
 	name, email, err := scm.UserInfoForCommit("HEAD")
 	if err != nil {
@@ -196,7 +219,7 @@ func rebaseProject(jirix *jiri.X, project project.Project, remoteBranch string) 
 		jirix.IncrementFailures()
 		return nil
 	}
-	if err := scm.Rebase("remotes/origin/"+remoteBranch, gitutil.RebaseMerges(true)); err != nil {
+	if err := scm.RebaseBranch(branch, "remotes/origin/"+remoteBranch, gitutil.RebaseMerges(true)); err != nil {
 		if err2 := scm.RebaseAbort(); err2 != nil {
 			return err2
 		}
@@ -209,9 +232,9 @@ func rebaseProject(jirix *jiri.X, project project.Project, remoteBranch string) 
 	return nil
 }
 
-// rebaseProjectWRevision rebases the current branch on top of a given revision.
-func rebaseProjectWRevision(jirix *jiri.X, project project.Project, revision string) error {
-	jirix.Logger.Infof("Rebasing project %s(%s)\n", project.Name, project.Path)
+// rebaseProjectWRevision rebases one branch of a project on top of a revision.
+func rebaseProjectWRevision(jirix *jiri.X, project project.Project, branch, revision string) error {
+	jirix.Logger.Infof("Rebasing branch %s in project %s(%s)\n", branch, project.Name, project.Path)
 	scm := gitutil.New(jirix, gitutil.RootDirOpt(project.Path))
 	name, email, err := scm.UserInfoForCommit("HEAD")
 	if err != nil {
@@ -228,7 +251,7 @@ func rebaseProjectWRevision(jirix *jiri.X, project project.Project, revision str
 		jirix.IncrementFailures()
 		return nil
 	}
-	if err := scm.Rebase(revision, gitutil.RebaseMerges(true)); err != nil {
+	if err := scm.RebaseBranch(branch, revision, gitutil.RebaseMerges(true)); err != nil {
 		if err2 := scm.RebaseAbort(); err2 != nil {
 			return err2
 		}
@@ -360,25 +383,13 @@ func runPatch(jirix *jiri.X, args []string) error {
 			changeRef = change.Reference()
 		}
 		branch := patchBranchFlag
-		ok := false
 		if ps != -1 {
-			if ok, err = patchProject(jirix, *p, arg, branch, remoteBranch); err != nil {
+			if _, err = patchProject(jirix, *p, arg, branch, remoteBranch); err != nil {
 				return err
 			}
 		} else {
-			if ok, err = patchProject(jirix, *p, changeRef, branch, remoteBranch); err != nil {
+			if _, err = patchProject(jirix, *p, changeRef, branch, remoteBranch); err != nil {
 				return err
-			}
-		}
-		if ok && patchRebaseFlag {
-			if patchRebaseRevision != "" {
-				if err := rebaseProjectWRevision(jirix, *p, patchRebaseRevision); err != nil {
-					return err
-				}
-			} else {
-				if err := rebaseProject(jirix, *p, remoteBranch); err != nil {
-					return err
-				}
 			}
 		}
 	} else {
@@ -489,14 +500,8 @@ func runPatch(jirix *jiri.X, args []string) error {
 				ref = change.Reference()
 			}
 			if projectToPatch := findProject(jirix, change.Project, projects, host, hostUrl, g.GetChangeURL(change.Number)); projectToPatch != nil {
-				if ok, err := patchProject(jirix, *projectToPatch, ref, branch, change.Branch); err != nil {
+				if _, err := patchProject(jirix, *projectToPatch, ref, branch, change.Branch); err != nil {
 					return err
-				} else if ok {
-					if patchRebaseFlag {
-						if err := rebaseProject(jirix, *projectToPatch, change.Branch); err != nil {
-							return err
-						}
-					}
 				}
 				fmt.Println()
 			} else {
