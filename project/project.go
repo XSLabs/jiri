@@ -612,7 +612,6 @@ func cacheDirPathFromRemote(jirix *jiri.X, remote string) (string, error) {
 // for the given project.
 func (p *Project) CacheDirPath(jirix *jiri.X) (string, error) {
 	return cacheDirPathFromRemote(jirix, p.Remote)
-
 }
 
 func (p *Project) writeJiriRevisionFiles(jirix *jiri.X) error {
@@ -790,7 +789,7 @@ func CreateSnapshot(jirix *jiri.X, file string, hooks Hooks, pkgs Packages, loca
 		// with the manifest filename.
 
 		// Create separate snapshots for public and internal
-		var publicPkgs, internalPkgs = make(Packages), make(Packages)
+		publicPkgs, internalPkgs := make(Packages), make(Packages)
 		for _, pkg := range pkgs {
 			if pkg.Internal {
 				internalPkgs[pkg.Key()] = pkg
@@ -1703,8 +1702,10 @@ func findLocalProjects(jirix *jiri.X, path string, projects Projects) MultiError
 				return
 			}
 			if path != project.Path {
-				logs := []string{fmt.Sprintf("Project %q has path %s, but was found in %s.", project.Name, project.Path, path),
-					fmt.Sprintf("jiri will treat it as a stale project. To remove this warning please delete this or move it out of your root folder\n\n")}
+				logs := []string{
+					fmt.Sprintf("Project %q has path %s, but was found in %s.", project.Name, project.Path, path),
+					fmt.Sprintf("jiri will treat it as a stale project. To remove this warning please delete this or move it out of your root folder\n\n"),
+				}
 				log <- strings.Join(logs, "\n")
 				return
 			}

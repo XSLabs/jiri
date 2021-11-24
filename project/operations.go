@@ -178,7 +178,7 @@ func (op createOperation) checkoutProject(jirix *jiri.X, cache string) error {
 	if err := writeMetadata(jirix, op.project, op.project.Path); err != nil {
 		return err
 	}
-	// Delete inital branch(es)
+	// Delete initial branch(es)
 	if branches, _, err := scm.GetBranches(); err != nil {
 		jirix.Logger.Warningf("not able to get branches for newly created project %s(%s)\n\n", op.project.Name, op.project.Path)
 	} else {
@@ -268,7 +268,7 @@ func (op deleteOperation) Run(jirix *jiri.X) error {
 	}
 	uncommitted, err := scm.HasUncommittedChanges()
 	if err != nil {
-		return fmt.Errorf("Cannot get uncommited changes for project %q: %s", op.Project().Name, err)
+		return fmt.Errorf("Cannot get uncommitted changes for project %q: %s", op.Project().Name, err)
 	}
 	untracked, err := scm.HasUntrackedFiles()
 	if err != nil {
@@ -404,7 +404,7 @@ func (op moveOperation) Test(jirix *jiri.X, updates *fsUpdates) error {
 	return nil
 }
 
-// changeRemoteOperation represents the chnage of remote URL
+// changeRemoteOperation represents the change of remote URL
 type changeRemoteOperation struct {
 	commonOperation
 	rebaseTracked   bool
@@ -644,7 +644,7 @@ func computeOp(local, remote *Project, state *ProjectState, gc, rebaseTracked, r
 							break
 						}
 					} else if rebaseUntracked && rebaseAll {
-						// We put checks for untracked-branch updation in syncProjectMaster funtion
+						// We put checks for untracked-branch updating in syncProjectMaster function
 						localBranchesNeedUpdating = true
 						break
 					}
@@ -803,6 +803,7 @@ func NewPathTrie() *PathTrie {
 		children: make(map[string]*PathTrie),
 	}
 }
+
 func (p *PathTrie) Contains(path string) bool {
 	parts := strings.Split(path, string(filepath.Separator))
 	node := p
