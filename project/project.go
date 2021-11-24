@@ -113,9 +113,11 @@ type ProjectsByPath []Project
 func (projects ProjectsByPath) Len() int {
 	return len(projects)
 }
+
 func (projects ProjectsByPath) Swap(i, j int) {
 	projects[i], projects[j] = projects[j], projects[i]
 }
+
 func (projects ProjectsByPath) Less(i, j int) bool {
 	return projects[i].Path+string(filepath.Separator) < projects[j].Path+string(filepath.Separator)
 }
@@ -1632,7 +1634,6 @@ func IsLocalProject(jirix *jiri.X, path string) (bool, error) {
 			if _, err := os.Stat(oldMetadataDir); err != nil {
 				if os.IsNotExist(err) {
 					return false, nil
-
 				}
 				return false, fmtError(err)
 			}
@@ -2398,7 +2399,7 @@ func updateProjects(jirix *jiri.X, localProjects, remoteProjects Projects, hooks
 		return err
 	}
 
-	ops := computeOperations(localProjects, remoteProjects, states, gc, rebaseTracked, rebaseUntracked, rebaseAll, snapshot)
+	ops := computeOperations(jirix, localProjects, remoteProjects, states, rebaseTracked, rebaseUntracked, rebaseAll, snapshot)
 	moveOperations := []moveOperation{}
 	changeRemoteOperations := operations{}
 	deleteOperations := []deleteOperation{}

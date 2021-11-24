@@ -585,7 +585,7 @@ func (ops operations) Swap(i, j int) {
 // system and manifest file respectively) and outputs a collection of
 // operations that describe the actions needed to update the target
 // projects.
-func computeOperations(localProjects, remoteProjects Projects, states map[ProjectKey]*ProjectState, gc, rebaseTracked, rebaseUntracked, rebaseAll, snapshot bool) operations {
+func computeOperations(jirix *jiri.X, localProjects, remoteProjects Projects, states map[ProjectKey]*ProjectState, rebaseTracked, rebaseUntracked, rebaseAll, snapshot bool) operations {
 	result := operations{}
 	allProjects := map[ProjectKey]bool{}
 	for _, p := range localProjects {
@@ -611,13 +611,13 @@ func computeOperations(localProjects, remoteProjects Projects, states map[Projec
 		if s, ok := states[key]; ok {
 			state = s
 		}
-		result = append(result, computeOp(local, remote, state, gc, rebaseTracked, rebaseUntracked, rebaseAll, snapshot))
+		result = append(result, computeOp(jirix, local, remote, state, rebaseTracked, rebaseUntracked, rebaseAll, snapshot))
 	}
 	sort.Sort(result)
 	return result
 }
 
-func computeOp(local, remote *Project, state *ProjectState, gc, rebaseTracked, rebaseUntracked, rebaseAll, snapshot bool) operation {
+func computeOp(jirix *jiri.X, local, remote *Project, state *ProjectState, rebaseTracked, rebaseUntracked, rebaseAll, snapshot bool) operation {
 	switch {
 	case local == nil && remote != nil:
 		return createOperation{commonOperation{
@@ -662,6 +662,13 @@ func computeOp(local, remote *Project, state *ProjectState, gc, rebaseTracked, r
 				state:       *state,
 			}, rebaseTracked, rebaseUntracked, rebaseAll, snapshot}
 		case local.Path != remote.Path:
+			if remote.Path == jirix.Root {
+				return createOperation{commonOperation{
+					destination: remote.Path,
+					project:     *remote,
+					source:      "",
+				}}
+			}
 			// moveOperation also does an update, so we don't need to check the
 			// revision here.
 			return moveOperation{commonOperation{
