@@ -1350,9 +1350,13 @@ func applyGitHooks(jirix *jiri.X, ops []operation) error {
 	defer jirix.TimerPop()
 	commitMsgFetcher := commitMsgFetcher{}
 	for _, op := range ops {
+		gitHooksDstDir := filepath.Join(op.Project().Path, ".git", "hooks")
 		if op.Kind() != "delete" && !op.Project().LocalConfig.Ignore && !op.Project().LocalConfig.NoUpdate {
 			if op.Project().GerritHost != "" {
-				hookPath := filepath.Join(op.Project().Path, ".git", "hooks", "commit-msg")
+				if err := os.MkdirAll(gitHooksDstDir, 0755); err != nil {
+					return fmtError(err)
+				}
+				hookPath := filepath.Join(gitHooksDstDir, "commit-msg")
 				commitHook, err := os.Create(hookPath)
 				if err != nil {
 					return fmtError(err)
@@ -1386,7 +1390,7 @@ func applyGitHooks(jirix *jiri.X, ops []operation) error {
 		}
 		// Apply git hooks, overwriting any existing hooks.  Jiri is in control of
 		// writing all hooks.
-		gitHooksDstDir := filepath.Join(op.Project().Path, ".git", "hooks")
+
 		// Copy the specified GitHooks directory into the project's git
 		// hook directory.  We walk the file system, creating directories
 		// and copying files as we encounter them.
