@@ -5,8 +5,9 @@
 package textutil
 
 import (
-	"syscall"
-	"unsafe"
+	"os"
+
+	"golang.org/x/term"
 )
 
 // TerminalSize returns the dimensions of the terminal, if it's available from
@@ -17,28 +18,11 @@ func TerminalSize() (row, col int, _ error) {
 	// of the fds is redirected on the command line.  E.g. "tool | less" redirects
 	// the stdout of tool to the stdin of less, and will mean tool cannot retrieve
 	// the terminal size from stdout.
-	//
-	// TODO(toddw): This probably only works on some linux / unix variants; add
-	// build tags and support different platforms.
-	if row, col, err := terminalSize(syscall.Stdout); err == nil {
+	if row, col, err := term.GetSize(int(os.Stdout.Fd())); err == nil {
 		return row, col, err
 	}
-	if row, col, err := terminalSize(syscall.Stderr); err == nil {
+	if row, col, err := term.GetSize(int(os.Stderr.Fd())); err == nil {
 		return row, col, err
 	}
-	return terminalSize(syscall.Stdin)
-}
-
-func terminalSize(fd int) (int, int, error) {
-	var ws winsize
-	if _, _, err := syscall.Syscall(syscall.SYS_IOCTL, uintptr(fd), uintptr(syscall.TIOCGWINSZ), uintptr(unsafe.Pointer(&ws))); err != 0 {
-		return 0, 0, err
-	}
-	return int(ws.row), int(ws.col), nil
-}
-
-// winsize must correspond to the struct defined in "sys/ioctl.h".  Do not
-// export this struct; it's a platform-specific implementation detail.
-type winsize struct {
-	row, col, xpixel, ypixel uint16
+	return term.GetSize(int(os.Stdin.Fd()))
 }
