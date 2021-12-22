@@ -18,11 +18,12 @@ func TerminalSize() (row, col int, _ error) {
 	// of the fds is redirected on the command line.  E.g. "tool | less" redirects
 	// the stdout of tool to the stdin of less, and will mean tool cannot retrieve
 	// the terminal size from stdout.
-	if row, col, err := term.GetSize(int(os.Stdout.Fd())); err == nil {
+	if col, row, err := term.GetSize(int(os.Stdout.Fd())); err == nil {
 		return row, col, err
 	}
-	if row, col, err := term.GetSize(int(os.Stderr.Fd())); err == nil {
+	if col, row, err := term.GetSize(int(os.Stderr.Fd())); err == nil {
 		return row, col, err
 	}
-	return term.GetSize(int(os.Stdin.Fd()))
+	col, row, err := term.GetSize(int(os.Stdin.Fd()))
+	return row, col, err
 }
