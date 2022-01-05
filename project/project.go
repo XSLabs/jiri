@@ -2400,49 +2400,19 @@ func updateProjects(jirix *jiri.X, localProjects, remoteProjects Projects, hooks
 	}
 
 	ops := computeOperations(jirix, localProjects, remoteProjects, states, rebaseTracked, rebaseUntracked, rebaseAll, snapshot)
-	moveOperations := []moveOperation{}
-	changeRemoteOperations := operations{}
-	deleteOperations := []deleteOperation{}
-	updateOperations := operations{}
-	createOperations := []createOperation{}
-	nullOperations := operations{}
-	updates := newFsUpdates()
-	for _, op := range ops {
-		if err := op.Test(jirix, updates); err != nil {
-			return err
+
+	for len(ops) > 0 {
+		batch := operations{ops[0]}
+		opType := fmt.Sprintf("%T", ops[0])
+		ops = ops[1:]
+		for len(ops) > 0 && opType == fmt.Sprintf("%T", ops[0]) {
+			if err := ops[0].Test(jirix); err != nil {
+				return err
+			}
+			batch = append(batch, ops[0])
+			ops = ops[1:]
 		}
-		switch o := op.(type) {
-		case deleteOperation:
-			deleteOperations = append(deleteOperations, o)
-		case changeRemoteOperation:
-			changeRemoteOperations = append(changeRemoteOperations, o)
-		case moveOperation:
-			moveOperations = append(moveOperations, o)
-		case updateOperation:
-			updateOperations = append(updateOperations, o)
-		case createOperation:
-			createOperations = append(createOperations, o)
-		case nullOperation:
-			nullOperations = append(nullOperations, o)
-		}
-	}
-	if err := runDeleteOperations(jirix, deleteOperations, gc); err != nil {
-		return err
-	}
-	if err := runCommonOperations(jirix, changeRemoteOperations, log.DebugLevel); err != nil {
-		return err
-	}
-	if err := runMoveOperations(jirix, moveOperations); err != nil {
-		return err
-	}
-	if err := runCommonOperations(jirix, updateOperations, log.DebugLevel); err != nil {
-		return err
-	}
-	if err := runCreateOperations(jirix, createOperations); err != nil {
-		return err
-	}
-	if err := runCommonOperations(jirix, nullOperations, log.TraceLevel); err != nil {
-		return err
+		runBatch(jirix, gc, batch)
 	}
 
 	jirix.TimerPush("jiri revision files")
@@ -2517,6 +2487,48 @@ func updateProjects(jirix *jiri.X, localProjects, remoteProjects Projects, hooks
 		return applyGitHooks(jirix, ops)
 	}
 	jirix.Logger.Warningf("Git hooks are not updated. If you would like to update git hooks for all projects, please run 'jiri init -keep-git-hooks=false'.")
+	return nil
+}
+
+func runBatch(jirix *jiri.X, gc bool, ops operations) error {
+	switch ops[0].(type) {
+	case deleteOperation:
+		deleteOps := []deleteOperation{}
+		for _, op := range ops {
+			deleteOps = append(deleteOps, op.(deleteOperation))
+		}
+		if err := runDeleteOperations(jirix, deleteOps, gc); err != nil {
+			return err
+		}
+	case changeRemoteOperation:
+		if err := runCommonOperations(jirix, ops, log.DebugLevel); err != nil {
+			return err
+		}
+	case moveOperation:
+		moveOps := []moveOperation{}
+		for _, op := range ops {
+			moveOps = append(moveOps, op.(moveOperation))
+		}
+		if err := runMoveOperations(jirix, moveOps); err != nil {
+			return err
+		}
+	case updateOperation:
+		if err := runCommonOperations(jirix, ops, log.DebugLevel); err != nil {
+			return err
+		}
+	case createOperation:
+		createOps := []createOperation{}
+		for _, op := range ops {
+			createOps = append(createOps, op.(createOperation))
+		}
+		if err := runCreateOperations(jirix, createOps); err != nil {
+			return err
+		}
+	case nullOperation:
+		if err := runCommonOperations(jirix, ops, log.TraceLevel); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
