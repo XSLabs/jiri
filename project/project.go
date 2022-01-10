@@ -2401,16 +2401,17 @@ func updateProjects(jirix *jiri.X, localProjects, remoteProjects Projects, hooks
 
 	ops := computeOperations(jirix, localProjects, remoteProjects, states, rebaseTracked, rebaseUntracked, rebaseAll, snapshot)
 
-	for len(ops) > 0 {
-		batch := operations{ops[0]}
-		opType := fmt.Sprintf("%T", ops[0])
-		ops = ops[1:]
-		for len(ops) > 0 && opType == fmt.Sprintf("%T", ops[0]) {
-			if err := ops[0].Test(jirix); err != nil {
+	batchOps := append(operations(nil), ops...)
+	for len(batchOps) > 0 {
+		batch := operations{batchOps[0]}
+		opType := fmt.Sprintf("%T", batchOps[0])
+		batchOps = batchOps[1:]
+		for len(batchOps) > 0 && opType == fmt.Sprintf("%T", batchOps[0]) {
+			if err := batchOps[0].Test(jirix); err != nil {
 				return err
 			}
-			batch = append(batch, ops[0])
-			ops = ops[1:]
+			batch = append(batch, batchOps[0])
+			batchOps = batchOps[1:]
 		}
 		runBatch(jirix, gc, batch)
 	}
