@@ -113,6 +113,7 @@ type projectInfoOutput struct {
 	CurrentBranch string   `json:"current_branch,omitempty"`
 	Branches      []string `json:"branches,omitempty"`
 	Manifest      string   `json:"manifest,omitempty"`
+	GerritHost    string   `json:"gerrithost,omitempty"`
 }
 
 // runProjectInfo provides structured info on local projects.
@@ -230,6 +231,7 @@ func runProjectInfo(jirix *jiri.X, args []string) error {
 			Revision:      state.Project.Revision,
 			CurrentBranch: state.CurrentBranch.Name,
 			Manifest:      state.Project.ManifestPath,
+			GerritHost:    state.Project.GerritHost,
 		}
 		for _, b := range state.Branches {
 			info[i].Branches = append(info[i].Branches, b.Name)
