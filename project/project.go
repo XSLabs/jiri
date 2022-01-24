@@ -2653,7 +2653,7 @@ func GenerateSubmoduleTree(jirix *jiri.X, projects Projects) ([]Project, *Projec
 		i++
 	}
 	sort.Slice(projEntries, func(i, j int) bool {
-		return projEntries[i].Key().Less(projEntries[j].Key())
+		return projEntries[i].Path+string(filepath.Separator) < projEntries[j].Path+string(filepath.Separator)
 	})
 
 	// Create path prefix tree to collect all nested projects
