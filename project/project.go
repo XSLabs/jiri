@@ -791,11 +791,9 @@ func CreateSnapshot(jirix *jiri.X, file string, hooks Hooks, pkgs Packages, loca
 		// with the manifest filename.
 
 		// Create separate snapshots for public and internal
-		publicPkgs, internalPkgs := make(Packages), make(Packages)
+		publicPkgs := make(Packages)
 		for _, pkg := range pkgs {
-			if pkg.Internal {
-				internalPkgs[pkg.Key()] = pkg
-			} else {
+			if !pkg.Internal {
 				publicPkgs[pkg.Key()] = pkg
 			}
 		}
@@ -803,7 +801,8 @@ func CreateSnapshot(jirix *jiri.X, file string, hooks Hooks, pkgs Packages, loca
 		if err != nil {
 			return err
 		}
-		err = CreateCipdSnapshot(jirix, internalPkgs, file+"_internal")
+		// Due to how CIPD works, we want the inernal usage verison to be public+internal packages.
+		err = CreateCipdSnapshot(jirix, pkgs, file+"_internal")
 		if err != nil {
 			return err
 		}
