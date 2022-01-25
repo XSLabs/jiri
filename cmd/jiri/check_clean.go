@@ -44,7 +44,7 @@ func runCheckClean(jirix *jiri.X, args []string) error {
 		keys = append(keys, key)
 	}
 	sort.Sort(keys)
-	isDirty := false
+	dirtyProjects := make(map[string]string)
 	for _, key := range keys {
 		localProject := localProjects[key]
 		state, ok := states[key]
@@ -67,15 +67,22 @@ func runCheckClean(jirix *jiri.X, args []string) error {
 			continue
 		}
 		if changes != "" {
-			isDirty = true
-			fmt.Printf("%s:\n%s\n", relativePath, changes)
+			dirtyProjects[relativePath] = changes
 		}
 	}
+	var finalErr error
 	if jirix.Failures() != 0 {
-		return fmt.Errorf("completed with non-fatal errors")
+		finalErr = fmt.Errorf("completed with non-fatal errors")
+	} else if len(dirtyProjects) > 0 {
+		finalErr = fmt.Errorf("Checkout is not clean!")
 	}
-	if isDirty {
-		return fmt.Errorf("Checkout is not clean!")
+
+	if len(dirtyProjects) > 0 {
+		fmt.Println("Dirty projects:")
+		for relativePath, changes := range dirtyProjects {
+			fmt.Printf("%s\n%s\n\n", relativePath, changes)
+		}
 	}
-	return nil
+
+	return finalErr
 }
