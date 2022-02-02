@@ -1296,7 +1296,7 @@ func (g *Git) Show(ref, file string) (string, error) {
 
 // UntrackedFiles returns the list of files that are not tracked.
 func (g *Git) UntrackedFiles() ([]string, error) {
-	out, err := g.runOutput("ls-files", "--others", "--directory", "--exclude-standard")
+	out, err := g.runOutput("ls-files", "--others", "--directory", "--no-empty-directory", "--exclude-standard")
 	if err != nil {
 		return nil, err
 	}
