@@ -1052,8 +1052,14 @@ func generateEnsureFile(jirix *jiri.X, pkgs Packages, ignoreCryptoCheck bool, ve
 			}
 		}
 
-		for _, plat := range allPlats {
-			ensureFileBuf.WriteString(fmt.Sprintf("$VerifiedPlatform %s\n", plat))
+		// Output in stable sort ordr
+		platKeys := make([]string, 0, len(allPlats))
+		for k := range allPlats {
+			platKeys = append(platKeys, k)
+		}
+		sort.Strings(platKeys)
+		for _, key := range platKeys {
+			ensureFileBuf.WriteString(fmt.Sprintf("$VerifiedPlatform %s\n", allPlats[key]))
 		}
 		versionFileName := ensureFilePath[:len(ensureFilePath)-len(".ensure")] + ".version"
 		if versionFilePath != "" {
@@ -1066,16 +1072,20 @@ func generateEnsureFile(jirix *jiri.X, pkgs Packages, ignoreCryptoCheck bool, ve
 	}
 	ensureFileBuf.WriteString("\n")
 
+	cipdDecls := make([]string, 0, len(pkgs))
 	for _, pkg := range pkgs {
 
 		cipdDecl, err := pkg.cipdDecl(jirix)
 		if err != nil {
 			return "", err
 		}
+		cipdDecls = append(cipdDecls, cipdDecl)
+	}
+	sort.Strings(cipdDecls)
+	for _, cipdDecl := range cipdDecls {
 		ensureFileBuf.WriteString(cipdDecl)
 		ensureFileBuf.WriteString("\n")
 	}
-
 	jirix.Logger.Debugf("Generated ensure file content:\n%v", ensureFileBuf.String())
 	if _, err := ensureFileBuf.WriteTo(ensureFile); err != nil {
 		return "", err
@@ -1147,17 +1157,16 @@ func generateVersionFile(jirix *jiri.X, ensureFile string, pkgs Packages) (strin
 	var versionFileBuf bytes.Buffer
 	// Just pour everything in pkgLocks into version file without matching package
 	// names. cipd will do the matching for us.
-	pkgKeys := make(PackageKeys, 0, len(pkgs))
-	for k := range pkgs {
-		pkgKeys = append(pkgKeys, k)
-	}
-	sort.Stable(pkgKeys)
-	for _, k := range pkgKeys {
-		jirix.Logger.Debugf("Generate version file using %+v", pkgs[k])
-		for _, ins := range pkgs[k].Instances {
-			decl := fmt.Sprintf("\n%s\n\t%s\n\t%s\n", ins.Name, pkgs[k].Version, ins.ID)
-			versionFileBuf.WriteString(decl)
+	decls := make([]string, 0, len(pkgs))
+	for _, pkg := range pkgs {
+		jirix.Logger.Debugf("Generate version file using %+v", pkg)
+		for _, ins := range pkg.Instances {
+			decls = append(decls, fmt.Sprintf("\n%s\n\t%s\n\t%s\n", ins.Name, pkg.Version, ins.ID))
 		}
+	}
+	sort.Strings(decls)
+	for _, decl := range decls {
+		versionFileBuf.WriteString(decl)
 	}
 	jirix.Logger.Debugf("Generated version file content:\n%v", versionFileBuf.String())
 	return versionFileName, ioutil.WriteFile(versionFileName, versionFileBuf.Bytes(), 0655)
