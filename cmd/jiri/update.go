@@ -30,6 +30,7 @@ var (
 	runHooksFlag         bool
 	fetchPkgsFlag        bool
 	overrideOptionalFlag bool
+	packagesToSkipFlag   arrayFlag
 )
 
 const (
@@ -52,6 +53,7 @@ func init() {
 	cmdUpdate.Flags.BoolVar(&runHooksFlag, "run-hooks", true, "Run hooks after updating sources.")
 	cmdUpdate.Flags.BoolVar(&fetchPkgsFlag, "fetch-packages", true, "Use cipd to fetch packages.")
 	cmdUpdate.Flags.BoolVar(&overrideOptionalFlag, "override-optional", false, "Override existing optional attributes in the snapshot file with current jiri settings")
+	cmdUpdate.Flags.Var(&packagesToSkipFlag, "package-to-skip", "Skip fetching this package. Repeatable.")
 }
 
 // cmdUpdate represents the "jiri update" command.
@@ -95,7 +97,7 @@ func runUpdate(jirix *jiri.X, args []string) error {
 
 	if len(args) > 0 {
 		jirix.OverrideOptional = overrideOptionalFlag
-		if err := project.CheckoutSnapshot(jirix, args[0], gcFlag, runHooksFlag, fetchPkgsFlag, hookTimeoutFlag, fetchPkgsTimeoutFlag); err != nil {
+		if err := project.CheckoutSnapshot(jirix, args[0], gcFlag, runHooksFlag, fetchPkgsFlag, hookTimeoutFlag, fetchPkgsTimeoutFlag, packagesToSkipFlag); err != nil {
 			return err
 		}
 	} else {
@@ -109,7 +111,7 @@ func runUpdate(jirix *jiri.X, args []string) error {
 		}
 
 		err := project.UpdateUniverse(jirix, gcFlag, localManifestFlag,
-			rebaseTrackedFlag, rebaseUntrackedFlag, rebaseAllFlag, runHooksFlag, fetchPkgsFlag, hookTimeoutFlag, fetchPkgsTimeoutFlag)
+			rebaseTrackedFlag, rebaseUntrackedFlag, rebaseAllFlag, runHooksFlag, fetchPkgsFlag, hookTimeoutFlag, fetchPkgsTimeoutFlag, packagesToSkipFlag)
 		if err2 := project.WriteUpdateHistorySnapshot(jirix, nil, nil, localManifestFlag); err2 != nil {
 			if err != nil {
 				return fmt.Errorf("while updating: %s, while writing history: %s", err, err2)

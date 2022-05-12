@@ -360,7 +360,7 @@ func TestUpdateUniverseWhenLocalTracksLocal(t *testing.T) {
 	writeFile(t, fake.X, fake.Projects[localProjects[1].Name], "file1", "file1")
 	gitRemote := gitutil.New(fake.X, gitutil.RootDirOpt(fake.Projects[localProjects[1].Name]))
 	remoteRev, _ := gitRemote.CurrentRevision()
-	if err := project.UpdateUniverse(fake.X, false, false, false, false, true /*rebase-all*/, true /*run-hooks*/, true /*run-packages*/, project.DefaultHookTimeout, project.DefaultPackageTimeout); err != nil {
+	if err := project.UpdateUniverse(fake.X, false, false, false, false, true /*rebase-all*/, true /*run-hooks*/, true /*run-packages*/, project.DefaultHookTimeout, project.DefaultPackageTimeout, nil); err != nil {
 		t.Fatal(err)
 	}
 	projects, err := project.LocalProjects(fake.X, project.FastScan)
@@ -400,7 +400,7 @@ func TestUpdateUniverseWhenLocalTracksEachOther(t *testing.T) {
 	writeFile(t, fake.X, fake.Projects[localProjects[1].Name], "file1", "file1")
 	remoteRev, _ := gitRemote.CurrentRevision()
 
-	if err := project.UpdateUniverse(fake.X, false, false, false, false, true /*rebase-all*/, true /*run-hooks*/, true /*run-packages*/, project.DefaultHookTimeout, project.DefaultPackageTimeout); err != nil {
+	if err := project.UpdateUniverse(fake.X, false, false, false, false, true /*rebase-all*/, true /*run-hooks*/, true /*run-packages*/, project.DefaultHookTimeout, project.DefaultPackageTimeout, nil); err != nil {
 		t.Fatal(err)
 	}
 	projects, err := project.LocalProjects(fake.X, project.FastScan)
@@ -770,7 +770,7 @@ func TestRecursiveImportWithLocalImport(t *testing.T) {
 	if err := manifest.ToFile(fake.X, filepath.Join(fake.X.Root, jiritest.ManifestProjectPath, jiritest.ManifestFileName)); err != nil {
 		t.Fatal(err)
 	}
-	if err := project.UpdateUniverse(fake.X, false, true /* localManifest */, false, false, false, false, false, project.DefaultHookTimeout, project.DefaultPackageTimeout); err != nil {
+	if err := project.UpdateUniverse(fake.X, false, true /* localManifest */, false, false, false, false, false, project.DefaultHookTimeout, project.DefaultPackageTimeout, nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -852,7 +852,7 @@ func TestRecursiveImportWhenOriginalManifestIsImportedAgain(t *testing.T) {
 
 	// Add new commit to last project
 	writeFile(t, fake.X, fake.Projects[lastProject.Name], "file1", "file1")
-	if err := project.UpdateUniverse(fake.X, false, true /* localManifest */, false, false, false, false, false, project.DefaultHookTimeout, project.DefaultPackageTimeout); err != nil {
+	if err := project.UpdateUniverse(fake.X, false, true /* localManifest */, false, false, false, false, false, project.DefaultHookTimeout, project.DefaultPackageTimeout, nil); err != nil {
 		t.Fatal(err)
 	}
 	// check last project revision
@@ -1001,7 +1001,7 @@ func TestRunHookFlag(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := project.UpdateUniverse(fake.X, false, false, true /*rebaseTracked*/, false, false, false /*run-hooks*/, false /*run-packages*/, project.DefaultHookTimeout, project.DefaultPackageTimeout); err != nil {
+	if err := project.UpdateUniverse(fake.X, false, false, true /*rebaseTracked*/, false, false, false /*run-hooks*/, false /*run-packages*/, project.DefaultHookTimeout, project.DefaultPackageTimeout, nil); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -1659,7 +1659,7 @@ func TestUpdateWhenRemoteChangesRebased(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := project.UpdateUniverse(fake.X, false, false, true /*rebaseTracked*/, false, false, true /*run-hooks*/, true /*run-packages*/, project.DefaultHookTimeout, project.DefaultPackageTimeout); err != nil {
+	if err := project.UpdateUniverse(fake.X, false, false, true /*rebaseTracked*/, false, false, true /*run-hooks*/, true /*run-packages*/, project.DefaultHookTimeout, project.DefaultPackageTimeout, nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1851,9 +1851,9 @@ func testCheckoutSnapshot(t *testing.T, testURL bool) {
 		}))
 		defer server.Close()
 
-		project.CheckoutSnapshot(fake.X, server.URL, false, true /*run-hooks*/, true /*run-packages*/, project.DefaultHookTimeout, project.DefaultPackageTimeout)
+		project.CheckoutSnapshot(fake.X, server.URL, false, true /*run-hooks*/, true /*run-packages*/, project.DefaultHookTimeout, project.DefaultPackageTimeout, nil)
 	} else {
-		project.CheckoutSnapshot(fake.X, snapshotFile, false, true /*run-hooks*/, true /*run-packages*/, project.DefaultHookTimeout, project.DefaultPackageTimeout)
+		project.CheckoutSnapshot(fake.X, snapshotFile, false, true /*run-hooks*/, true /*run-packages*/, project.DefaultHookTimeout, project.DefaultPackageTimeout, nil)
 	}
 	sort.Sort(project.ProjectsByPath(localProjects))
 	for i, localProject := range localProjects {
@@ -1904,7 +1904,7 @@ func testLocalBranchesAreUpdated(t *testing.T, shouldLocalBeOnABranch, rebaseAll
 		}
 	}
 
-	if err := project.UpdateUniverse(fake.X, false, false, false, false, rebaseAll, true /*run-hooks*/, true /*run-packages*/, project.DefaultHookTimeout, project.DefaultPackageTimeout); err != nil {
+	if err := project.UpdateUniverse(fake.X, false, false, false, false, rebaseAll, true /*run-hooks*/, true /*run-packages*/, project.DefaultHookTimeout, project.DefaultPackageTimeout, nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -2007,7 +2007,7 @@ func TestFileImportCycle(t *testing.T) {
 	}
 
 	// The update should complain about the cycle.
-	err := project.UpdateUniverse(jirix, false, false, false, false, false, true /*run-hooks*/, true /*run-packages*/, project.DefaultHookTimeout, project.DefaultPackageTimeout)
+	err := project.UpdateUniverse(jirix, false, false, false, false, false, true /*run-hooks*/, true /*run-packages*/, project.DefaultHookTimeout, project.DefaultPackageTimeout, nil)
 	if got, want := fmt.Sprint(err), "import cycle detected in local manifest files"; !strings.Contains(got, want) {
 		t.Errorf("got error %v, want substr %v", got, want)
 	}
@@ -2058,7 +2058,7 @@ func TestRemoteImportCycle(t *testing.T) {
 	commitFile(t, fake.X, remote2, fileB, "commit B")
 
 	// The update should complain about the cycle.
-	err := project.UpdateUniverse(fake.X, false, false, false, false, false, true /*run-hooks*/, true /*run-packages*/, project.DefaultHookTimeout, project.DefaultPackageTimeout)
+	err := project.UpdateUniverse(fake.X, false, false, false, false, false, true /*run-hooks*/, true /*run-packages*/, project.DefaultHookTimeout, project.DefaultPackageTimeout, nil)
 	if got, want := fmt.Sprint(err), "import cycle detected in remote manifest imports"; !strings.Contains(got, want) {
 		t.Errorf("got error %v, want substr %v", got, want)
 	}
@@ -2128,7 +2128,7 @@ func TestFileAndRemoteImportCycle(t *testing.T) {
 	commitFile(t, fake.X, remote1, fileD, "commit D")
 
 	// The update should complain about the cycle.
-	err := project.UpdateUniverse(fake.X, false, false, false, false, false, true /*run-hooks*/, true /*run-packages*/, project.DefaultHookTimeout, project.DefaultPackageTimeout)
+	err := project.UpdateUniverse(fake.X, false, false, false, false, false, true /*run-hooks*/, true /*run-packages*/, project.DefaultHookTimeout, project.DefaultPackageTimeout, nil)
 	if got, want := fmt.Sprint(err), "import cycle detected"; !strings.Contains(got, want) {
 		t.Errorf("got error %v, want substr %v", got, want)
 	}
@@ -2844,5 +2844,35 @@ func TestPrefixTree(t *testing.T) {
 		}
 	} else {
 		t.Errorf("expecting %v first level nodes, but got %v", 3, len(root.Children))
+	}
+}
+
+func TestFilterPackagesByName(t *testing.T) {
+	jirix, cleanup := xtest.NewX(t)
+	defer cleanup()
+	p := []project.Package{
+		{Name: "test0", Version: "version"},
+		{Name: "test1", Version: "version"},
+		{Name: "test2", Version: "version"},
+		{Name: "test3", Version: "version"},
+	}
+	e := []project.Package{
+		{Name: "test0", Version: "version"},
+		{Name: "test3", Version: "version"},
+	}
+	pkgsToSkip := []string{"test1", "test2"}
+
+	pkgs := make(project.Packages)
+	expected := make(project.Packages)
+	for _, v := range p {
+		pkgs[v.Key()] = v
+	}
+	for _, v := range e {
+		expected[v.Key()] = v
+	}
+
+	project.FilterPackagesByName(jirix, pkgs, pkgsToSkip)
+	if !reflect.DeepEqual(pkgs, expected) {
+		t.Errorf("filter packages got %v, want %v", pkgs, expected)
 	}
 }

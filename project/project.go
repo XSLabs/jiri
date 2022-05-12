@@ -823,7 +823,7 @@ func CreateSnapshot(jirix *jiri.X, file string, hooks Hooks, pkgs Packages, loca
 
 // CheckoutSnapshot updates project state to the state specified in the given
 // snapshot file.  Note that the snapshot file must not contain remote imports.
-func CheckoutSnapshot(jirix *jiri.X, snapshot string, gc, runHooks, fetchPkgs bool, runHookTimeout, fetchTimeout uint) error {
+func CheckoutSnapshot(jirix *jiri.X, snapshot string, gc, runHooks, fetchPkgs bool, runHookTimeout, fetchTimeout uint, pkgsToSkip []string) error {
 	jirix.UsingSnapshot = true
 	// Find all local projects.
 	scanMode := FastScan
@@ -838,7 +838,7 @@ func CheckoutSnapshot(jirix *jiri.X, snapshot string, gc, runHooks, fetchPkgs bo
 	if err != nil {
 		return err
 	}
-	if err := updateProjects(jirix, localProjects, remoteProjects, hooks, pkgs, gc, runHookTimeout, fetchTimeout, false /*rebaseTracked*/, false /*rebaseUntracked*/, false /*rebaseAll*/, true /*snapshot*/, runHooks, fetchPkgs); err != nil {
+	if err := updateProjects(jirix, localProjects, remoteProjects, hooks, pkgs, gc, runHookTimeout, fetchTimeout, false /*rebaseTracked*/, false /*rebaseUntracked*/, false /*rebaseAll*/, true /*snapshot*/, runHooks, fetchPkgs, pkgsToSkip); err != nil {
 		return err
 	}
 	return WriteUpdateHistorySnapshot(jirix, hooks, pkgs, false)
@@ -1412,7 +1412,7 @@ func GenerateJiriLockFile(jirix *jiri.X, manifestFiles []string, resolveConfig R
 // counterparts identified in the manifest. Optionally, the 'gc' flag can be
 // used to indicate that local projects that no longer exist remotely should be
 // removed.
-func UpdateUniverse(jirix *jiri.X, gc, localManifest, rebaseTracked, rebaseUntracked, rebaseAll, runHooks, fetchPkgs bool, runHookTimeout, fetchTimeout uint) (e error) {
+func UpdateUniverse(jirix *jiri.X, gc, localManifest, rebaseTracked, rebaseUntracked, rebaseAll, runHooks, fetchPkgs bool, runHookTimeout, fetchTimeout uint, pkgsToSkip []string) (e error) {
 	jirix.Logger.Infof("Updating all projects")
 	updateFn := func(scanMode ScanMode) error {
 		jirix.TimerPush(fmt.Sprintf("update universe: %s", scanMode))
@@ -1432,7 +1432,7 @@ func UpdateUniverse(jirix *jiri.X, gc, localManifest, rebaseTracked, rebaseUntra
 		}
 
 		// Actually update the projects.
-		return updateProjects(jirix, localProjects, remoteProjects, hooks, pkgs, gc, runHookTimeout, fetchTimeout, rebaseTracked, rebaseUntracked, rebaseAll, false /*snapshot*/, runHooks, fetchPkgs)
+		return updateProjects(jirix, localProjects, remoteProjects, hooks, pkgs, gc, runHookTimeout, fetchTimeout, rebaseTracked, rebaseUntracked, rebaseAll, false /*snapshot*/, runHooks, fetchPkgs, pkgsToSkip)
 	}
 
 	// Specifying gc should always force a full filesystem scan.
@@ -2332,6 +2332,24 @@ func fetchLocalProjects(jirix *jiri.X, localProjects, remoteProjects Projects) e
 	return nil
 }
 
+// FilterPackagesByName removes packages in place given a list of CIPD package names.
+func FilterPackagesByName(jirix *jiri.X, pkgs Packages, pkgsToSkip []string) {
+	if len(pkgsToSkip) == 0 {
+		return
+	}
+	jirix.TimerPush("filter packages by name")
+	defer jirix.TimerPop()
+	pkgsSet := make(map[string]bool)
+	for _, p := range pkgsToSkip {
+		pkgsSet[p] = true
+	}
+	for k, v := range pkgs {
+		if _, ok := pkgsSet[v.Name]; ok {
+			delete(pkgs, k)
+		}
+	}
+}
+
 // FilterOptionalProjectsPackages removes projects and packages in place if the Optional field is true and
 // attributes in attrs does not match the Attributes field. Currently "match" means the intersection of
 // both attributes is not empty.
@@ -2364,7 +2382,7 @@ func FilterOptionalProjectsPackages(jirix *jiri.X, attrs string, projects Projec
 	return nil
 }
 
-func updateProjects(jirix *jiri.X, localProjects, remoteProjects Projects, hooks Hooks, pkgs Packages, gc bool, runHookTimeout, fetchTimeout uint, rebaseTracked, rebaseUntracked, rebaseAll, snapshot, shouldRunHooks, shouldFetchPkgs bool) error {
+func updateProjects(jirix *jiri.X, localProjects, remoteProjects Projects, hooks Hooks, pkgs Packages, gc bool, runHookTimeout, fetchTimeout uint, rebaseTracked, rebaseUntracked, rebaseAll, snapshot, shouldRunHooks, shouldFetchPkgs bool, pkgsToSkip []string) error {
 	jirix.TimerPush("update projects")
 	defer jirix.TimerPop()
 
@@ -2383,6 +2401,7 @@ func updateProjects(jirix *jiri.X, localProjects, remoteProjects Projects, hooks
 	if err := FilterOptionalProjectsPackages(jirix, jirix.FetchingAttrs, remoteProjects, pkgs); err != nil {
 		return err
 	}
+	FilterPackagesByName(jirix, pkgs, pkgsToSkip)
 
 	if err := updateCache(jirix, remoteProjects); err != nil {
 		return err

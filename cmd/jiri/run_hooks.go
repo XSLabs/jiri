@@ -11,10 +11,11 @@ import (
 )
 
 var runHooksFlags struct {
-	localManifest bool
-	hookTimeout   uint
-	attempts      uint
-	fetchPackages bool
+	localManifest  bool
+	hookTimeout    uint
+	attempts       uint
+	fetchPackages  bool
+	packagesToSkip arrayFlag
 }
 
 var cmdRunHooks = &cmdline.Command{
@@ -32,6 +33,7 @@ func init() {
 	cmdRunHooks.Flags.UintVar(&runHooksFlags.hookTimeout, "hook-timeout", project.DefaultHookTimeout, "Timeout in minutes for running the hooks operation.")
 	cmdRunHooks.Flags.UintVar(&runHooksFlags.attempts, "attempts", 1, "Number of attempts before failing.")
 	cmdRunHooks.Flags.BoolVar(&runHooksFlags.fetchPackages, "fetch-packages", true, "Use fetching packages using jiri.")
+	cmdRunHooks.Flags.Var(&runHooksFlags.packagesToSkip, "package-to-skip", "Skip fetching this package. Repeatable.")
 }
 
 func runHooks(jirix *jiri.X, args []string) (err error) {
@@ -61,6 +63,7 @@ func runHooks(jirix *jiri.X, args []string) (err error) {
 	if err := project.FilterOptionalProjectsPackages(jirix, jirix.FetchingAttrs, nil, pkgs); err != nil {
 		return err
 	}
+	project.FilterPackagesByName(jirix, pkgs, runHooksFlags.packagesToSkip)
 	// Get packages if the fetchPackages is true
 	if runHooksFlags.fetchPackages && len(pkgs) > 0 {
 		// Extend timeout for packages to be 5 times the timeout of a single hook.

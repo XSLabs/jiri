@@ -15,6 +15,7 @@ var fetchPkgsFlags struct {
 	fetchPkgsTimeout  uint
 	attempts          uint
 	skipLocalProjects bool
+	packagesToSkip    arrayFlag
 }
 
 var cmdFetchPkgs = &cmdline.Command{
@@ -32,6 +33,7 @@ func init() {
 	cmdFetchPkgs.Flags.UintVar(&fetchPkgsFlags.fetchPkgsTimeout, "fetch-packages-timeout", project.DefaultPackageTimeout, "Timeout in minutes for fetching prebuilt packages using cipd.")
 	cmdFetchPkgs.Flags.UintVar(&fetchPkgsFlags.attempts, "attempts", 1, "Number of attempts before failing.")
 	cmdFetchPkgs.Flags.BoolVar(&fetchPkgsFlags.skipLocalProjects, "skip-local-projects", false, "Skip checking local project state.")
+	cmdFetchPkgs.Flags.Var(&runHooksFlags.packagesToSkip, "package-to-skip", "Skip fetching this package. Repeatable.")
 }
 
 func runFetchPkgs(jirix *jiri.X, args []string) (err error) {
@@ -60,6 +62,7 @@ func runFetchPkgs(jirix *jiri.X, args []string) (err error) {
 	if err := project.FilterOptionalProjectsPackages(jirix, jirix.FetchingAttrs, nil, pkgs); err != nil {
 		return err
 	}
+	project.FilterPackagesByName(jirix, pkgs, fetchPkgsFlags.packagesToSkip)
 	if len(pkgs) > 0 {
 		return project.FetchPackages(jirix, pkgs, fetchPkgsFlags.fetchPkgsTimeout)
 	}
