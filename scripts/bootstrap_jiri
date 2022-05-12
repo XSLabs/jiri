@@ -40,7 +40,7 @@ $ jiri update'
 }
 
 readonly HOST_ARCH=$(uname -m)
-if [ "$HOST_ARCH" == "aarch64" ]; then
+if [ "$HOST_ARCH" == "aarch64" || "$HOST_ARCH" == "arm64" ]; then
   readonly ARCH="arm64"
 elif [ "$HOST_ARCH" == "x86_64" ]; then
   readonly ARCH="amd64"
@@ -115,9 +115,6 @@ fi
 
 rm -rf ${TEMP_FILE}
 chmod 755 "${BIN_DIR}/jiri"
-if [ "$ARCH" == "arm64" ]; then
-  echo "WARNING: Jiri doesn't support timely updates for arch '$HOST_ARCH'. This or future binaries of Jiri might be out of date."
-fi
 
 # Install cipd, which is frequently needed to use manifests.
 pushd "${BIN_DIR}" > /dev/null
