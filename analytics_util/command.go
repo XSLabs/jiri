@@ -20,9 +20,9 @@ type Command struct {
 
 // string values allowed to be tracked
 var allowedStrings = map[string]struct{}{
-	"always": struct{}{},
-	"auto":   struct{}{},
-	"never":  struct{}{},
+	"always": {},
+	"auto":   {},
+	"never":  {},
 }
 
 func newCommand(name string, flags map[string]string) *Command {
@@ -57,7 +57,7 @@ func (c *Command) AnalyticsObject() AnayticsObject {
 	value := ""
 	if len(c.flags) > 0 {
 		keys := []string{}
-		for k, _ := range c.flags {
+		for k := range c.flags {
 			keys = append(keys, k)
 		}
 		sort.Strings(keys)

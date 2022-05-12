@@ -56,7 +56,7 @@ func (s *store) sortedKeys() []string {
 	s.Lock()
 	defer s.Unlock()
 	keys := make([]string, 0, len(s.data))
-	for k, _ := range s.data {
+	for k := range s.data {
 		keys = append(keys, k)
 	}
 	sort.Strings(keys)

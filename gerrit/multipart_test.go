@@ -129,37 +129,37 @@ func TestNewOpenCLs(t *testing.T) {
 		// Tests for non-multipart CLs.
 
 		// Both prevCLsMap and curCLs are empty.
-		testCase{
+		{
 			prevCLsMap: CLRefMap{},
 			curCLs:     CLList{},
 			expected:   []CLList{},
 		},
 		// prevCLsMap is empty, curCLs is not.
-		testCase{
+		{
 			prevCLsMap: CLRefMap{},
 			curCLs:     CLList{nonMultiPartCLs[0], nonMultiPartCLs[1]},
-			expected:   []CLList{CLList{nonMultiPartCLs[0]}, CLList{nonMultiPartCLs[1]}},
+			expected:   []CLList{{nonMultiPartCLs[0]}, {nonMultiPartCLs[1]}},
 		},
 		// prevCLsMap is not empty, curCLs is.
-		testCase{
+		{
 			prevCLsMap: CLRefMap{nonMultiPartCLs[0].Reference(): nonMultiPartCLs[0]},
 			curCLs:     CLList{},
 			expected:   []CLList{},
 		},
 		// prevCLsMap and curCLs are not empty, and they have overlapping refs.
-		testCase{
+		{
 			prevCLsMap: CLRefMap{
 				nonMultiPartCLs[0].Reference(): nonMultiPartCLs[0],
 				nonMultiPartCLs[1].Reference(): nonMultiPartCLs[1],
 			},
 			curCLs:   CLList{nonMultiPartCLs[1], nonMultiPartCLs[2]},
-			expected: []CLList{CLList{nonMultiPartCLs[2]}},
+			expected: []CLList{{nonMultiPartCLs[2]}},
 		},
 		// prevCLsMap and curCLs are not empty, and they have NO overlapping refs.
-		testCase{
+		{
 			prevCLsMap: CLRefMap{nonMultiPartCLs[0].Reference(): nonMultiPartCLs[0]},
 			curCLs:     CLList{nonMultiPartCLs[1]},
-			expected:   []CLList{CLList{nonMultiPartCLs[1]}},
+			expected:   []CLList{{nonMultiPartCLs[1]}},
 		},
 
 		////////////////////////////////
@@ -167,40 +167,40 @@ func TestNewOpenCLs(t *testing.T) {
 
 		// len(curCLs) > len(prevCLsMap).
 		// And the CLs in curCLs have different topics.
-		testCase{
+		{
 			prevCLsMap: CLRefMap{multiPartCLs[0].Reference(): multiPartCLs[0]},
 			curCLs:     CLList{multiPartCLs[0], multiPartCLs[2]},
 			expected:   []CLList{},
 		},
 		// len(curCLs) > len(prevCLsMap).
 		// And the CLs in curCLs form a complete multi part cls set.
-		testCase{
+		{
 			prevCLsMap: CLRefMap{multiPartCLs[0].Reference(): multiPartCLs[0]},
 			curCLs:     CLList{multiPartCLs[0], multiPartCLs[1]},
-			expected:   []CLList{CLList{multiPartCLs[0], multiPartCLs[1]}},
+			expected:   []CLList{{multiPartCLs[0], multiPartCLs[1]}},
 		},
 		// len(curCLs) == len(prevCLsMap).
 		// And cl[6] has a larger patchset than multiPartCLs[4] with identical cl number.
-		testCase{
+		{
 			prevCLsMap: CLRefMap{
 				multiPartCLs[0].Reference(): multiPartCLs[0],
 				multiPartCLs[1].Reference(): multiPartCLs[1],
 			},
 			curCLs:   CLList{multiPartCLs[0], multiPartCLs[3]},
-			expected: []CLList{CLList{multiPartCLs[0], multiPartCLs[3]}},
+			expected: []CLList{{multiPartCLs[0], multiPartCLs[3]}},
 		},
 
 		////////////////////////////////
 		// Tests for mixed.
-		testCase{
+		{
 			prevCLsMap: CLRefMap{
 				multiPartCLs[0].Reference(): multiPartCLs[0],
 				multiPartCLs[1].Reference(): multiPartCLs[1],
 			},
 			curCLs: CLList{nonMultiPartCLs[0], multiPartCLs[0], multiPartCLs[3]},
 			expected: []CLList{
-				CLList{nonMultiPartCLs[0]},
-				CLList{multiPartCLs[0], multiPartCLs[3]},
+				{nonMultiPartCLs[0]},
+				{multiPartCLs[0], multiPartCLs[3]},
 			},
 		},
 	}

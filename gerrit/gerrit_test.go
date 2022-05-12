@@ -152,40 +152,40 @@ func TestParseMultiPartMatch(t *testing.T) {
 		expectedTotal   string
 	}
 	testCases := []testCase{
-		testCase{
+		{
 			str:             "message...\nMultiPart: a/3",
 			expectNoMatches: true,
 		},
-		testCase{
+		{
 			str:             "message...\n1/3",
 			expectNoMatches: true,
 		},
-		testCase{
+		{
 			str:           "message...\nMultiPart:1/2",
 			expectedIndex: "1",
 			expectedTotal: "2",
 		},
-		testCase{
+		{
 			str:           "message...\nMultiPart: 1/2",
 			expectedIndex: "1",
 			expectedTotal: "2",
 		},
-		testCase{
+		{
 			str:           "message...\nMultiPart: 1 /2",
 			expectedIndex: "1",
 			expectedTotal: "2",
 		},
-		testCase{
+		{
 			str:           "message...\nMultiPart: 1/ 2",
 			expectedIndex: "1",
 			expectedTotal: "2",
 		},
-		testCase{
+		{
 			str:           "message...\nMultiPart: 1 / 2",
 			expectedIndex: "1",
 			expectedTotal: "2",
 		},
-		testCase{
+		{
 			str:           "message...\nMultiPart: 123/234",
 			expectedIndex: "123",
 			expectedTotal: "234",
@@ -220,15 +220,15 @@ vanadium-review.googlesource.com	FALSE	/	TRUE	2147483647	o	git-johndoe.example.c
 	`
 	got, err := parseGitCookieFile(strings.NewReader(gitCookieFileContent))
 	expected := map[string]*credentials{
-		"vanadium.googlesource.com": &credentials{
+		"vanadium.googlesource.com": {
 			username: "git-johndoe.example.com",
 			password: "12345",
 		},
-		"vanadium-review.googlesource.com": &credentials{
+		"vanadium-review.googlesource.com": {
 			username: "git-johndoe.example.com",
 			password: "54321",
 		},
-		".googlesource.com": &credentials{
+		".googlesource.com": {
 			username: "git-johndoe.example.com",
 			password: "12321",
 		},
@@ -252,7 +252,7 @@ vanadium-review.googlesource.com	FALSE	/	TRUE	2147483647	o
 	`
 	got, err := parseGitCookieFile(strings.NewReader(gitCookieFileContentWithInvalidEntries))
 	expected := map[string]*credentials{
-		"vanadium.googlesource.com": &credentials{
+		"vanadium.googlesource.com": {
 			username: "git-johndoe.example.com",
 			password: "12345",
 		},
@@ -274,11 +274,11 @@ machine vanadium-review.googlesource.com login git-johndoe.example.com password 
 	`
 	got, err := parseNetrcFile(strings.NewReader(netrcFileContent))
 	expected := map[string]*credentials{
-		"vanadium.googlesource.com": &credentials{
+		"vanadium.googlesource.com": {
 			username: "git-johndoe.example.com",
 			password: "12345",
 		},
-		"vanadium-review.googlesource.com": &credentials{
+		"vanadium-review.googlesource.com": {
 			username: "git-johndoe.example.com",
 			password: "54321",
 		},
@@ -303,7 +303,7 @@ machine vanadium-review.googlesource.com login git-johndoe.example.com password 
 	`
 	got, err := parseNetrcFile(strings.NewReader(netRcFileContentWithInvalidEntries))
 	expected := map[string]*credentials{
-		"vanadium-review.googlesource.com": &credentials{
+		"vanadium-review.googlesource.com": {
 			username: "git-johndoe.example.com",
 			password: "54321",
 		},
@@ -326,21 +326,21 @@ func TestParseRefString(t *testing.T) {
 	}
 	testCases := []testCase{
 		// Normal case
-		testCase{
+		{
 			ref:              "ref/changes/12/3412/2",
 			expectedCL:       3412,
 			expectedPatchSet: 2,
 		},
 		// Error cases
-		testCase{
+		{
 			ref:       "ref/123",
 			expectErr: true,
 		},
-		testCase{
+		{
 			ref:       "ref/changes/12/a/2",
 			expectErr: true,
 		},
-		testCase{
+		{
 			ref:       "ref/changes/12/3412/a",
 			expectErr: true,
 		},
