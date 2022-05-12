@@ -40,7 +40,7 @@ $ jiri update'
 }
 
 readonly HOST_ARCH=$(uname -m)
-if [ "$HOST_ARCH" == "aarch64" || "$HOST_ARCH" == "arm64" ]; then
+if [ "$HOST_ARCH" == "aarch64" -o "$HOST_ARCH" == "arm64" ]; then
   readonly ARCH="arm64"
 elif [ "$HOST_ARCH" == "x86_64" ]; then
   readonly ARCH="amd64"
