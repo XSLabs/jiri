@@ -37,6 +37,7 @@ Manifests have the following XML schema:
              path="path/to/directory"
              internal="true"
              platforms="os-arch1,os-arch2..."
+             attributes="attr1,attr2,..."
              flag="filename|content_successful|content_failed"
     />
     ...
@@ -98,6 +99,8 @@ The &lt;packages> tags describe the CIPD packages to sync, and what version they
 * internal (optional) - Whether the package is accessible to the public. If a cipd package requires explicit permissions such as packages under fuchsia_internal, this attribute needs to be set to `true`. By default it is `false`.
 
 * platforms (optional) - The platforms supported by the package. By default, it is set to `linux-amd64,mac-amd64`. However, if this package supports other platforms, e.g. `linux-arm64`, this attribute needs to be explicitly defined.
+
+* attributes (optional) - If this is set for a package, it will not be fetched by default. These packages can be included by setting optional attributes using `jiri init -fetch-optional=attr1,attr2`.
 
 * flag (optional) - The flag needs to be written by jiri when this package is successfully fetched. The flag attribute has a format of `filename|content_successful|content_failed` When a package is successfully downloaded, jiri will write `content_succeful` to filename. If the package is not downloaded due to access reasons, jiri will write `content_failed` to filename.
 
