@@ -573,6 +573,7 @@ Manifests have the following XML schema:
              remotebranch="my-branch"
              gerrithost="https://myorg-review.googlesource.com"
              githooks="path/to/githooks-dir"
+             attributes="attr1,attr2..."
     />
     ...
   </projects>
@@ -635,6 +636,10 @@ specified, then running "jiri cl upload" will upload a CL to this Gerrit host.
 * githooks (optional) - The path (relative to [root]) of a directory containing
 git hooks that will be installed in the projects .git/hooks directory during
 each update.
+
+* attributes (optional) - If this field is specified, the default behavior does
+not fetch the project. However, you can include it by specifying the attribute
+with the -fetch-optional flag in the 'jiri init' invocation.
 
 The <hook> tag describes the hooks that must be executed after every 'jiri update'
 They are configured via the following attributes:
