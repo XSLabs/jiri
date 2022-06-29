@@ -280,7 +280,7 @@ func setupUniverse(t *testing.T) ([]project.Project, *jiritest.FakeJiriRoot, fun
 	}()
 
 	// Create some projects and add them to the remote manifest.
-	numProjects := 7
+	numProjects := 10
 	localProjects := []project.Project{}
 	for i := 0; i < numProjects; i++ {
 		name := projectName(i)
@@ -300,6 +300,15 @@ func setupUniverse(t *testing.T) ([]project.Project, *jiritest.FakeJiriRoot, fun
 	localProjects[4].Path = filepath.Join(localProjects[3].Path, "path-4")
 	localProjects[5].Path = filepath.Join(localProjects[2].Path, "path-5")
 	localProjects[6].Path = filepath.Join(localProjects[0].Path, "path-6")
+	localProjects[8].Path = filepath.Join(localProjects[7].Path, "path-8")
+	localProjects[9].Path = filepath.Join(localProjects[7].Path, "path-9")
+	// Make project 7 a superproject, projects 8 and 9 submodules of it.
+	localProjects[7].GitSubmodules = true
+	localProjects[8].GitSubmoduleOf = localProjects[7].Name
+	localProjects[9].GitSubmoduleOf = localProjects[7].Name
+	// Make project 0 a superproject but not enabled. Include project 6 as a submodule.
+	localProjects[0].GitSubmodules = false
+	localProjects[6].GitSubmoduleOf = localProjects[0].Name
 	for _, p := range localProjects {
 		if err := fake.AddProject(p); err != nil {
 			t.Fatal(err)
@@ -1617,6 +1626,50 @@ func TestUpdateUniverseRemoteBranch(t *testing.T) {
 	checkReadme(t, fake.X, localProjects[1], "non-master commit")
 }
 
+func TestUpdatedUniverseEnabledSubmodules(t *testing.T) {
+	localProjects, fake, cleanup := setupUniverse(t)
+
+	// Check that calling UpdateUniverse() creates local copies of the remote
+	// repositories, and that jiri metadata is ignored by git.
+	if err := fake.UpdateUniverse(false); err != nil {
+		t.Fatal(err)
+	}
+
+	fake.X.EnableSubmodules = true
+	defer cleanup()
+	// Set gc to be true to remove projects as necessary.
+	// Set localManifest to be false.
+	if err := project.UpdateUniverse(fake.X, true, false, false, false, false, true /*run-hooks*/, true /*run-packages*/, project.DefaultHookTimeout, project.DefaultPackageTimeout, nil); err != nil {
+		t.Fatal(err)
+	}
+	// Superproject enabled for project 7, which contains submodule 8 and 9. Jiri projects 8 and 9 expected to be removed.
+	if err := dirExists(localProjects[8].Path); err == nil {
+		t.Fatalf("expected project %q not to exist but it did", localProjects[8].Name)
+	}
+	if err := dirExists(localProjects[9].Path); err == nil {
+		t.Fatalf("expected project %q not to exist but it did", localProjects[9].Name)
+	}
+	// Superproject 0, submodules not enabled. Project 6 should still exists.
+	if err := dirExists(localProjects[6].Path); err != nil {
+		t.Fatalf("expected project %q to exist but it did not", localProjects[6].Name)
+	}
+
+	// Set enabled Submodules to false and confirm submodules projects are added back accordingly.
+	fake.X.EnableSubmodules = false
+	// Set gc to be true to remove projects as necessary.
+	// Set localManifest to be false.
+	if err := project.UpdateUniverse(fake.X, true, false, false, false, false, true /*run-hooks*/, true /*run-packages*/, project.DefaultHookTimeout, project.DefaultPackageTimeout, nil); err != nil {
+		t.Fatal(err)
+	}
+	// Submodule 8 and 9 will be reinstalled as jiri projects.
+	if err := dirExists(localProjects[8].Path); err != nil {
+		t.Fatalf("expected project %q to exist but it didn't", localProjects[8].Name)
+	}
+	if err := dirExists(localProjects[9].Path); err != nil {
+		t.Fatalf("expected project %q to exist but it didn't", localProjects[9].Name)
+	}
+}
+
 // TestUpdateWhenRemoteChangesRebased checks that UpdateUniverse can pull from a
 // non-master remote branch if the local changes were rebased somewhere else(gerrit)
 // before being pushed to remote
@@ -1838,6 +1891,9 @@ func testCheckoutSnapshot(t *testing.T, testURL bool) {
 	manifest.Projects[4].Revision = latestCommitRevs[4]
 	manifest.Projects[5].Revision = oldCommitRevs[5]
 	manifest.Projects[6].Revision = latestCommitRevs[6]
+	manifest.Projects[7].Revision = latestCommitRevs[7]
+	manifest.Projects[8].Revision = latestCommitRevs[8]
+	manifest.Projects[9].Revision = latestCommitRevs[9]
 	snapshotFile := filepath.Join(dir, "snapshot")
 	manifest.ToFile(fake.X, snapshotFile)
 	if testURL {
@@ -2186,11 +2242,12 @@ func TestManifestToFromBytes(t *testing.T) {
 						GitSubmodules: true,
 					},
 					{
-						Name:         "project2",
-						Path:         "path2",
-						Remote:       "remote2",
-						RemoteBranch: "branch2",
-						Revision:     "rev2",
+						Name:           "project2",
+						Path:           "path2",
+						Remote:         "remote2",
+						RemoteBranch:   "branch2",
+						Revision:       "rev2",
+						GitSubmoduleOf: "project1",
 					},
 				},
 				Hooks: []project.Hook{
@@ -2210,7 +2267,7 @@ func TestManifestToFromBytes(t *testing.T) {
   </imports>
   <projects>
     <project name="project1" path="path1" remote="remote1" gerrithost="https://test-review.googlesource.com" githooks="path/to/githooks" gitsubmodules="true"/>
-    <project name="project2" path="path2" remote="remote2" remotebranch="branch2" revision="rev2"/>
+    <project name="project2" path="path2" remote="remote2" remotebranch="branch2" revision="rev2" gitsubmoduleof="project1"/>
   </projects>
   <hooks>
     <hook name="testhook" action="action.sh" project="project1"/>
@@ -2267,6 +2324,33 @@ func TestProjectToFromFile(t *testing.T) {
 				Revision:     "rev2",
 			},
 			`<project name="project2" path="path2" remote="remote2" remotebranch="branch2" revision="rev2" githooks="git-hooks"/>
+`,
+		},
+		// Superproject that contains gitsubmodules
+		{
+			project.Project{
+				Name:          "superproject1",
+				Path:          filepath.Join(jirix.Root, "path3"),
+				GitHooks:      filepath.Join(jirix.Root, "git-hooks"),
+				Remote:        "remote3",
+				RemoteBranch:  "branch3",
+				Revision:      "rev3",
+				GitSubmodules: true,
+			},
+			`<project name="superproject1" path="path3" remote="remote3" remotebranch="branch3" revision="rev3" githooks="git-hooks" gitsubmodules="true"/>
+`,
+		},
+		{
+			project.Project{
+				Name:           "submodule1",
+				Path:           filepath.Join(jirix.Root, "path4"),
+				GitHooks:       filepath.Join(jirix.Root, "git-hooks"),
+				Remote:         "remote4",
+				RemoteBranch:   "branch4",
+				Revision:       "rev4",
+				GitSubmoduleOf: "superproject1",
+			},
+			`<project name="submodule1" path="path4" remote="remote4" remotebranch="branch4" revision="rev4" githooks="git-hooks" gitsubmoduleof="superproject1"/>
 `,
 		},
 	}

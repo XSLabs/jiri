@@ -63,6 +63,7 @@ type Config struct {
 	// version user has opted-in to
 	AnalyticsVersion string `xml:"analytics>version,omitempty"`
 	KeepGitHooks     bool   `xml:"keepGitHooks,omitempty"`
+	EnableSubmodules bool   `xml:"enableSubmodules,omitempty"`
 
 	XMLName struct{} `xml:"config"`
 }
@@ -130,6 +131,7 @@ type X struct {
 	cleanupFuncs        []func()
 	AnalyticsSession    *analytics_util.AnalyticsSession
 	OverrideWarned      bool
+	EnableSubmodules    bool
 }
 
 func (jirix *X) IncrementFailures() {
@@ -272,6 +274,7 @@ func NewX(env *cmdline.Env) (*X, error) {
 		x.KeepGitHooks = x.config.KeepGitHooks
 		x.RewriteSsoToHttps = x.config.RewriteSsoToHttps
 		x.SsoCookiePath = x.config.SsoCookiePath
+		x.EnableSubmodules = x.config.EnableSubmodules
 		if x.config.LockfileEnabled == "" {
 			x.LockfileEnabled = true
 		} else {

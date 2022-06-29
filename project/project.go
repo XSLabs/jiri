@@ -75,6 +75,8 @@ type Project struct {
 
 	// Submodules indicates that the project contains git submodules (sub-projects).
 	GitSubmodules bool `xml:"gitsubmodules,attr,omitempty"`
+	// GitSubmoduleOf indicates the superprject that the submodule is under.
+	GitSubmoduleOf string `xml:"gitsubmoduleof,attr,omitempty"`
 
 	// Attributes is a list of attributes for a project seperated by comma.
 	// The project will not be fetched by default when attributes are present.
@@ -2415,6 +2417,11 @@ func updateProjects(jirix *jiri.X, localProjects, remoteProjects Projects, hooks
 	}
 	if err := setRemoteHeadRevisions(jirix, remoteProjects, localProjects); err != nil {
 		return err
+	}
+
+	// Check which projects have submodules enabled, we remove them from remoteProjects.
+	if jirix.EnableSubmodules {
+		removeSubmodulesFromProjects(remoteProjects)
 	}
 
 	ops := computeOperations(jirix, localProjects, remoteProjects, states, rebaseTracked, rebaseUntracked, rebaseAll, snapshot)

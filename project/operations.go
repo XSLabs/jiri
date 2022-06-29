@@ -649,6 +649,8 @@ func (ops operations) Swap(i, j int) {
 // system and manifest file respectively) and outputs a collection of
 // operations that describe the actions needed to update the target
 // projects.
+// In the case of submodules, computeOperation will check for necessary
+// deletions of jiri projects and initialize submodules in place of projects.
 func computeOperations(jirix *jiri.X, localProjects, remoteProjects Projects, states map[ProjectKey]*ProjectState, rebaseTracked, rebaseUntracked, rebaseAll, snapshot bool) operations {
 	result := operations{}
 	allProjects := map[ProjectKey]bool{}
