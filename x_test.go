@@ -5,7 +5,6 @@
 package jiri
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -17,7 +16,7 @@ import (
 func TestFindRootEnvSymlink(t *testing.T) {
 	t.Parallel()
 	// Create a temporary directory.
-	tmpDir, err := ioutil.TempDir("", "")
+	tmpDir, err := os.MkdirTemp("", "")
 	if err != nil {
 		t.Fatalf("TempDir() failed: %v", err)
 	}

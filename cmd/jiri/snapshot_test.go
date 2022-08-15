@@ -7,7 +7,6 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -24,7 +23,7 @@ func checkReadme(t *testing.T, jirix *jiri.X, project, message string) {
 		t.Fatalf("%v", err)
 	}
 	readmeFile := filepath.Join(project, "README")
-	data, err := ioutil.ReadFile(readmeFile)
+	data, err := os.ReadFile(readmeFile)
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -43,7 +42,7 @@ func remoteProjectName(i int) string {
 
 func writeReadme(t *testing.T, jirix *jiri.X, projectDir, message string) {
 	path, perm := filepath.Join(projectDir, "README"), os.FileMode(0644)
-	if err := ioutil.WriteFile(path, []byte(message), perm); err != nil {
+	if err := os.WriteFile(path, []byte(message), perm); err != nil {
 		t.Fatalf("%s", err)
 	}
 	cwd, err := os.Getwd()
@@ -92,7 +91,7 @@ func TestSnapshot(t *testing.T) {
 	var stdout bytes.Buffer
 	fake.X.Context = tool.NewContext(tool.ContextOpts{Stdout: &stdout, Env: fake.X.Context.Env()})
 
-	tmpfile, err := ioutil.TempFile("", "jiri-snapshot-")
+	tmpfile, err := os.CreateTemp("", "jiri-snapshot-")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -144,7 +143,7 @@ func TestCipdSnapshot(t *testing.T) {
 	var stdout bytes.Buffer
 	fake.X.Context = tool.NewContext(tool.ContextOpts{Stdout: &stdout, Env: fake.X.Context.Env()})
 
-	tmpfile, err := ioutil.TempFile("", "jiri-snapshot-")
+	tmpfile, err := os.CreateTemp("", "jiri-snapshot-")
 	if err != nil {
 		t.Fatal(err)
 	}

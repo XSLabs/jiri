@@ -6,7 +6,8 @@
 // on the cmdline package.
 //
 // Usage:
-//   go run gendoc.go [flags] <pkg> [args]
+//
+//	go run gendoc.go [flags] <pkg> [args]
 //
 // <pkg> is the package path for the tool.
 //
@@ -27,7 +28,6 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -70,7 +70,7 @@ func generate(args []string) error {
 	binName := filepath.Base(strings.TrimSpace(listOut.String()))
 
 	// Install all packages in a temporary directory.
-	tmpDir, err := ioutil.TempDir("", "")
+	tmpDir, err := os.MkdirTemp("", "")
 	if err != nil {
 		return fmt.Errorf("TempDir() failed: %v", err)
 	}
@@ -117,7 +117,7 @@ package main
 
 	// Write the result to the output file.
 	path, perm := flagOut, os.FileMode(0644)
-	if err := ioutil.WriteFile(path, []byte(doc), perm); err != nil {
+	if err := os.WriteFile(path, []byte(doc), perm); err != nil {
 		return fmt.Errorf("WriteFile(%v, %v) failed: %v\n", path, perm, err)
 	}
 	return nil

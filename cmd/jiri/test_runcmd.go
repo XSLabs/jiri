@@ -9,7 +9,6 @@ package main
 import (
 	"bytes"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"testing"
@@ -42,11 +41,11 @@ func runCmd(t *testing.T, cmd *exec.Cmd, failureExpected bool) (string, string) 
 	}
 
 	// Reading from pipes is required before calling .Wait().
-	outBytes, err := ioutil.ReadAll(stdout)
+	outBytes, err := io.ReadAll(stdout)
 	if err != nil {
 		t.Fatal(err)
 	}
-	errBytes, err := ioutil.ReadAll(stderr)
+	errBytes, err := io.ReadAll(stderr)
 	if err != nil {
 		t.Fatal(err)
 	}

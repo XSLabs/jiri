@@ -171,7 +171,7 @@ func (pks ProjectKeys) Swap(i, j int)      { pks[i], pks[j] = pks[j], pks[i] }
 // ProjectFromFile returns a project parsed from the contents of filename,
 // with defaults filled in and all paths absolute.
 func ProjectFromFile(jirix *jiri.X, filename string) (*Project, error) {
-	data, err := ioutil.ReadFile(filename)
+	data, err := os.ReadFile(filename)
 	if err != nil {
 		return nil, fmtError(err)
 	}
@@ -338,7 +338,7 @@ func WriteProjectFlags(jirix *jiri.X, projs Projects) error {
 
 	var writeErrorBuf bytes.Buffer
 	for k, v := range flagMap {
-		if err := ioutil.WriteFile(filepath.Join(jirix.Root, k), []byte(v), 0644); err != nil {
+		if err := os.WriteFile(filepath.Join(jirix.Root, k), []byte(v), 0644); err != nil {
 			writeErrorBuf.WriteString(fmt.Sprintf("write package flag %q to file %q failed: %v\n", v, k, err))
 		}
 	}
@@ -870,7 +870,7 @@ func LoadSnapshotFile(jirix *jiri.X, snapshot string) (Projects, Hooks, Packages
 			return nil, nil, nil, fmt.Errorf("Error getting snapshot from URL %q: %v", u, err)
 		}
 		defer resp.Body.Close()
-		tmpFile, err := ioutil.TempFile("", "snapshot")
+		tmpFile, err := os.CreateTemp("", "snapshot")
 		if err != nil {
 			return nil, nil, nil, fmt.Errorf("Error creating tmp file: %v", err)
 		}
@@ -1130,7 +1130,7 @@ func writeLockFile(jirix *jiri.X, lockfilePath string, projectLocks ProjectLocks
 	}
 	jirix.Logger.Debugf("Generated jiri lockfile content: \n%v", string(data))
 
-	tempFile, err := ioutil.TempFile(path.Dir(lockfilePath), "jirilock.*")
+	tempFile, err := os.CreateTemp(path.Dir(lockfilePath), "jirilock.*")
 	if err != nil {
 		return err
 	}
@@ -1394,7 +1394,7 @@ func GenerateJiriLockFile(jirix *jiri.X, manifestFiles []string, resolveConfig R
 	resolveFully := false
 	var ePkgLocks PackageLocks
 	// Read existing lockfile.
-	jsonData, err := ioutil.ReadFile(resolveConfig.LockFilePath())
+	jsonData, err := os.ReadFile(resolveConfig.LockFilePath())
 	if err == nil {
 		_, ePkgLocks, err = UnmarshalLockEntries(jsonData)
 	}

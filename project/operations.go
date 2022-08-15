@@ -113,7 +113,7 @@ func (op createOperation) checkoutProject(jirix *jiri.X, cache string) error {
 			if jirix.UsePartialClone(op.project.Remote) {
 				objPath = ".git/objects"
 			}
-			if err := ioutil.WriteFile(filepath.Join(op.destination, ".git/objects/info/alternates"), []byte(filepath.Join(cache, objPath)+"\n"), 0644); err != nil {
+			if err := os.WriteFile(filepath.Join(op.destination, ".git/objects/info/alternates"), []byte(filepath.Join(cache, objPath)+"\n"), 0644); err != nil {
 				return err
 			}
 		}

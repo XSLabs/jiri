@@ -7,7 +7,6 @@ package project_test
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -53,7 +52,7 @@ func checkReadme(t *testing.T, jirix *jiri.X, p project.Project, message string)
 		t.Fatalf("%v", err)
 	}
 	readmeFile := filepath.Join(p.Path, "README")
-	data, err := ioutil.ReadFile(readmeFile)
+	data, err := os.ReadFile(readmeFile)
 	if err != nil {
 		t.Fatalf("ReadFile(%v) failed: %v", readmeFile, err)
 	}
@@ -69,7 +68,7 @@ func checkJiriRevFiles(t *testing.T, jirix *jiri.X, p project.Project) {
 	g := gitutil.New(fake.X, gitutil.RootDirOpt(p.Path))
 
 	file := filepath.Join(p.Path, ".git", "JIRI_HEAD")
-	data, err := ioutil.ReadFile(file)
+	data, err := os.ReadFile(file)
 	if err != nil {
 		t.Fatalf("ReadFile(%v) failed: %s", file, err)
 	}
@@ -96,7 +95,7 @@ func checkJiriRevFiles(t *testing.T, jirix *jiri.X, p project.Project) {
 		t.Fatalf("JIRI_HEAD contains %s (%s) expected %s (%s)", headFileContents, headFileCommit, projectRevision, revisionCommit)
 	}
 	file = filepath.Join(p.Path, ".git", "JIRI_LAST_BASE")
-	data, err = ioutil.ReadFile(file)
+	data, err = os.ReadFile(file)
 	if err != nil {
 		t.Fatalf("ReadFile(%v) failed: %s", file, err)
 	}
@@ -119,7 +118,7 @@ func projectName(i int) string {
 
 func writeUncommitedFile(t *testing.T, jirix *jiri.X, projectDir, fileName, message string) string {
 	path, perm := filepath.Join(projectDir, fileName), os.FileMode(0644)
-	if err := ioutil.WriteFile(path, []byte(message), perm); err != nil {
+	if err := os.WriteFile(path, []byte(message), perm); err != nil {
 		t.Fatalf("WriteFile(%v, %v) failed: %v", path, perm, err)
 	}
 	return path
@@ -477,7 +476,7 @@ func TestUpdateUniverseWithCache(t *testing.T) {
 	defer cleanup()
 
 	// Create cache directory
-	cacheDir, err := ioutil.TempDir("", "cache")
+	cacheDir, err := os.MkdirTemp("", "cache")
 	if err != nil {
 		t.Fatalf("TempDir() failed: %v", err)
 	}
@@ -1229,13 +1228,13 @@ func TestUpdateUniverseWithUncommitted(t *testing.T) {
 
 	// Create an uncommitted file in project 1.
 	file, perm, want := filepath.Join(localProjects[1].Path, "uncommitted_file"), os.FileMode(0644), []byte("uncommitted work")
-	if err := ioutil.WriteFile(file, want, perm); err != nil {
+	if err := os.WriteFile(file, want, perm); err != nil {
 		t.Fatalf("WriteFile(%v, %v) failed: %v", file, err, perm)
 	}
 	if err := fake.UpdateUniverse(false); err != nil {
 		t.Fatal(err)
 	}
-	got, err := ioutil.ReadFile(file)
+	got, err := os.ReadFile(file)
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -1872,7 +1871,7 @@ func testCheckoutSnapshot(t *testing.T, testURL bool) {
 			}
 		}
 	}
-	dir, err := ioutil.TempDir("", "snap")
+	dir, err := os.MkdirTemp("", "snap")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1897,7 +1896,7 @@ func testCheckoutSnapshot(t *testing.T, testURL bool) {
 	snapshotFile := filepath.Join(dir, "snapshot")
 	manifest.ToFile(fake.X, snapshotFile)
 	if testURL {
-		snapBytes, err := ioutil.ReadFile(snapshotFile)
+		snapBytes, err := os.ReadFile(snapshotFile)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -2359,7 +2358,7 @@ func TestProjectToFromFile(t *testing.T) {
 		if err := test.Project.ToFile(jirix, filename); err != nil {
 			t.Errorf("%+v ToFile failed: %v", test.Project, err)
 		}
-		gotBytes, err := ioutil.ReadFile(filename)
+		gotBytes, err := os.ReadFile(filename)
 		if err != nil {
 			t.Errorf("%+v ReadFile failed: %v", test.Project, err)
 		}
@@ -2499,7 +2498,7 @@ func TestWritePackageFlags(t *testing.T) {
 	}
 
 	for k, v := range expected {
-		data, err := ioutil.ReadFile(filepath.Join(jirix.Root, k))
+		data, err := os.ReadFile(filepath.Join(jirix.Root, k))
 		if err != nil {
 			t.Errorf("read flag file %q failed due error: %v", k, err)
 		}
@@ -2531,7 +2530,7 @@ func TestWriteProjectFlags(t *testing.T) {
 	}
 
 	for k, v := range expected {
-		data, err := ioutil.ReadFile(filepath.Join(jirix.Root, k))
+		data, err := os.ReadFile(filepath.Join(jirix.Root, k))
 		if err != nil {
 			t.Errorf("read flag file %q failed due error: %v", k, err)
 		}

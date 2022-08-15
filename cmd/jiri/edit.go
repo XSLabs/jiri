@@ -7,7 +7,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
@@ -81,7 +80,7 @@ func (ec *editChanges) toFile(filename string) error {
 		return fmt.Errorf("failed to serialize JSON output: %s\n", err)
 	}
 
-	err = ioutil.WriteFile(filename, out, 0600)
+	err = os.WriteFile(filename, out, 0600)
 	if err != nil {
 		return fmt.Errorf("failed write JSON output to %s: %s\n", filename, err)
 	}
@@ -158,7 +157,7 @@ func runEdit(jirix *jiri.X, args []string) error {
 
 func writeManifest(jirix *jiri.X, manifestPath, manifestContent string, projects map[string]string) error {
 	// Create a temp dir to save backedup lockfiles
-	tempDir, err := ioutil.TempDir("", "jiri_lockfile")
+	tempDir, err := os.MkdirTemp("", "jiri_lockfile")
 	if err != nil {
 		return err
 	}
@@ -201,7 +200,7 @@ func writeManifest(jirix *jiri.X, manifestPath, manifestContent string, projects
 		}
 	}
 
-	if err := ioutil.WriteFile(manifestPath, []byte(manifestContent), os.ModePerm); err != nil {
+	if err := os.WriteFile(manifestPath, []byte(manifestContent), os.ModePerm); err != nil {
 		rewind()
 		return err
 	}
@@ -210,7 +209,7 @@ func writeManifest(jirix *jiri.X, manifestPath, manifestContent string, projects
 
 func updateLocks(jirix *jiri.X, tempDir, lockfile string, backup, projects map[string]string) error {
 	jirix.Logger.Debugf("try updating lockfile %q", lockfile)
-	bin, err := ioutil.ReadFile(lockfile)
+	bin, err := os.ReadFile(lockfile)
 	if err != nil {
 		return err
 	}
@@ -236,7 +235,7 @@ func updateLocks(jirix *jiri.X, tempDir, lockfile string, backup, projects map[s
 			return err
 		}
 		backupName := path.Join(tempDir, path.Base(lockfile))
-		if err := ioutil.WriteFile(backupName, bin, info.Mode()); err != nil {
+		if err := os.WriteFile(backupName, bin, info.Mode()); err != nil {
 			return err
 		}
 		backup[lockfile] = backupName
@@ -245,7 +244,7 @@ func updateLocks(jirix *jiri.X, tempDir, lockfile string, backup, projects map[s
 			return err
 		}
 		jirix.Logger.Debugf("updated lockfile %q", lockfile)
-		return ioutil.WriteFile(lockfile, ebin, info.Mode())
+		return os.WriteFile(lockfile, ebin, info.Mode())
 	}
 	jirix.Logger.Debugf("skipped lockfile %q, no matching projects", lockfile)
 	return nil
@@ -310,7 +309,7 @@ func updateManifest(jirix *jiri.X, manifestPath string, projects, imports, packa
 	if err != nil {
 		return err
 	}
-	content, err := ioutil.ReadFile(manifestPath)
+	content, err := os.ReadFile(manifestPath)
 	if err != nil {
 		return err
 	}

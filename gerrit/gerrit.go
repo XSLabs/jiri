@@ -12,7 +12,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
@@ -517,7 +516,7 @@ func (g *Gerrit) Submit(changeID string) (e error) {
 	defer collect.Error(func() error { return res.Body.Close() }, &e)
 
 	// Check response.
-	bytes, err := ioutil.ReadAll(res.Body)
+	bytes, err := io.ReadAll(res.Body)
 	if err != nil {
 		return err
 	}

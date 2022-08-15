@@ -7,7 +7,6 @@ package project
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -43,7 +42,7 @@ func safeWriteFile(jirix *jiri.X, filename string, data []byte) error {
 	if err := os.MkdirAll(filepath.Dir(filename), 0755); err != nil {
 		return fmtError(err)
 	}
-	if err := ioutil.WriteFile(tmp, data, 0644); err != nil {
+	if err := os.WriteFile(tmp, data, 0644); err != nil {
 		return fmtError(err)
 	}
 	return fmtError(osutil.Rename(tmp, filename))

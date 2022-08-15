@@ -7,7 +7,7 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -135,20 +135,20 @@ func writeGitModules(jirix *jiri.X, projects project.Projects, gitmodulesPath, g
 		}
 	}
 	jirix.Logger.Debugf("generated gitmodule content \n%v\n", gitmoduleBuf.String())
-	if err := ioutil.WriteFile(gitmodulesPath, gitmoduleBuf.Bytes(), 0644); err != nil {
+	if err := os.WriteFile(gitmodulesPath, gitmoduleBuf.Bytes(), 0644); err != nil {
 		return err
 	}
 
 	if genGitModuleFlags.genScript != "" {
 		jirix.Logger.Debugf("generated set up script for gitmodule content \n%v\n", commandBuf.String())
-		if err := ioutil.WriteFile(genGitModuleFlags.genScript, commandBuf.Bytes(), 0755); err != nil {
+		if err := os.WriteFile(genGitModuleFlags.genScript, commandBuf.Bytes(), 0755); err != nil {
 			return err
 		}
 	}
 
 	if gitattributesPath != "" {
 		jirix.Logger.Debugf("generated gitattributes content \n%v\n", gitattributeBuf.String())
-		if err := ioutil.WriteFile(gitattributesPath, gitattributeBuf.Bytes(), 0644); err != nil {
+		if err := os.WriteFile(gitattributesPath, gitattributeBuf.Bytes(), 0644); err != nil {
 			return err
 		}
 	}

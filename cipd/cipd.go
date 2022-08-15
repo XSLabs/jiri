@@ -12,7 +12,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"os"
 	"os/exec"
@@ -228,7 +228,7 @@ func selfUpdate(cipdPath, cipdVersion string) error {
 }
 
 func writeFile(filePath string, data []byte) error {
-	tempFile, err := ioutil.TempFile(path.Dir(filePath), "cipd.*")
+	tempFile, err := os.CreateTemp(path.Dir(filePath), "cipd.*")
 	if err != nil {
 		return err
 	}
@@ -284,7 +284,7 @@ func fetchFile(jirix *jiri.X, url string) ([]byte, error) {
 		if resp.StatusCode >= 400 {
 			return fmt.Errorf("got non-success response: %s", resp.Status)
 		}
-		contents, err = ioutil.ReadAll(resp.Body)
+		contents, err = io.ReadAll(resp.Body)
 		return err
 	}, fmt.Sprintf("bootstrapping cipd binary"), retry.AttemptsOpt(jirix.Attempts)); err != nil {
 		jirix.Logger.Errorf("error: failed to download cipd client: %v\n", err)
@@ -306,7 +306,7 @@ func checkPackageACL(jirix *jiri.X, cipdPath, jsonDir string, c chan<- packageAC
 		return
 	}
 
-	jsonFile, err := ioutil.TempFile(jsonDir, "cipd*.json")
+	jsonFile, err := os.CreateTemp(jsonDir, "cipd*.json")
 	if err != nil {
 		jirix.Logger.Warningf("Error while creating temporary file for cipd")
 		c <- packageACL{path: cipdPath, access: false}
@@ -329,7 +329,7 @@ func checkPackageACL(jirix *jiri.X, cipdPath, jsonDir string, c chan<- packageAC
 		return
 	}
 
-	jsonData, err := ioutil.ReadFile(jsonFileName)
+	jsonData, err := os.ReadFile(jsonFileName)
 	if err != nil {
 		c <- packageACL{path: cipdPath, access: false}
 		return
@@ -364,7 +364,7 @@ func CheckPackageACL(jirix *jiri.X, pkgs map[string]bool) error {
 		return err
 	}
 
-	jsonDir, err := ioutil.TempDir("", "jiri_cipd")
+	jsonDir, err := os.MkdirTemp("", "jiri_cipd")
 	if err != nil {
 		return err
 	}
@@ -620,7 +620,7 @@ func CheckFloatingRefs(jirix *jiri.X, pkgs map[PackageInstance]bool, plats map[P
 		return err
 	}
 
-	jsonDir, err := ioutil.TempDir("", "jiri_cipd")
+	jsonDir, err := os.MkdirTemp("", "jiri_cipd")
 	if err != nil {
 		return err
 	}
@@ -675,7 +675,7 @@ func checkFloatingRefs(jirix *jiri.X, pkg PackageInstance, plats []Platform, jso
 		return
 	}
 	// jsonFile will be cleaned up by caller.
-	jsonFile, err := ioutil.TempFile(jsonDir, "cipd*.json")
+	jsonFile, err := os.CreateTemp(jsonDir, "cipd*.json")
 	if err != nil {
 		c <- packageFloatingRef{
 			pkg:      pkg,
@@ -732,7 +732,7 @@ func checkFloatingRefs(jirix *jiri.X, pkg PackageInstance, plats []Platform, jso
 		return
 	}
 
-	jsonData, err := ioutil.ReadFile(jsonFileName)
+	jsonData, err := os.ReadFile(jsonFileName)
 	if err != nil {
 		c <- packageFloatingRef{
 			pkg:      pkg,
@@ -834,9 +834,9 @@ func (p Platform) Expander() Expander {
 // Expander is a mapping of simple string substitutions which is used to
 // expand cipd package name templates. For example:
 //
-//   ex, err := template.Expander{
-//     "platform": "mac-amd64"
-//   }.Expand("foo/${platform}")
+//	ex, err := template.Expander{
+//	  "platform": "mac-amd64"
+//	}.Expand("foo/${platform}")
 //
 // `ex` would be "foo/mac-amd64".
 type Expander map[string]string

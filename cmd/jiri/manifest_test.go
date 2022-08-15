@@ -6,7 +6,7 @@ package main
 
 import (
 	"flag"
-	"io/ioutil"
+	"os"
 	"strings"
 	"testing"
 
@@ -16,7 +16,7 @@ import (
 
 func TestManifest(t *testing.T) {
 	// Create a test manifest file.
-	testManifestFile, err := ioutil.TempFile("", "test_manifest")
+	testManifestFile, err := os.CreateTemp("", "test_manifest")
 	if err != nil {
 		t.Fatalf("failed to create test manifest: %s", err)
 	}

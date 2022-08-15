@@ -10,7 +10,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 	"os"
@@ -80,7 +80,7 @@ func unarchiveJiri(b []byte) ([]byte, error) {
 			if err != nil {
 				return nil, fmt.Errorf("Failed to read jiri archive: %v", err)
 			}
-			return ioutil.ReadAll(fileReader)
+			return io.ReadAll(fileReader)
 		}
 	}
 	return nil, fmt.Errorf("Cannot find jiri in update archive")
@@ -181,7 +181,7 @@ func downloadBinary(endpoint, version string) ([]byte, error) {
 	}
 	defer res.Body.Close()
 
-	bytes, err := ioutil.ReadAll(res.Body)
+	bytes, err := io.ReadAll(res.Body)
 	if err != nil {
 		return nil, err
 	}
@@ -198,7 +198,7 @@ func updateExecutable(path string, b []byte) error {
 	dir := filepath.Dir(path)
 
 	// Write the new version to a file.
-	newfile, err := ioutil.TempFile(dir, "jiri")
+	newfile, err := os.CreateTemp(dir, "jiri")
 	if err != nil {
 		return err
 	}
@@ -216,7 +216,7 @@ func updateExecutable(path string, b []byte) error {
 	}
 
 	// Backup the existing version.
-	oldfile, err := ioutil.TempFile(dir, "jiri")
+	oldfile, err := os.CreateTemp(dir, "jiri")
 	if err != nil {
 		return err
 	}

@@ -5,7 +5,7 @@
 package main
 
 import (
-	"io/ioutil"
+	"os"
 	"testing"
 
 	"go.fuchsia.dev/jiri/jiritest"
@@ -29,7 +29,7 @@ func TestResolveProjects(t *testing.T) {
 	if err := runResolve(fakeroot.X, args); err != nil {
 		t.Errorf("resolve failed due to error %v", err)
 	}
-	data, err := ioutil.ReadFile(lockPath)
+	data, err := os.ReadFile(lockPath)
 	if err != nil {
 		t.Errorf("%+v", err)
 	}
@@ -94,7 +94,7 @@ func TestResolvePackages(t *testing.T) {
 			InstanceID:  "yAdok-mh5vfwq1vCAHprmejM9iE7R1t9Wn6RxrWmAAEC",
 		},
 	}
-	if err := ioutil.WriteFile(fakeroot.X.JiriManifestFile(), pkgData, 0644); err != nil {
+	if err := os.WriteFile(fakeroot.X.JiriManifestFile(), pkgData, 0644); err != nil {
 		t.Errorf("failed to write package information into .jiri_manifest due to error: %v", err)
 	}
 	lockPath := fakeroot.X.Root + "/jiri.lock"
@@ -106,7 +106,7 @@ func TestResolvePackages(t *testing.T) {
 	if err := runResolve(fakeroot.X, args); err != nil {
 		t.Errorf("resolve failed due to error: %v", err)
 	}
-	data, err := ioutil.ReadFile(lockPath)
+	data, err := os.ReadFile(lockPath)
 	if err != nil {
 		t.Errorf("read generated lockfile failed due to error: %v", err)
 	}
@@ -192,11 +192,11 @@ func TestResolvePackagesPartial(t *testing.T) {
 			InstanceID:  "yAdok-mh5vfwq1vCAHprmejM9iE7R1t9Wn6RxrWmAAEC",
 		},
 	}
-	if err := ioutil.WriteFile(fakeroot.X.JiriManifestFile(), pkgData, 0644); err != nil {
+	if err := os.WriteFile(fakeroot.X.JiriManifestFile(), pkgData, 0644); err != nil {
 		t.Errorf("failed to write package information into .jiri_manifest due to error: %v", err)
 	}
 	lockPath := fakeroot.X.Root + "/jiri.lock"
-	if err := ioutil.WriteFile(lockPath, lockData, 0644); err != nil {
+	if err := os.WriteFile(lockPath, lockData, 0644); err != nil {
 		t.Errorf("failed to write lockfile information into jiri.lock due to error: %v", err)
 	}
 	resolveFlag.lockFilePath = lockPath
@@ -208,7 +208,7 @@ func TestResolvePackagesPartial(t *testing.T) {
 	if err := runResolve(fakeroot.X, args); err != nil {
 		t.Errorf("resolve failed due to error: %v", err)
 	}
-	data, err := ioutil.ReadFile(lockPath)
+	data, err := os.ReadFile(lockPath)
 	if err != nil {
 		t.Errorf("read generated lockfile failed due to error: %v", err)
 	}

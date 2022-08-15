@@ -7,7 +7,6 @@ package cipd
 import (
 	"bytes"
 	"encoding/hex"
-	"io/ioutil"
 	"os"
 	"path"
 	"reflect"
@@ -54,7 +53,7 @@ var (
 func TestFetchBinary(t *testing.T) {
 	fakex, cleanup := xtest.NewX(t)
 	defer cleanup()
-	tmpDir, err := ioutil.TempDir("", "jiri-test")
+	tmpDir, err := os.MkdirTemp("", "jiri-test")
 	if err != nil {
 		t.Error("failed to create temp dir for testing")
 	}
@@ -115,7 +114,7 @@ func TestFetchDigest(t *testing.T) {
 func TestSelfUpdate(t *testing.T) {
 	fakex, cleanup := xtest.NewX(t)
 	defer cleanup()
-	tmpDir, err := ioutil.TempDir("", "jiri-test")
+	tmpDir, err := os.MkdirTemp("", "jiri-test")
 	if err != nil {
 		t.Error("failed to create temp dir for testing")
 	}
@@ -130,7 +129,7 @@ func TestSelfUpdate(t *testing.T) {
 		t.Errorf("failed to perform cipd self update: %v", err)
 	}
 	// Verify self updated cipd
-	cipdData, err := ioutil.ReadFile(cipdPath)
+	cipdData, err := os.ReadFile(cipdPath)
 	if err != nil {
 		t.Errorf("failed to read self-updated cipd binary: %v", err)
 	}
@@ -171,7 +170,7 @@ func TestEnsure(t *testing.T) {
 	}
 	defer os.Remove(cipdPath)
 	// Write test ensure file
-	testEnsureFile, err := ioutil.TempFile("", "test_jiri*.ensure")
+	testEnsureFile, err := os.CreateTemp("", "test_jiri*.ensure")
 	if err != nil {
 		t.Errorf("failed to create test ensure file: %v", err)
 	}
@@ -187,7 +186,7 @@ gn/gn/${platform} git_revision:bdb0fd02324b120cacde634a9235405061c8ea06
 		t.Errorf("failed to write test ensure file: %v", err)
 	}
 	testEnsureFile.Sync()
-	tmpDir, err := ioutil.TempDir("", "jiri-test")
+	tmpDir, err := os.MkdirTemp("", "jiri-test")
 	if err != nil {
 		t.Error("failed to creat temp dir for testing")
 	}
@@ -215,7 +214,7 @@ func TestEnsureFileVerify(t *testing.T) {
 	}
 	defer os.Remove(cipdPath)
 	// Write test ensure file
-	testEnsureFile, err := ioutil.TempFile("", "test_jiri*.ensure")
+	testEnsureFile, err := os.CreateTemp("", "test_jiri*.ensure")
 	if err != nil {
 		t.Errorf("failed to create test ensure file: %v", err)
 	}
@@ -247,7 +246,7 @@ func TestEnsureFileVerifyInvalid(t *testing.T) {
 	}
 	defer os.Remove(cipdPath)
 	// Write test ensure file
-	testEnsureFile, err := ioutil.TempFile("", "test_jiri*.ensure")
+	testEnsureFile, err := os.CreateTemp("", "test_jiri*.ensure")
 	if err != nil {
 		t.Errorf("failed to create test ensure file: %v", err)
 	}
@@ -306,7 +305,7 @@ func TestResolve(t *testing.T) {
 	defer os.Remove(cipdPath)
 
 	// Write test ensure file
-	testEnsureFile, err := ioutil.TempFile("", "test_jiri*.ensure")
+	testEnsureFile, err := os.CreateTemp("", "test_jiri*.ensure")
 	if err != nil {
 		t.Errorf("failed to create test ensure file: %v", err)
 	}

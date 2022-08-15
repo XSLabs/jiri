@@ -6,7 +6,6 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sort"
@@ -402,7 +401,7 @@ func executeStatus(t *testing.T, fake *jiritest.FakeJiriRoot, args ...string) st
 
 func writeFile(t *testing.T, jirix *jiri.X, projectDir, fileName, message string) {
 	path, perm := filepath.Join(projectDir, fileName), os.FileMode(0644)
-	if err := ioutil.WriteFile(path, []byte(message), perm); err != nil {
+	if err := os.WriteFile(path, []byte(message), perm); err != nil {
 		t.Fatalf("WriteFile(%s, %d) failed: %s", path, perm, err)
 	}
 	if err := gitutil.New(jirix, gitutil.RootDirOpt(projectDir),

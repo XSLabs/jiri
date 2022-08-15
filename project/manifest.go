@@ -13,7 +13,6 @@ import (
 	"fmt"
 	"hash/fnv"
 	"io"
-	"io/ioutil"
 	"net/url"
 	"os"
 	"os/exec"
@@ -71,7 +70,7 @@ func ManifestFromBytes(data []byte) (*Manifest, error) {
 // manifest is through LoadManifest, which does absolutize the paths, and uses
 // the correct root directory.
 func ManifestFromFile(jirix *jiri.X, filename string) (*Manifest, error) {
-	data, err := ioutil.ReadFile(filename)
+	data, err := os.ReadFile(filename)
 	if err != nil {
 		return nil, fmtError(err)
 	}
@@ -993,7 +992,7 @@ func WritePackageFlags(jirix *jiri.X, pkgs, pkgsWA Packages) error {
 
 	var writeErrorBuf bytes.Buffer
 	for k, v := range flagMap {
-		if err := ioutil.WriteFile(filepath.Join(jirix.Root, k), []byte(v), 0644); err != nil {
+		if err := os.WriteFile(filepath.Join(jirix.Root, k), []byte(v), 0644); err != nil {
 			writeErrorBuf.WriteString(fmt.Sprintf("write package flag %q to file %q failed due to error: %v\n", v, k, err))
 		}
 	}
@@ -1018,11 +1017,11 @@ func writePackageJSON(jirix *jiri.X, access bool) error {
 		// Skip json file creation if PrebuiltJSON is not set.
 		return nil
 	}
-	return ioutil.WriteFile(filepath.Join(jirix.RootMetaDir(), jirix.PrebuiltJSON), jsonData, 0644)
+	return os.WriteFile(filepath.Join(jirix.RootMetaDir(), jirix.PrebuiltJSON), jsonData, 0644)
 }
 
 func generateEnsureFile(jirix *jiri.X, pkgs Packages, ignoreCryptoCheck bool, versionFilePath string) (string, error) {
-	ensureFile, err := ioutil.TempFile("", "jiri*.ensure")
+	ensureFile, err := os.CreateTemp("", "jiri*.ensure")
 	if err != nil {
 		return "", fmt.Errorf("not able to create tmp file: %v", err)
 	}
@@ -1169,7 +1168,7 @@ func generateVersionFile(jirix *jiri.X, ensureFile string, pkgs Packages) (strin
 		versionFileBuf.WriteString(decl)
 	}
 	jirix.Logger.Debugf("Generated version file content:\n%v", versionFileBuf.String())
-	return versionFileName, ioutil.WriteFile(versionFileName, versionFileBuf.Bytes(), 0655)
+	return versionFileName, os.WriteFile(versionFileName, versionFileBuf.Bytes(), 0655)
 }
 
 // RunHooks runs all given hooks.
@@ -1184,7 +1183,7 @@ func RunHooks(jirix *jiri.X, hooks Hooks, runHookTimeout uint) error {
 		err     error
 	}
 	ch := make(chan result)
-	tmpDir, err := ioutil.TempDir("", "run-hooks")
+	tmpDir, err := os.MkdirTemp("", "run-hooks")
 	if err != nil {
 		return fmt.Errorf("not able to create tmp dir: %v", err)
 	}
@@ -1195,12 +1194,12 @@ func RunHooks(jirix *jiri.X, hooks Hooks, runHookTimeout uint) error {
 			jirix.Logger.Debugf(logStr)
 			task := jirix.Logger.AddTaskMsg(logStr)
 			defer task.Done()
-			outFile, err := ioutil.TempFile(tmpDir, hook.Name+"-out")
+			outFile, err := os.CreateTemp(tmpDir, hook.Name+"-out")
 			if err != nil {
 				ch <- result{nil, nil, fmtError(err)}
 				return
 			}
-			errFile, err := ioutil.TempFile(tmpDir, hook.Name+"-err")
+			errFile, err := os.CreateTemp(tmpDir, hook.Name+"-err")
 			if err != nil {
 				ch <- result{nil, nil, fmtError(err)}
 				return
@@ -1415,12 +1414,12 @@ func applyGitHooks(jirix *jiri.X, ops []operation) error {
 			if info.IsDir() {
 				return fmtError(os.MkdirAll(dst, 0755))
 			}
-			src, err := ioutil.ReadFile(path)
+			src, err := os.ReadFile(path)
 			if err != nil {
 				return fmtError(err)
 			}
 			// The file *must* be executable to be picked up by git.
-			return fmtError(ioutil.WriteFile(dst, src, 0755))
+			return fmtError(os.WriteFile(dst, src, 0755))
 		}
 		if err := filepath.Walk(op.Project().GitHooks, copyFn); err != nil {
 			return err

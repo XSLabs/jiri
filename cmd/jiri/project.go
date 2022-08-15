@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -289,7 +288,7 @@ func writeJSONOutput(result interface{}) error {
 		return fmt.Errorf("failed to serialize JSON output: %s", err)
 	}
 
-	err = ioutil.WriteFile(jsonOutputFlag, out, 0600)
+	err = os.WriteFile(jsonOutputFlag, out, 0600)
 	if err != nil {
 		return fmt.Errorf("failed write JSON output to %s: %s", jsonOutputFlag, err)
 	}

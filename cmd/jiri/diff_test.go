@@ -7,7 +7,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -115,7 +114,7 @@ func TestDiffLocalSnapshots(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t1, err := ioutil.TempFile("", "test-diff")
+	t1, err := os.CreateTemp("", "test-diff")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -126,7 +125,7 @@ func TestDiffLocalSnapshots(t *testing.T) {
 	}
 	t1.Sync()
 
-	t2, err := ioutil.TempFile("", "test-diff")
+	t2, err := os.CreateTemp("", "test-diff")
 	if err != nil {
 		t.Fatal(err)
 	}

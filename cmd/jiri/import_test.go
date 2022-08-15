@@ -6,7 +6,6 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -330,7 +329,7 @@ func TestImport(t *testing.T) {
 	}
 
 	// Temporary directory in which our jiri binary will live.
-	binDir, err := ioutil.TempDir("", "")
+	binDir, err := os.MkdirTemp("", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -347,7 +346,7 @@ func testImport(t *testing.T, test importTestCase) error {
 	jirix, cleanup := xtest.NewX(t)
 	defer cleanup()
 	// Temporary directory in which to run `jiri import`.
-	tmpDir, err := ioutil.TempDir("", "")
+	tmpDir, err := os.MkdirTemp("", "")
 	if err != nil {
 		return err
 	}
@@ -375,14 +374,14 @@ func testImport(t *testing.T, test importTestCase) error {
 	// Set up manfile for the local file import tests.  It should exist in both
 	// the tmpDir (for ../manfile tests) and jiriRoot.
 	for _, dir := range []string{tmpDir, jiriRoot} {
-		if err := ioutil.WriteFile(filepath.Join(dir, "manfile"), nil, 0644); err != nil {
+		if err := os.WriteFile(filepath.Join(dir, "manfile"), nil, 0644); err != nil {
 			return err
 		}
 	}
 
 	// Set up an existing file if it was specified.
 	if test.Exist != "" {
-		if err := ioutil.WriteFile(filename, []byte(test.Exist), 0644); err != nil {
+		if err := os.WriteFile(filename, []byte(test.Exist), 0644); err != nil {
 			return err
 		}
 	}
@@ -429,7 +428,7 @@ func testImport(t *testing.T, test importTestCase) error {
 
 	// Make sure the right file is generated.
 	if test.Want != "" {
-		data, err := ioutil.ReadFile(f)
+		data, err := os.ReadFile(f)
 		if err != nil {
 			return err
 		}

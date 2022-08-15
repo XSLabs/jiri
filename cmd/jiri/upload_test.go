@@ -6,7 +6,6 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -566,7 +565,7 @@ func TestGitOptions(t *testing.T) {
 
 // commitFile commits a file with the specified content into a branch
 func commitFile(t *testing.T, jirix *jiri.X, filename string, content string) {
-	if err := ioutil.WriteFile(filename, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(filename, []byte(content), 0644); err != nil {
 		t.Fatalf("%v", err)
 	}
 	commitMessage := "Commit " + filename

@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -79,7 +78,7 @@ func TestSourceManifest(t *testing.T) {
 	var stdout bytes.Buffer
 	fake.X.Context = tool.NewContext(tool.ContextOpts{Stdout: &stdout, Env: fake.X.Context.Env()})
 
-	smTmpfile, err := ioutil.TempFile("", "jiri-sm-")
+	smTmpfile, err := os.CreateTemp("", "jiri-sm-")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -121,7 +120,7 @@ func TestSourceManifest(t *testing.T) {
 		t.Fatalf("failed to serialize JSON output: %s\n", err)
 	}
 
-	got, _ := ioutil.ReadFile(smTmpfile.Name())
+	got, _ := os.ReadFile(smTmpfile.Name())
 	if string(got) != string(want) {
 		t.Fatalf("GOT:\n%s, \nWANT:\n%s", (string(got)), string(want))
 	}

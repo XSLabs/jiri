@@ -7,7 +7,6 @@ package project
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -234,22 +233,27 @@ func newManifestLoader(localProjects Projects, update bool, file string) *loader
 }
 
 // loadNoCycles checks for cycles in imports.  There are two types of cycles:
-//   file - Cycle in the paths of manifest files in the local filesystem.
-//   key  - Cycle in the remote manifests specified by remote imports.
+//
+//	file - Cycle in the paths of manifest files in the local filesystem.
+//	key  - Cycle in the remote manifests specified by remote imports.
 //
 // Example of file cycles.  File A imports file B, and vice versa.
-//     file=manifest/A              file=manifest/B
-//     <manifest>                   <manifest>
-//       <localimport file="B"/>      <localimport file="A"/>
-//     </manifest>                  </manifest>
+//
+//	file=manifest/A              file=manifest/B
+//	<manifest>                   <manifest>
+//	  <localimport file="B"/>      <localimport file="A"/>
+//	</manifest>                  </manifest>
 //
 // Example of key cycles.  The key consists of "remote/manifest", e.g.
-//   https://vanadium.googlesource.com/manifest/v2/default
+//
+//	https://vanadium.googlesource.com/manifest/v2/default
+//
 // In the example, key x/A imports y/B, and vice versa.
-//     key=x/A                               key=y/B
-//     <manifest>                            <manifest>
-//       <import remote="y" manifest="B"/>     <import remote="x" manifest="A"/>
-//     </manifest>                           </manifest>
+//
+//	key=x/A                               key=y/B
+//	<manifest>                            <manifest>
+//	  <import remote="y" manifest="B"/>     <import remote="x" manifest="A"/>
+//	</manifest>                           </manifest>
 //
 // The above examples are simple, but the general strategy is demonstrated.  We
 // keep a single stack for both files and keys, and push onto each stack before
@@ -311,7 +315,7 @@ func (ld *loader) cloneManifestRepo(jirix *jiri.X, remote *Import, cacheDirPath 
 	// temp directory, and add it to ld.localProjects.
 	if ld.TmpDir == "" {
 		var err error
-		if ld.TmpDir, err = ioutil.TempDir("", "jiri-load"); err != nil {
+		if ld.TmpDir, err = os.MkdirTemp("", "jiri-load"); err != nil {
 			return fmt.Errorf("TempDir() failed: %v", err)
 		}
 	}
@@ -407,7 +411,7 @@ func (ld *loader) loadLockFile(jirix *jiri.X, repoPath, dir, lockFileName, ref s
 			}
 			return nil
 		}
-		temp, err := ioutil.ReadFile(lockfile)
+		temp, err := os.ReadFile(lockfile)
 		if err != nil {
 			// Supress I/O errors as it is OK if a lockfile cannot be accessed.
 			return nil

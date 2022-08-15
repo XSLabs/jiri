@@ -7,7 +7,6 @@ package project
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -195,7 +194,7 @@ func (sm *SourceManifest) ToFile(jirix *jiri.X, filename string) error {
 		return fmt.Errorf("failed to serialize JSON output: %s\n", err)
 	}
 
-	err = ioutil.WriteFile(filename, out, 0600)
+	err = os.WriteFile(filename, out, 0600)
 	if err != nil {
 		return fmt.Errorf("failed write JSON output to %s: %s\n", filename, err)
 	}

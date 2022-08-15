@@ -7,7 +7,6 @@ package gerrit
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 
 	"go.fuchsia.dev/jiri/collect"
@@ -19,7 +18,7 @@ import (
 // ReadLog returns a map of CLs indexed by their refs, read from the given log file.
 func ReadLog(logFilePath string) (CLRefMap, error) {
 	results := CLRefMap{}
-	bytes, err := ioutil.ReadFile(logFilePath)
+	bytes, err := os.ReadFile(logFilePath)
 	if err != nil {
 		// File not existing is OK: just return an empty map of CLs.
 		if os.IsNotExist(err) {
@@ -54,7 +53,7 @@ func WriteLog(logFilePath string, cls CLList) (e error) {
 		return fmt.Errorf("MarshalIndent(%v) failed: %v", results, err)
 	}
 
-	if err := ioutil.WriteFile(logFilePath, bytes, os.FileMode(0644)); err != nil {
+	if err := os.WriteFile(logFilePath, bytes, os.FileMode(0644)); err != nil {
 		return fmt.Errorf("WriteFile(%q) failed: %v", logFilePath, err)
 	}
 	return nil
@@ -63,23 +62,26 @@ func WriteLog(logFilePath string, cls CLList) (e error) {
 // NewOpenCLs returns a slice of CLLists that are "newer" relative to the
 // previous query. A CLList is newer if one of the following condition holds:
 // - If a CLList has only one cl, then it is newer if:
-//   * Its ref string cannot be found among the CLs from the previous query.
 //
-//   For example: from the previous query, we got cl 1000/1 (cl number 1000 and
-//   patchset 1). Then CLLists [1000/2] and [2000/1] are both newer.
+//   - Its ref string cannot be found among the CLs from the previous query.
+//
+//     For example: from the previous query, we got cl 1000/1 (cl number 1000 and
+//     patchset 1). Then CLLists [1000/2] and [2000/1] are both newer.
 //
 // - If a CLList has multiple CLs, then it is newer if:
-//   * It forms a "consistent" (its CLs have the same topic) and "complete"
+//
+//   - It forms a "consistent" (its CLs have the same topic) and "complete"
 //     (it contains all the parts) multi-part CL set.
-//   * At least one of their ref strings cannot be found in the CLs from the
+//
+//   - At least one of their ref strings cannot be found in the CLs from the
 //     previous query.
 //
-//   For example: from the previous query, we got cl 3001/1 which is the first
-//   part of a multi part cl set with topic "T1". Suppose the current query
-//   returns cl 3002/1 which is the second part of the same set. In this case,
-//   a CLList [3001/1 3002/1] will be returned. Then suppose in the next query,
-//   we got cl 3002/2 which is newer then 3002/1. In this case, a CLList
-//   [3001/1 3002/2] will be returned.
+//     For example: from the previous query, we got cl 3001/1 which is the first
+//     part of a multi part cl set with topic "T1". Suppose the current query
+//     returns cl 3002/1 which is the second part of the same set. In this case,
+//     a CLList [3001/1 3002/1] will be returned. Then suppose in the next query,
+//     we got cl 3002/2 which is newer then 3002/1. In this case, a CLList
+//     [3001/1 3002/2] will be returned.
 func NewOpenCLs(prevCLsMap CLRefMap, curCLs CLList) ([]CLList, []error) {
 	retNewCLs := []CLList{}
 	topicsInNewCLs := map[string]bool{}

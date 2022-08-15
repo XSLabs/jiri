@@ -8,7 +8,6 @@ import (
 	"bufio"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -179,7 +178,7 @@ func (r *runner) Map(mr *simplemr.MR, key string, val interface{}) error {
 		if runpFlags.collateOutput {
 			// Write standard output to a file, stderr
 			// is not collated.
-			f, err := ioutil.TempFile("", "jiri-runp-")
+			f, err := os.CreateTemp("", "jiri-runp-")
 			if err != nil {
 				return err
 			}

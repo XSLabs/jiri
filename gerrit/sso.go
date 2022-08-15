@@ -9,7 +9,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
@@ -129,7 +129,7 @@ func FetchFile(gerritHost, path string) ([]byte, error) {
 		}
 		return nil, fmt.Errorf("expecting status code %d from %q, got %d ", http.StatusOK, downloadPath, resp.StatusCode)
 	}
-	return ioutil.ReadAll(resp.Body)
+	return io.ReadAll(resp.Body)
 }
 
 func fetchFileWithJar(jirix *jiri.X, gerritHost, path string, jar http.CookieJar) ([]byte, error) {
@@ -162,7 +162,7 @@ func fetchFileWithJar(jirix *jiri.X, gerritHost, path string, jar http.CookieJar
 		}
 		return nil, fmt.Errorf("expecting status code %d from %q, got %d ", http.StatusOK, downloadPath, resp.StatusCode)
 	}
-	return ioutil.ReadAll(resp.Body)
+	return io.ReadAll(resp.Body)
 }
 
 func dumpHeaders(resp *http.Response) string {
@@ -350,7 +350,7 @@ func MarshalNSCookieData(cookies []*http.Cookie) ([]byte, error) {
 }
 
 func loadJiriCookies(jiriCookiePath string) []*http.Cookie {
-	jiriCookieData, err := ioutil.ReadFile(jiriCookiePath)
+	jiriCookieData, err := os.ReadFile(jiriCookiePath)
 	if err != nil {
 		return nil
 	}
@@ -443,7 +443,7 @@ func LoadCookies(jirix *jiri.X, jiriCookiePath, hostName string, cookieType Cook
 		}
 		return nil, err
 	}
-	gitCookieData, err := ioutil.ReadFile(gitCookiePath)
+	gitCookieData, err := os.ReadFile(gitCookiePath)
 	if err != nil {
 		return nil, err
 	}
@@ -511,7 +511,7 @@ func CacheCookies(jiriCookiePath, hostName string, cookiejar *ssoCookieJar) erro
 		return err
 	}
 
-	tempFile, err := ioutil.TempFile(path.Dir(jiriCookiePath), ".jiricookie*")
+	tempFile, err := os.CreateTemp(path.Dir(jiriCookiePath), ".jiricookie*")
 	if err != nil {
 		return err
 	}
@@ -570,7 +570,7 @@ func getSSOCookiePath() (string, error) {
 }
 
 func readMasterSSOCookie(path string) (*http.Cookie, error) {
-	data, err := ioutil.ReadFile(path)
+	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
