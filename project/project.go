@@ -741,7 +741,7 @@ func (sm ScanMode) String() string {
 // HEAD of all projects and writes this snapshot out to the given file.
 // if hooks are not passed, jiri will read JiriManifestFile and get hooks from there,
 // so always pass hooks incase updating from a snapshot
-func CreateSnapshot(jirix *jiri.X, file string, hooks Hooks, pkgs Packages, localManifest bool, submodules bool, cipdEnsure bool) error {
+func CreateSnapshot(jirix *jiri.X, file string, hooks Hooks, pkgs Packages, localManifest bool, cipdEnsure bool) error {
 	jirix.TimerPush("create snapshot")
 	defer jirix.TimerPop()
 
@@ -758,16 +758,32 @@ func CreateSnapshot(jirix *jiri.X, file string, hooks Hooks, pkgs Packages, loca
 		return err
 	}
 
-	if submodules {
-		_, treeRoot, err := GenerateSubmoduleTree(jirix, localProjects)
-		if err != nil {
-			return err
-		}
-		// Remove dropped projects
-		for _, project := range localProjects {
-			if _, ok := treeRoot.Dropped[project.Key()]; ok {
-				delete(localProjects, project.Key())
+	// jiri local submodule config should always match local submodules state.
+	if jirix.EnableSubmodules != containSubmodules(jirix, localProjects) {
+		return errors.New("local submodule state does not match jiri config, run jiri update or unset EnableSubmodules")
+	}
+
+	if jirix.EnableSubmodules {
+		// Add submodules to projects.
+		allSubmodules := getAllSubmodules(jirix, localProjects)
+		for _, super := range allSubmodules {
+			for _, subm := range super {
+				if subm.Prefix == "-" {
+					continue
+				}
+				submProjectKey := MakeProjectKey(subm.Name, subm.Name)
+				if _, ok := localProjects[submProjectKey]; ok {
+					return errors.New(fmt.Sprintf("%s submodule and project exist at the same time, please run `jiri update`", subm.Name))
+				}
+				localProjects[submProjectKey] = Project{
+					Name:           subm.Name,
+					Path:           subm.Path,
+					Remote:         subm.Remote,
+					Revision:       subm.Revision,
+					GitSubmoduleOf: subm.Superproject,
+				}
 			}
+
 		}
 	}
 
@@ -811,10 +827,8 @@ func CreateSnapshot(jirix *jiri.X, file string, hooks Hooks, pkgs Packages, loca
 	}
 
 	// Skip hooks for submodules
-	if !submodules {
-		for _, hook := range hooks {
-			manifest.Hooks = append(manifest.Hooks, hook)
-		}
+	for _, hook := range hooks {
+		manifest.Hooks = append(manifest.Hooks, hook)
 	}
 	for _, pack := range pkgs {
 		manifest.Packages = append(manifest.Packages, pack)
@@ -1504,7 +1518,7 @@ func WriteUpdateHistoryLog(jirix *jiri.X) error {
 // projects and writes it to the update history directory.
 func WriteUpdateHistorySnapshot(jirix *jiri.X, hooks Hooks, pkgs Packages, localManifest bool) error {
 	snapshotFile := filepath.Join(jirix.UpdateHistoryDir(), time.Now().Format(time.RFC3339))
-	if err := CreateSnapshot(jirix, snapshotFile, hooks, pkgs, localManifest, false, false); err != nil {
+	if err := CreateSnapshot(jirix, snapshotFile, hooks, pkgs, localManifest, false); err != nil {
 		return err
 	}
 

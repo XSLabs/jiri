@@ -149,7 +149,7 @@ func TestCipdSnapshot(t *testing.T) {
 	}
 	defer os.Remove(tmpfile.Name())
 
-	if err := project.CreateSnapshot(fake.X, tmpfile.Name(), nil, nil, true, false /*submoduleFlag*/, true /*cipdEnsureFlag*/); err != nil {
+	if err := project.CreateSnapshot(fake.X, tmpfile.Name(), nil, nil, true, true /*cipdEnsureFlag*/); err != nil {
 		t.Fatalf("%v", err)
 	}
 	pathExists := func(pkgPath string) bool {

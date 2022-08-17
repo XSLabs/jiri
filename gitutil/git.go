@@ -1226,6 +1226,19 @@ func (g *Git) SetRemoteUrl(name, url string) error {
 	return g.run("remote", "set-url", name, url)
 }
 
+// RemoteUrl gets the remote url of the subdmoule with the given name.
+func (g *Git) SubmoduleURL(name string) (string, error) {
+	configKey := fmt.Sprintf("submodule.%s.url", name)
+	out, err := g.runOutput("config", "--get", configKey)
+	if err != nil {
+		return "", err
+	}
+	if got := len(out); got != 1 {
+		return "", fmt.Errorf("SubmoduleURL: unexpected length of remotes %v: got %v, want 1", out, got)
+	}
+	return out[0], nil
+}
+
 // DeleteRemote deletes the named remote
 func (g *Git) DeleteRemote(name string) error {
 	return g.run("remote", "rm", name)
@@ -1266,6 +1279,17 @@ func (g *Git) StashSize() (int, error) {
 // StashPop pops the stash into the current working tree.
 func (g *Git) StashPop() error {
 	return g.run("stash", "pop")
+}
+
+// SubmoduleStatus returns the status of the modules for under the superproject.
+// If run under submodule directory, the directories of other submoudles will be
+// relative to the submodule rootDir.
+func (g *Git) SubmoduleStatus() ([]string, error) {
+	out, err := g.runOutput("submodule", "status")
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 // TopLevel returns the top level path of the current repository.
