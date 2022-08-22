@@ -771,7 +771,7 @@ func CreateSnapshot(jirix *jiri.X, file string, hooks Hooks, pkgs Packages, loca
 				if subm.Prefix == "-" {
 					continue
 				}
-				submProjectKey := MakeProjectKey(subm.Name, subm.Name)
+				submProjectKey := MakeProjectKey(subm.Name, subm.Remote)
 				if _, ok := localProjects[submProjectKey]; ok {
 					return errors.New(fmt.Sprintf("%s submodule and project exist at the same time, please run `jiri update`", subm.Name))
 				}
