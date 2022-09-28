@@ -65,10 +65,11 @@ func getSubmodulesStatus(jirix *jiri.X, superproject Project) (Submodules, error
 		subm := Submodule{
 			Prefix:       submConfig[1],
 			Revision:     submConfig[2],
-			Name:         submConfig[3],
+			Path:         submConfig[3],
 			Superproject: superproject.Name,
 		}
-		subm.Remote, _ = scm.SubmoduleURL(subm.Name)
+		subm.Remote, _ = scm.SubmoduleConfig(subm.Path, "url")
+		subm.Name, _ = scm.SubmoduleConfig(subm.Path, "name")
 		submodules[subm.Name] = subm
 		if subm.Prefix == "+" {
 			jirix.Logger.Warningf("Submodule %s current checkout does not match the SHA-1 to the index of the containing repository.", subm.Name)
@@ -81,11 +82,11 @@ func getSubmodulesStatus(jirix *jiri.X, superproject Project) (Submodules, error
 }
 
 // getSuperprojectStates returns the superprojects that have submodules enabled.
-func getSuperprojectStates(projects Projects) map[string]bool {
-	superprojectStates := make(map[string]bool)
+func getSuperprojectStates(projects Projects) map[string]Project {
+	superprojectStates := make(map[string]Project)
 	for _, p := range projects {
 		if p.GitSubmodules {
-			superprojectStates[p.Name] = true
+			superprojectStates[p.Name] = p
 		}
 	}
 	return superprojectStates
@@ -107,7 +108,7 @@ func removeSubmodulesFromProjects(projects Projects) Projects {
 	var submoduleProjectKeys []ProjectKey
 	superprojectStates := getSuperprojectStates(projects)
 	for k, p := range projects {
-		if superprojectStates[p.GitSubmoduleOf] {
+		if _, ok := superprojectStates[p.GitSubmoduleOf]; ok {
 			submoduleProjectKeys = append(submoduleProjectKeys, k)
 		}
 	}

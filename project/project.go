@@ -1849,6 +1849,12 @@ func tryRebase(jirix *jiri.X, project Project, branch string) (bool, error) {
 	return true, nil
 }
 
+func submoduleInit(jirix *jiri.X, project Project) error {
+	scm := gitutil.New(jirix, gitutil.RootDirOpt(project.Path))
+	err := scm.SubmoduleInit()
+	return err
+}
+
 // syncProjectMaster checks out latest detached head if project is on one
 // else it rebases current branch onto its tracking branch
 func syncProjectMaster(jirix *jiri.X, project Project, state ProjectState, rebaseTracked, rebaseUntracked, rebaseAll, snapshot bool) error {
@@ -2412,6 +2418,14 @@ func updateProjects(jirix *jiri.X, localProjects, remoteProjects Projects, hooks
 			jirix.Logger.Infof("Jiri hooks are not run due to fatal errors when updating projects or packages")
 		}
 	}()
+
+	// Run submodule init on all superprojects if submodules are enabled.
+	if jirix.EnableSubmodules {
+		superprojectStates := getSuperprojectStates(remoteProjects)
+		for _, p := range superprojectStates {
+			submoduleInit(jirix, p)
+		}
+	}
 
 	// filter optional projects
 	if err := FilterOptionalProjectsPackages(jirix, jirix.FetchingAttrs, remoteProjects, pkgs); err != nil {

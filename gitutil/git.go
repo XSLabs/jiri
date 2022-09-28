@@ -303,6 +303,12 @@ func (g *Git) CheckoutBranch(branch string, gitSubmodules bool, opts ...Checkout
 	return nil
 }
 
+// SubmoduleInit initiates submodules to local config.
+func (g *Git) SubmoduleInit() error {
+	args := []string{"submodule", "init"}
+	return g.run(args...)
+}
+
 // SubmoduleUpdate updates submodules for current branch.
 func (g *Git) SubmoduleUpdate(opts ...SubmoduleUpdateOpt) error {
 	args := []string{"submodule", "update"}
@@ -1226,15 +1232,15 @@ func (g *Git) SetRemoteUrl(name, url string) error {
 	return g.run("remote", "set-url", name, url)
 }
 
-// RemoteUrl gets the remote url of the subdmoule with the given name.
-func (g *Git) SubmoduleURL(name string) (string, error) {
-	configKey := fmt.Sprintf("submodule.%s.url", name)
-	out, err := g.runOutput("config", "--get", configKey)
+// SubmoduleConfig gets the field of the subdmodule from the submodule config.
+func (g *Git) SubmoduleConfig(name, field string) (string, error) {
+	configKey := fmt.Sprintf("submodule.%s.%s", name, field)
+	out, err := g.runOutput("config", "--file", ".gitmodules", "--get", configKey)
 	if err != nil {
 		return "", err
 	}
 	if got := len(out); got != 1 {
-		return "", fmt.Errorf("SubmoduleURL: unexpected length of remotes %v: got %v, want 1", out, got)
+		return "", fmt.Errorf("SubmoduleConfig: unexpected length of output field %v: got %v, want 1", out, got)
 	}
 	return out[0], nil
 }
