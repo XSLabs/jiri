@@ -1000,8 +1000,15 @@ func LocalProjects(jirix *jiri.X, scanMode ScanMode) (Projects, error) {
 		if err != nil {
 			return nil, err
 		}
+		superprojectStates := getSuperprojectStates(snapshotProjects)
 		if projectsExist {
 			for key, p := range snapshotProjects {
+				// If project is enabled as a submodule, .git directory does not exist.
+				if jirix.EnableSubmodules {
+					if _, ok := superprojectStates[p.GitSubmoduleOf]; ok {
+						continue
+					}
+				}
 				localConfigFile := filepath.Join(p.Path, jiri.ProjectMetaDir, jiri.ProjectConfigFile)
 				if p.LocalConfig, err = LocalConfigFromFile(jirix, localConfigFile); err != nil {
 					return nil, fmt.Errorf("Error while reading config for project %s(%s): %s", p.Name, p.Path, err)
@@ -1631,13 +1638,13 @@ func resetLocalProject(jirix *jiri.X, local, remote Project, cleanupBranches boo
 
 // IsLocalProject returns true if there is a project at the given path.
 func IsLocalProject(jirix *jiri.X, path string) (bool, error) {
-	// Check if this is a submodule and if so, ignore it.
+	// Check if this is a submodule and if so, consider it as a jiri project.
 	// Git submodules have a file (.git) instead of a directory (.git/).
 	// If .git exists, but isn't a directory assume it's a submodule.
 	gitDir := filepath.Join(path, ".git")
 	if info, err := os.Stat(gitDir); err == nil && !info.IsDir() {
 		jirix.Logger.Debugf("Submodule detected at %q", path)
-		return false, nil
+		return true, nil
 	}
 	// Existence of a metadata directory is how we know we've found a
 	// Jiri-maintained project.
