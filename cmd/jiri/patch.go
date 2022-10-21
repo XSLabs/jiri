@@ -122,7 +122,7 @@ func patchProject(jirix *jiri.X, local project.Project, ref, branch, remote stri
 	} else {
 		jirix.Logger.Infof("Patching project %s(%s) to ref %q\n", local.Name, local.Path, ref)
 	}
-	if err := scm.FetchRefspec("origin", ref); err != nil {
+	if err := scm.FetchRefspec("origin", ref, jirix.EnableSubmodules); err != nil {
 		return false, err
 	}
 	branchBase := "FETCH_HEAD"
@@ -165,7 +165,7 @@ func patchProject(jirix *jiri.X, local project.Project, ref, branch, remote stri
 		// FETCH_HEAD. This will not be true after a rebase, as the rebase
 		// functions perform fetches of their own.
 		if cherryPickFlag {
-			if err := scm.FetchRefspec("origin", ref); err != nil {
+			if err := scm.FetchRefspec("origin", ref, jirix.EnableSubmodules); err != nil {
 				return false, err
 			}
 		}
@@ -214,7 +214,7 @@ func rebaseProject(jirix *jiri.X, project project.Project, branch, remoteBranch 
 	}
 	// TODO: provide a way to set username and email
 	scm = gitutil.New(jirix, gitutil.UserNameOpt(name), gitutil.UserEmailOpt(email), gitutil.RootDirOpt(project.Path))
-	if err := scm.FetchRefspec("origin", remoteBranch); err != nil {
+	if err := scm.FetchRefspec("origin", remoteBranch, jirix.EnableSubmodules); err != nil {
 		jirix.Logger.Errorf("Not able to fetch branch %q: %s", remoteBranch, err)
 		jirix.IncrementFailures()
 		return nil
@@ -241,12 +241,12 @@ func rebaseProjectWRevision(jirix *jiri.X, project project.Project, branch, revi
 		return fmt.Errorf("Rebase: cannot get user info for HEAD: %s", err)
 	}
 	scm = gitutil.New(jirix, gitutil.UserNameOpt(name), gitutil.UserEmailOpt(email), gitutil.RootDirOpt(project.Path))
-	if err := scm.Fetch("origin", gitutil.PruneOpt(true)); err != nil {
+	if err := scm.Fetch("origin", jirix.EnableSubmodules, gitutil.PruneOpt(true)); err != nil {
 		jirix.Logger.Errorf("Not able to fetch origin: %v", err)
 		jirix.IncrementFailures()
 		return nil
 	}
-	if err := scm.FetchRefspec("origin", revision); err != nil {
+	if err := scm.FetchRefspec("origin", revision, jirix.EnableSubmodules); err != nil {
 		jirix.Logger.Errorf("Not able to fetch revision %q: %s", revision, err)
 		jirix.IncrementFailures()
 		return nil

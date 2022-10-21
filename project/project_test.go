@@ -706,7 +706,7 @@ func TestLoadManifestFileRecursiveImport(t *testing.T) {
 
 	// local fetch on manifest project
 	gitLocal := gitutil.New(fake.X, gitutil.RootDirOpt(filepath.Join(fake.X.Root, jiritest.ManifestProjectPath)))
-	if err := gitLocal.Fetch("origin"); err != nil {
+	if err := gitLocal.Fetch("origin", false); err != nil {
 		t.Fatal(err)
 	}
 	localProjects, err := project.LocalProjects(fake.X, project.FastScan)
@@ -1685,7 +1685,7 @@ func TestUpdateWhenRemoteChangesRebased(t *testing.T) {
 	}
 
 	gitLocal := gitutil.New(fake.X, gitutil.UserNameOpt("John Doe"), gitutil.UserEmailOpt("john.doe@example.com"), gitutil.RootDirOpt(localProjects[1].Path))
-	if err := gitLocal.Fetch("origin", gitutil.PruneOpt(true)); err != nil {
+	if err := gitLocal.Fetch("origin", false, gitutil.PruneOpt(true)); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1701,7 +1701,7 @@ func TestUpdateWhenRemoteChangesRebased(t *testing.T) {
 	writeFile(t, fake.X, fake.Projects[localProjects[1].Name], "file2", "file2")
 	file2CommitRev, _ := gitRemote.CurrentRevision()
 
-	if err := gitLocal.Fetch("origin", gitutil.PruneOpt(true)); err != nil {
+	if err := gitLocal.Fetch("origin", false, gitutil.PruneOpt(true)); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1735,7 +1735,7 @@ func TestUpdateWhenConflictMerge(t *testing.T) {
 	}
 
 	gitLocal := gitutil.New(fake.X, gitutil.UserNameOpt("John Doe"), gitutil.UserEmailOpt("john.doe@example.com"), gitutil.RootDirOpt(localProjects[1].Path))
-	if err := gitLocal.Fetch("origin", gitutil.PruneOpt(true)); err != nil {
+	if err := gitLocal.Fetch("origin", false, gitutil.PruneOpt(true)); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1750,7 +1750,7 @@ func TestUpdateWhenConflictMerge(t *testing.T) {
 	file1CommitRev, _ := gitRemote.CurrentRevision()
 	writeFile(t, fake.X, fake.Projects[localProjects[1].Name], "file2", "file2")
 
-	if err := gitLocal.Fetch("origin", gitutil.PruneOpt(true)); err != nil {
+	if err := gitLocal.Fetch("origin", false, gitutil.PruneOpt(true)); err != nil {
 		t.Fatal(err)
 	}
 

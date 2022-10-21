@@ -96,7 +96,7 @@ func fetch(jirix *jiri.X, path, remote string, opts ...gitutil.FetchOpt) error {
 	t := jirix.Logger.TrackTime(msg)
 	defer t.Done()
 	return retry.Function(jirix, func() error {
-		return gitutil.New(jirix, gitutil.RootDirOpt(path)).Fetch(remote, opts...)
+		return gitutil.New(jirix, gitutil.RootDirOpt(path)).Fetch(remote, jirix.EnableSubmodules, opts...)
 	}, msg, retry.AttemptsOpt(jirix.Attempts))
 }
 
