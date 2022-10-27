@@ -1611,7 +1611,7 @@ func resetLocalProject(jirix *jiri.X, local, remote Project, cleanupBranches boo
 		return fmt.Errorf("Cannot find revision for ref %q for project %q: %v", headRev, local.Name, err)
 	}
 	if local.Revision != headRev {
-		if err := scm.CheckoutBranch(headRev, remote.GitSubmodules, gitutil.DetachOpt(true), gitutil.ForceOpt(true)); err != nil {
+		if err := scm.CheckoutBranch(headRev, (remote.GitSubmodules && jirix.EnableSubmodules), gitutil.DetachOpt(true), gitutil.ForceOpt(true)); err != nil {
 			return err
 		}
 	}
@@ -1802,7 +1802,7 @@ func fetchAll(jirix *jiri.X, project Project) error {
 		return err
 	}
 	opts := []gitutil.FetchOpt{gitutil.PruneOpt(true)}
-	if project.GitSubmodules {
+	if jirix.EnableSubmodules && project.GitSubmodules {
 		opts = append(opts, gitutil.RecurseSubmodulesOpt(true), gitutil.JobsOpt(jirix.Jobs))
 	}
 	if project.HistoryDepth > 0 {
@@ -1832,7 +1832,7 @@ func checkoutHeadRevision(jirix *jiri.X, project Project, forceCheckout bool) er
 	}
 	git := gitutil.New(jirix, gitutil.RootDirOpt(project.Path))
 	opts := []gitutil.CheckoutOpt{gitutil.DetachOpt(true), gitutil.ForceOpt(forceCheckout)}
-	err = git.CheckoutBranch(revision, project.GitSubmodules, opts...)
+	err = git.CheckoutBranch(revision, (project.GitSubmodules && jirix.EnableSubmodules), opts...)
 	if err == nil {
 		return nil
 	}
@@ -1841,7 +1841,7 @@ func checkoutHeadRevision(jirix *jiri.X, project Project, forceCheckout bool) er
 		if err2 := git.FetchRefspec("origin", project.Revision, jirix.EnableSubmodules); err2 != nil {
 			return fmt.Errorf("error while fetching after failed to checkout revision %s for project %s (%s): %s\ncheckout error: %v", revision, project.Name, project.Path, err2, err)
 		}
-		return git.CheckoutBranch(revision, project.GitSubmodules, opts...)
+		return git.CheckoutBranch(revision, (project.GitSubmodules && jirix.EnableSubmodules), opts...)
 	}
 
 	return err
@@ -1921,7 +1921,7 @@ func syncProjectMaster(jirix *jiri.X, project Project, state ProjectState, rebas
 	} else if rebaseAll {
 		// This should run after program exit so that original branch can be restored
 		defer func() {
-			if err := scm.CheckoutBranch(state.CurrentBranch.Name, project.GitSubmodules); err != nil {
+			if err := scm.CheckoutBranch(state.CurrentBranch.Name, (project.GitSubmodules && jirix.EnableSubmodules)); err != nil {
 				// This should not happen, panic
 				panic(fmt.Sprintf("for project %s(%s), not able to checkout branch %q: %s", project.Name, relativePath, state.CurrentBranch.Name, err))
 			}
@@ -2000,7 +2000,7 @@ func syncProjectMaster(jirix *jiri.X, project Project, state ProjectState, rebas
 				break
 			}
 
-			if err := scm.CheckoutBranch(branch.Name, project.GitSubmodules); err != nil {
+			if err := scm.CheckoutBranch(branch.Name, (project.GitSubmodules && jirix.EnableSubmodules)); err != nil {
 				msg := fmt.Sprintf("For project %s(%s), not able to rebase your local branch %q onto %q", project.Name, relativePath, branch.Name, tracking.Name)
 				msg += "\nPlease do it manually\n\n"
 				jirix.Logger.Errorf(msg)
@@ -2030,7 +2030,7 @@ func syncProjectMaster(jirix *jiri.X, project Project, state ProjectState, rebas
 					break
 				}
 
-				if err := scm.CheckoutBranch(branch.Name, project.GitSubmodules); err != nil {
+				if err := scm.CheckoutBranch(branch.Name, (project.GitSubmodules && jirix.EnableSubmodules)); err != nil {
 					msg := fmt.Sprintf("For project %s(%s), not able to rebase your untracked branch %q onto JIRI_HEAD.", project.Name, relativePath, branch.Name)
 					msg += "\nPlease do it manually\n\n"
 					jirix.Logger.Errorf(msg)
