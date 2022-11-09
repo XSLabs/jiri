@@ -1446,6 +1446,24 @@ func UpdateUniverse(jirix *jiri.X, gc, localManifest, rebaseTracked, rebaseUntra
 		if err != nil {
 			return err
 		}
+
+		// Unset assume-unchanged for all local projects
+		// Check if jirix is a git repository.
+		gitDir := filepath.Join(jirix.Root, ".git")
+		if _, err := os.Stat(gitDir); err == nil {
+			scm := gitutil.New(jirix, gitutil.RootDirOpt(jirix.Root))
+			for _, project := range localProjects {
+				projectRelPath, _ := filepath.Rel(jirix.Root, project.Path)
+				// Exclude fuchsia and integration for updating index in tree.
+				if project.Name == "integration" || project.Name == "fuchsia" {
+					continue
+				}
+				if err := scm.AssumeUnchanged(false, projectRelPath); err != nil {
+					return err
+				}
+			}
+		}
+
 		// Determine the set of remote projects and match them up with the locals.
 		remoteProjects, hooks, pkgs, err := LoadUpdatedManifest(jirix, localProjects, localManifest)
 		MatchLocalWithRemote(localProjects, remoteProjects)
@@ -2474,6 +2492,23 @@ func updateProjects(jirix *jiri.X, localProjects, remoteProjects Projects, hooks
 			batchOps = batchOps[1:]
 		}
 		runBatch(jirix, gc, batch)
+	}
+
+	// Set project to assume-unchanged to index in tree to avoid unpreditable submodule changes.
+	// Exclude fuchsia and integration.
+	gitDir := filepath.Join(jirix.Root, ".git")
+	if _, err := os.Stat(gitDir); err == nil {
+		scm := gitutil.New(jirix, gitutil.RootDirOpt(jirix.Root))
+		for _, project := range remoteProjects {
+			projectRelPath, _ := filepath.Rel(jirix.Root, project.Path)
+			// Exclude fuchsia and integration for updating index in tree.
+			if project.Name == "integration" || project.Name == "fuchsia" {
+				continue
+			}
+			if err := scm.AssumeUnchanged(true, projectRelPath); err != nil {
+				return err
+			}
+		}
 	}
 
 	jirix.TimerPush("jiri revision files")
