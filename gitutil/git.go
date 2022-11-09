@@ -174,15 +174,6 @@ func (g *Git) AddOrReplaceRemote(name, path string) error {
 	return nil
 }
 
-// AssumeUnchanged registers file contents unchanged in the working tree to the index.
-// Or unset the unchanged flag if unchanged set as false.
-func (g *Git) AssumeUnchanged(unchanged bool, dir string) error {
-	if unchanged {
-		return g.run("update-index", "--assume-unchanged", dir)
-	}
-	return g.run("update-index", "--no-assume-unchanged", dir)
-}
-
 // GetRemoteBranchesContaining returns a slice of the remote branches
 // which contains the given commit
 func (g *Git) GetRemoteBranchesContaining(commit string) ([]string, error) {
