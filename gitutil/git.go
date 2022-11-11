@@ -1417,6 +1417,9 @@ func (g *Git) runGit(stdout, stderr io.Writer, args ...string) error {
 	if g.userEmail != "" {
 		args = append([]string{"-c", fmt.Sprintf("user.email=%s", g.userEmail)}, args...)
 	}
+	if !g.jirix.EnableSubmodules {
+		args = append([]string{"-c", fmt.Sprintf("submodule.recurse=%t", false)}, args...)
+	}
 	var outbuf bytes.Buffer
 	var errbuf bytes.Buffer
 	command := exec.Command("git", args...)
