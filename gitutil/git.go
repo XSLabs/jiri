@@ -174,6 +174,15 @@ func (g *Git) AddOrReplaceRemote(name, path string) error {
 	return nil
 }
 
+// AssumeUnchanged registers file contents unchanged in the working tree to the index.
+// Or unset the unchanged flag if unchanged set as false.
+func (g *Git) AssumeUnchanged(unchanged bool, dir string) error {
+	if unchanged {
+		return g.run("update-index", "--assume-unchanged", dir)
+	}
+	return g.run("update-index", "--no-assume-unchanged", dir)
+}
+
 // GetRemoteBranchesContaining returns a slice of the remote branches
 // which contains the given commit
 func (g *Git) GetRemoteBranchesContaining(commit string) ([]string, error) {
@@ -1318,6 +1327,19 @@ func (g *Git) TrackedFiles() ([]string, error) {
 		return nil, err
 	}
 	return out, nil
+}
+
+// IsInIndex returns if the directory is being tracked in git.
+// If more than one projects are returned for the directory, return false.
+func (g *Git) IsInIndex(dir string) bool {
+	out, err := g.runOutput("ls-files", "--error-unmatch", "--", dir)
+	if err != nil {
+		return false
+	}
+	if len(out) != 1 {
+		return false
+	}
+	return true
 }
 
 func (g *Git) Show(ref, file string) (string, error) {
