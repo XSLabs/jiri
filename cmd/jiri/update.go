@@ -39,7 +39,7 @@ const (
 )
 
 func init() {
-	cmdUpdate.Flags.BoolVar(&gcFlag, "gc", false, "Garbage collect obsolete repositories.")
+	cmdUpdate.Flags.BoolVar(&gcFlag, "gc", true, "Garbage collect obsolete repositories.")
 	cmdUpdate.Flags.BoolVar(&localManifestFlag, "local-manifest", false, "Use local manifest")
 	cmdUpdate.Flags.UintVar(&attemptsFlag, "attempts", 3, "Number of attempts before failing.")
 	cmdUpdate.Flags.BoolVar(&autoupdateFlag, "autoupdate", true, "Automatically update to the new version.")
