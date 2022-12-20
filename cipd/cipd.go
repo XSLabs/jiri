@@ -298,19 +298,17 @@ type packageACL struct {
 	access bool
 }
 
-func checkPackageACL(jirix *jiri.X, cipdPath, jsonDir string, c chan<- packageACL) {
+func checkPackageACL(jirix *jiri.X, cipdPath, jsonDir string) packageACL {
 	// cipd should be already bootstrapped before this go routine.
 	// Silently return a false just in case if cipd is not found.
 	if cipdBinary == "" {
-		c <- packageACL{path: cipdPath, access: false}
-		return
+		return packageACL{path: cipdPath, access: false}
 	}
 
 	jsonFile, err := os.CreateTemp(jsonDir, "cipd*.json")
 	if err != nil {
 		jirix.Logger.Warningf("Error while creating temporary file for cipd")
-		c <- packageACL{path: cipdPath, access: false}
-		return
+		return packageACL{path: cipdPath, access: false}
 	}
 	jsonFileName := jsonFile.Name()
 	jsonFile.Close()
@@ -325,32 +323,27 @@ func checkPackageACL(jirix *jiri.X, cipdPath, jsonDir string, c chan<- packageAC
 	// Return false if cipd cannot be executed or output jsonfile contains false.
 	if err := command.Run(); err != nil {
 		jirix.Logger.Debugf("Error while executing cipd, err: %q, stderr: %q", err, stderrBuf.String())
-		c <- packageACL{path: cipdPath, access: false}
-		return
+		return packageACL{path: cipdPath, access: false}
 	}
 
 	jsonData, err := os.ReadFile(jsonFileName)
 	if err != nil {
-		c <- packageACL{path: cipdPath, access: false}
-		return
+		return packageACL{path: cipdPath, access: false}
 	}
 
 	var result struct {
 		Result bool `json:"result"`
 	}
 	if err := json.Unmarshal(jsonData, &result); err != nil {
-		c <- packageACL{path: cipdPath, access: false}
-		return
+		return packageACL{path: cipdPath, access: false}
 	}
 
 	if !result.Result {
-		c <- packageACL{path: cipdPath, access: false}
-		return
+		return packageACL{path: cipdPath, access: false}
 	}
 
 	// Package can be accessed.
-	c <- packageACL{path: cipdPath, access: true}
-	return
+	return packageACL{path: cipdPath, access: true}
 }
 
 // CheckPackageACL checks cipd's access to packages in map "pkgs". The package
@@ -370,15 +363,11 @@ func CheckPackageACL(jirix *jiri.X, pkgs map[string]bool) error {
 	}
 	defer os.RemoveAll(jsonDir)
 
-	c := make(chan packageACL)
 	for key := range pkgs {
-		go checkPackageACL(jirix, key, jsonDir, c)
-	}
-
-	for i := 0; i < len(pkgs); i++ {
-		acl := <-c
+		acl := checkPackageACL(jirix, key, jsonDir)
 		pkgs[acl.path] = acl.access
 	}
+
 	return nil
 }
 
