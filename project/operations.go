@@ -144,6 +144,9 @@ func (op createOperation) checkoutProject(jirix *jiri.X, cache string) error {
 		if jirix.OffloadPackfiles {
 			opts = append(opts, gitutil.OffloadPackfilesOpt(true))
 		}
+		if jirix.Dissociate {
+			opts = append(opts, gitutil.DissociateOpt(true))
+		}
 		if err = clone(jirix, r, op.destination, opts...); err != nil {
 			return err
 		}

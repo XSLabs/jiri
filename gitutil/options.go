@@ -151,3 +151,7 @@ func (InitOpt) submoduleUpdateOpt() {}
 type JobsOpt uint
 
 func (JobsOpt) fetchOpt() {}
+
+type DissociateOpt bool
+
+func (DissociateOpt) cloneOpt() {}

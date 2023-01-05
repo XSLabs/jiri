@@ -374,6 +374,10 @@ func (g *Git) Clone(repo, path string, opts ...CloneOpt) error {
 			if typedOpt {
 				args = append([]string{"--recurse-submodules", "--jobs=16"}, args...)
 			}
+		case DissociateOpt:
+			if typedOpt {
+				args = append(args, "--dissociate")
+			}
 		}
 	}
 	args = append(args, repo)

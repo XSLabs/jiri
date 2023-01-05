@@ -47,6 +47,7 @@ type Config struct {
 	CachePath         string   `xml:"cache>path,omitempty"`
 	CipdParanoidMode  string   `xml:"cipd_paranoid_mode,omitempty"`
 	CipdMaxThreads    int      `xml:"cipd_max_threads,omitempty"`
+	Dissociate        bool     `xml:"cache>dissociate,omitempty"`
 	Shared            bool     `xml:"cache>shared,omitempty"`
 	RewriteSsoToHttps bool     `xml:"rewriteSsoToHttps,omitempty"`
 	SsoCookiePath     string   `xml:"SsoCookiePath,omitempty"`
@@ -107,6 +108,7 @@ type X struct {
 	Cache               string
 	CipdParanoidMode    bool
 	CipdMaxThreads      int
+	Dissociate          bool
 	Shared              bool
 	Jobs                uint
 	KeepGitHooks        bool
@@ -306,6 +308,7 @@ func NewX(env *cmdline.Env) (*X, error) {
 		x.Partial = x.config.Partial
 		x.PartialSkip = x.config.PartialSkip
 		x.OffloadPackfiles = x.config.OffloadPackfiles
+		x.Dissociate = x.config.Dissociate
 	}
 	x.Cache, err = findCache(root, x.config)
 	if err != nil {
