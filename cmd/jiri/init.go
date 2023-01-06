@@ -36,6 +36,7 @@ does not exists, it will be created.
 
 var (
 	cacheFlag             string
+	dissociateFlag        bool
 	sharedFlag            bool
 	showAnalyticsDataFlag bool
 	analyticsOptFlag      string
@@ -61,6 +62,7 @@ const (
 func init() {
 	cmdInit.Flags.StringVar(&cacheFlag, "cache", "", "Jiri cache directory.")
 	cmdInit.Flags.BoolVar(&sharedFlag, "shared", false, "[DEPRECATED] All caches are shared.")
+	cmdInit.Flags.BoolVar(&dissociateFlag, "dissociate", false, "Dissociate the git cache after a clone or fetch.")
 	cmdInit.Flags.BoolVar(&showAnalyticsDataFlag, "show-analytics-data", false, "Show analytics data that jiri collect when you opt-in and exits.")
 	cmdInit.Flags.StringVar(&analyticsOptFlag, "analytics-opt", "", "Opt in/out of analytics collection. Takes true/false")
 	cmdInit.Flags.StringVar(&rewriteSsoToHttpsFlag, "rewrite-sso-to-https", "", "Rewrites sso fetches, clones, etc to https. Takes true/false.")
@@ -148,6 +150,10 @@ func runInit(env *cmdline.Env, args []string) error {
 
 	if cacheFlag != "" {
 		config.CachePath = cacheFlag
+	}
+
+	if dissociateFlag {
+		config.Dissociate = true
 	}
 
 	if keepGitHooks != "" {
