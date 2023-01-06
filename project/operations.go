@@ -120,6 +120,23 @@ func (op createOperation) checkoutProject(jirix *jiri.X, cache string) error {
 		if err = fetchAll(jirix, op.project); err != nil {
 			return err
 		}
+
+		if cache != "" && jirix.Dissociate {
+			// Dissociating from the cache is slightly more complicated here,
+			// as `git fetch` does not have a `--dissociate` flag. As a result,
+			// we must invoke a dissociate manually. This involves running a
+			// repack, as well as removing the alternatives file. See the
+			// implementation of the dissociate flag in
+			// https://github.com/git/git/blob/master/builtin/clone.c#L1399 for
+			// more details.
+			opts := []gitutil.RepackOpt{gitutil.RepackAllOpt(true), gitutil.RemoveRedundantOpt(true)}
+			if err := gitutil.New(jirix).Repack(opts...); err != nil {
+				return err
+			}
+			if err := os.Remove(filepath.Join(op.destination, ".git/objects/info/alternates")); err != nil {
+				return err
+			}
+		}
 	} else {
 		r := remote
 		if cache != "" {

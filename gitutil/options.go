@@ -27,6 +27,11 @@ type MergeOpt interface {
 type PushOpt interface {
 	pushOpt()
 }
+
+type RepackOpt interface {
+	repackOpt()
+}
+
 type ResetOpt interface {
 	resetOpt()
 }
@@ -155,3 +160,11 @@ func (JobsOpt) fetchOpt() {}
 type DissociateOpt bool
 
 func (DissociateOpt) cloneOpt() {}
+
+type RepackAllOpt bool
+
+func (RepackAllOpt) repackOpt() {}
+
+type RemoveRedundantOpt bool
+
+func (RemoveRedundantOpt) repackOpt() {}

@@ -1228,6 +1228,24 @@ func (g *Git) RemoveUntrackedFiles() error {
 	return g.run("clean", "-d", "-f")
 }
 
+// Repack runs a `git repack` with the given options.
+func (g *Git) Repack(opts ...RepackOpt) error {
+	args := []string{"repack"}
+	for _, opt := range opts {
+		switch typedOpt := opt.(type) {
+		case RepackAllOpt:
+			if typedOpt {
+				args = append(args, "-a")
+			}
+		case RemoveRedundantOpt:
+			if typedOpt {
+				args = append(args, "-d")
+			}
+		}
+	}
+	return g.run(args...)
+}
+
 // Reset resets the current branch to the target, discarding any
 // uncommitted changes.
 func (g *Git) Reset(target string, opts ...ResetOpt) error {
