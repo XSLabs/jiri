@@ -346,6 +346,9 @@ func (ld *loader) cloneManifestRepo(jirix *jiri.X, remote *Import, cacheDirPath 
 	if jirix.OffloadPackfiles {
 		opts = append(opts, gitutil.OffloadPackfilesOpt(true))
 	}
+	if jirix.Dissociate {
+		opts = append(opts, gitutil.DissociateOpt(true))
+	}
 	if err := clone(jirix, remoteUrl, path, opts...); err != nil {
 		return err
 	}
