@@ -251,7 +251,9 @@ func updateLocks(jirix *jiri.X, tempDir, lockfile string, backup, projects map[s
 }
 
 func updateRevision(manifestContent, tag, currentRevision, newRevision, name string) (string, error) {
-	if currentRevision != "" && currentRevision != "HEAD" {
+	// We can do a trivial string replace if the `currentRevision` is non-empty
+	// and unique. Otherwise we need to edit the entire XML block for the project.
+	if currentRevision != "" && currentRevision != "HEAD" && strings.Count(manifestContent, currentRevision) == 1 {
 		return strings.Replace(manifestContent, currentRevision, newRevision, 1), nil
 	}
 	return updateRevisionOrVersionAttr(manifestContent, tag, newRevision, name, "revision")
@@ -279,6 +281,7 @@ func updateVersion(manifestContent, tag string, pc packageChanges) (string, erro
 }
 
 func updateRevisionOrVersionAttr(manifestContent, tag, newAttrValue, name, attr string) (string, error) {
+	// Find the manifest fragment with the appropriate `name`.
 	name = regexp.QuoteMeta(name)
 	// Avoid using %q in regex, it behaves differently from regex.QuoteMeta.
 	r, err := regexp.Compile(fmt.Sprintf("( *?)<%s[\\s\\n]+[^<]*?name=\"%s\"(.|\\n)*?\\/>", tag, name))
@@ -294,8 +297,24 @@ func updateRevisionOrVersionAttr(manifestContent, tag, newAttrValue, name, attr 
 	for i := 0; i < len(tag); i++ {
 		spaces = spaces + " "
 	}
-	us := strings.Replace(s, "/>", fmt.Sprintf("\n%s  %s=%q/>", spaces, attr, newAttrValue), 1)
-	return strings.Replace(manifestContent, s, us, 1), nil
+
+	// Try to find the attribute `attr` in the fragment.
+	r, err = regexp.Compile(fmt.Sprintf(`%s\s*=\s*"[^"]*"`, attr))
+	if err != nil {
+		return "", fmt.Errorf("error parsing attr regexp for: %v: %w", attr, err)
+	}
+
+	t = r.FindStringSubmatch(s)
+	var rs string
+	if len(t) == 0 {
+		// No such attribute, add it.
+		rs = strings.Replace(s, "/>", fmt.Sprintf("\n%s  %s=%q/>", spaces, attr, newAttrValue), 1)
+	} else {
+		// There is such an attribute, replace it.
+		rs = strings.Replace(s, t[0], fmt.Sprintf(`%s="%s"`, attr, newAttrValue), 1)
+	}
+	// Replace entire original string s with the replacement string.
+	return strings.Replace(manifestContent, s, rs, 1), nil
 }
 
 func updateManifest(jirix *jiri.X, manifestPath string, projects, imports, packages map[string]string) error {
