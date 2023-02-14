@@ -80,7 +80,7 @@ func TestFetchBinary(t *testing.T) {
 func TestCipdVersion(t *testing.T) {
 	t.Parallel()
 	// Assume cipd version is always a git commit hash for now
-	versionStr := string(cipdVersion)
+	versionStr := cipdVersion
 	if len(versionStr) != len("git_revision:00e2d8b49a4e7505d1c71f19d15c9e7c5b9245a5") ||
 		!strings.HasPrefix(versionStr, "git_revision:") {
 		t.Errorf("unsupported cipd version tag: %q", versionStr)
