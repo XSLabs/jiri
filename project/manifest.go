@@ -1358,8 +1358,27 @@ func applyGitHooks(jirix *jiri.X, ops []operation) error {
 	defer jirix.TimerPop()
 	commitMsgFetcher := commitMsgFetcher{}
 	for _, op := range ops {
-		gitHooksDstDir := filepath.Join(op.Project().Path, ".git", "hooks")
-		if op.Kind() != "delete" && !op.Project().LocalConfig.Ignore && !op.Project().LocalConfig.NoUpdate {
+		// If project directory no longer exist, we don't want to run hooks.
+		if _, err := os.Stat(op.Project().Path); os.IsNotExist(err) {
+			continue
+		}
+		// Dynamically find githook directory.
+		scm := gitutil.New(jirix, gitutil.RootDirOpt(op.Project().Path))
+		gitHooksDstDir, err := scm.CurrentGitHooksPath()
+		if err != nil {
+			return err
+		}
+		// Check if directory is a valid git repo. E.g. third_party/rpc.
+		// If git top level repo does not match operation path, then it's no longer a project, skip hooks.
+		topLevel, err := scm.TopLevel()
+		if err != nil {
+			return err
+		}
+		if topLevel != op.Project().Path {
+			continue
+		}
+		// gitHooksDstDir := filepath.Join(op.Project().Path, ".git", "hooks")
+		if !op.Project().LocalConfig.Ignore && !op.Project().LocalConfig.NoUpdate {
 			if op.Project().GerritHost != "" {
 				if err := os.MkdirAll(gitHooksDstDir, 0755); err != nil {
 					return fmtError(err)
@@ -1390,10 +1409,6 @@ func applyGitHooks(jirix *jiri.X, ops []operation) error {
 			}
 		}
 		if op.Project().GitHooks == "" {
-			continue
-		}
-		// Don't want to run hooks when repo is deleted
-		if op.Kind() == "delete" {
 			continue
 		}
 		// Apply git hooks, overwriting any existing hooks.  Jiri is in control of

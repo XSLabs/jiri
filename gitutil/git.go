@@ -297,19 +297,21 @@ func (g *Git) CheckoutBranch(branch string, gitSubmodules bool, opts ...Checkout
 		args = append(args, "--detach")
 	}
 
-	if gitSubmodules {
-		args = append(args, "--recurse-submodules")
-	}
-
 	args = append(args, branch)
 	if err := g.run(args...); err != nil {
 		return err
 	}
 	// After checkout with submodules update/checkout submodules.
 	if gitSubmodules {
-		return g.SubmoduleUpdate(InitOpt(true))
+		return g.SubmoduleUpdate()
 	}
 	return nil
+}
+
+// SubmoduleInit de-initiates submodules to local config.
+func (g *Git) SubmoduleDeinit(path string) error {
+	args := []string{"submodule", "deinit", path}
+	return g.run(args...)
 }
 
 // SubmoduleInit initiates submodules to local config.
@@ -330,6 +332,7 @@ func (g *Git) SubmoduleUpdate(opts ...SubmoduleUpdateOpt) error {
 		}
 	}
 	// TODO(iankaz): Use Jiri jobsFlag setting (or set submodule.fetchJobs on superproject init)
+	// Number of parallel children to be used for fetching submodules.
 	args = append(args, "--jobs=50")
 	return g.run(args...)
 }
@@ -513,6 +516,15 @@ func (g *Git) OneLineLog(rev string) (string, error) {
 	return out[0], nil
 }
 
+// CheckBranchExists checks if a branch exists locally.
+func (g *Git) CheckBranchExists(branch string) (bool, error) {
+	out, err := g.runOutput("show-branch", branch)
+	if len(out) == 0 {
+		return false, err
+	}
+	return true, err
+}
+
 // CreateBranch creates a new branch with the given name.
 func (g *Git) CreateBranch(branch string) error {
 	return g.run("branch", branch)
@@ -658,6 +670,19 @@ func (g *Git) IsOnBranch() bool {
 	return err == nil
 }
 
+// CurrentGitHooksPath returns the gitHooks directory of a project.
+// Submodules gitHooks are under //.git/modules under superproject.
+func (g *Git) CurrentGitHooksPath() (string, error) {
+	out, err := g.runOutput("rev-parse", "--git-path", "hooks")
+	if err != nil {
+		return "", err
+	}
+	if len(out) != 1 {
+		return "", fmt.Errorf("unexpected length of %v: got %v, want 1", out, len(out))
+	}
+	return out[0], nil
+}
+
 // CurrentRevision returns the current revision.
 func (g *Git) CurrentRevision() (string, error) {
 	return g.CurrentRevisionForRef("HEAD")
@@ -751,7 +776,6 @@ func (g *Git) FetchRefspec(remote, refspec string, enabledSubmodules bool, opts 
 	depth := 0
 	fetchTag := ""
 	updateHeadOk := false
-	recurseSubmodules := false
 	jobs := uint(0)
 	for _, opt := range opts {
 		switch typedOpt := opt.(type) {
@@ -769,8 +793,6 @@ func (g *Git) FetchRefspec(remote, refspec string, enabledSubmodules bool, opts 
 			fetchTag = string(typedOpt)
 		case UpdateHeadOkOpt:
 			updateHeadOk = bool(typedOpt)
-		case RecurseSubmodulesOpt:
-			recurseSubmodules = bool(typedOpt)
 		case JobsOpt:
 			jobs = uint(typedOpt)
 		}
@@ -797,9 +819,6 @@ func (g *Git) FetchRefspec(remote, refspec string, enabledSubmodules bool, opts 
 	}
 	if updateHeadOk {
 		args = append(args, "--update-head-ok")
-	}
-	if recurseSubmodules {
-		args = append(args, "--recurse-submodules")
 	}
 	if jobs > 0 {
 		args = append(args, "--jobs="+strconv.FormatUint(uint64(jobs), 10))

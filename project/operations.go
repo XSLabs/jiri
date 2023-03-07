@@ -509,6 +509,12 @@ func (op updateOperation) Run(jirix *jiri.X) error {
 	if err := syncProjectMaster(jirix, op.project, op.state, op.rebaseTracked, op.rebaseUntracked, op.rebaseAll, op.snapshot); err != nil {
 		return err
 	}
+	// If we enabled submodules and current project is a superproject, we need to remove intial branches and foo branch.
+	if jirix.EnableSubmodules && op.project.GitSubmodules {
+		if err := removeSubmoduleBranches(jirix, op.project, SubmoduleLocalFlagBranch); err != nil {
+			return err
+		}
+	}
 	return writeMetadata(jirix, op.project, op.project.Path)
 }
 
@@ -680,6 +686,16 @@ func computeOperations(jirix *jiri.X, localProjects, remoteProjects Projects, st
 	for _, p := range remoteProjects {
 		allProjects[p.Key()] = true
 	}
+	// When we are switching submodules to projects, we deinit all of the current existing local submodules.
+	if !jirix.EnableSubmodules && containLocalSubmodules(localProjects) {
+		for _, local := range localProjects {
+			if !local.IsSubmodule {
+				continue
+			}
+			scm := gitutil.New(jirix, gitutil.RootDirOpt(jirix.Root))
+			scm.SubmoduleDeinit(local.Path)
+		}
+	}
 	for key := range allProjects {
 		var local, remote *Project
 		var state *ProjectState
@@ -712,12 +728,28 @@ func computeOp(jirix *jiri.X, local, remote *Project, state *ProjectState, rebas
 			source:      "",
 		}}
 	case local != nil && remote == nil:
+		// When submoduels are enabled, all submodules are removed from remote projects, so submodules from remote are nil.
+		// We skip operations on submodules when we enabled submodules and rely on superproject updates.
+		if jirix.EnableSubmodules && local.IsSubmodule {
+			return nullOperation{commonOperation{
+				source: local.Path,
+				state:  *state,
+			}}
+		}
 		return deleteOperation{commonOperation{
 			destination: "",
 			project:     *local,
 			source:      local.Path,
 		}}
 	case local != nil && remote != nil:
+		// When we are switching from submodules to projects, submodules are all removed and all projects need to be created new.
+		if !jirix.EnableSubmodules && local.IsSubmodule {
+			return createOperation{commonOperation{
+				destination: remote.Path,
+				project:     *remote,
+				source:      "",
+			}}
+		}
 
 		localBranchesNeedUpdating := false
 		if !snapshot {
@@ -763,7 +795,23 @@ func computeOp(jirix *jiri.X, local, remote *Project, state *ProjectState, rebas
 				source:      local.Path,
 				state:       *state,
 			}, rebaseTracked, rebaseUntracked, rebaseAll, snapshot}
+		// No need to update projects when current project exists as a submodule
+		case jirix.EnableSubmodules && local.IsSubmodule:
+			return nullOperation{commonOperation{
+				destination: remote.Path,
+				project:     *remote,
+				source:      local.Path,
+				state:       *state,
+			}}
 		case snapshot && local.Revision != remote.Revision:
+			return updateOperation{commonOperation{
+				destination: remote.Path,
+				project:     *remote,
+				source:      local.Path,
+				state:       *state,
+			}, rebaseTracked, rebaseUntracked, rebaseAll, snapshot}
+		case jirix.EnableSubmodules && local.GitSubmodules:
+			// Always update superproject when submoduels are enabled.
 			return updateOperation{commonOperation{
 				destination: remote.Path,
 				project:     *remote,

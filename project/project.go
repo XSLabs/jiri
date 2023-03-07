@@ -43,6 +43,8 @@ const (
 	JiriName        = "jiri"
 	JiriPackage     = "go.fuchsia.dev/jiri"
 	ManifestVersion = "1.1"
+	// We flag all the local submodules before superproject update to determine what submodules exists before submodule update.
+	SubmoduleLocalFlagBranch = "local-submodule-sentinal-branch"
 )
 
 // Project represents a jiri project.
@@ -77,6 +79,8 @@ type Project struct {
 	GitSubmodules bool `xml:"gitsubmodules,attr,omitempty"`
 	// GitSubmoduleOf indicates the superprject that the submodule is under.
 	GitSubmoduleOf string `xml:"gitsubmoduleof,attr,omitempty"`
+	// IsSubmodule indicates that the project is checked out as a submodule.
+	IsSubmodule bool `xml:"issubmodule,attr,omitempty"`
 
 	// Attributes is a list of attributes for a project seperated by comma.
 	// The project will not be fetched by default when attributes are present.
@@ -759,34 +763,10 @@ func CreateSnapshot(jirix *jiri.X, file string, hooks Hooks, pkgs Packages, loca
 	}
 
 	// jiri local submodule config should always match local submodules state.
-	if jirix.EnableSubmodules != containSubmodules(jirix, localProjects) {
-		return errors.New("local submodule state does not match jiri config, run jiri update or unset EnableSubmodules")
+	csm := containSubmodules(jirix, localProjects)
+	if jirix.EnableSubmodules != csm {
+		fmt.Printf("Currently, local submodules is %t while user flag is %t, run jiri update or unset EnableSubmodules \n", csm, jirix.EnableSubmodules)
 	}
-
-	if jirix.EnableSubmodules {
-		// Add submodules to projects.
-		allSubmodules := getAllSubmodules(jirix, localProjects)
-		for _, super := range allSubmodules {
-			for _, subm := range super {
-				if subm.Prefix == "-" {
-					continue
-				}
-				submProjectKey := MakeProjectKey(subm.Name, subm.Remote)
-				if _, ok := localProjects[submProjectKey]; ok {
-					return errors.New(fmt.Sprintf("%s submodule and project exist at the same time, please run `jiri update`", subm.Name))
-				}
-				localProjects[submProjectKey] = Project{
-					Name:           subm.Name,
-					Path:           subm.Path,
-					Remote:         subm.Remote,
-					Revision:       subm.Revision,
-					GitSubmoduleOf: subm.Superproject,
-				}
-			}
-
-		}
-	}
-
 	for _, project := range localProjects {
 		manifest.Projects = append(manifest.Projects, project)
 	}
@@ -1691,6 +1671,17 @@ func IsLocalProject(jirix *jiri.X, path string) (bool, error) {
 	return true, nil
 }
 
+// IsSubmodule returns true if there is a file (.git) instead of a directory (.git/).
+// We first check if directory IsLocalProject before checking whether or not it's a submodule.
+func IsSubmodule(jirix *jiri.X, path string) (bool, error) {
+	gitDir := filepath.Join(path, ".git")
+	info, err := os.Stat(gitDir)
+	if err == nil && !info.IsDir() {
+		return true, nil
+	}
+	return false, fmtError(err)
+}
+
 // ProjectAtPath returns a Project struct corresponding to the project at the
 // path in the filesystem.
 func ProjectAtPath(jirix *jiri.X, path string) (Project, error) {
@@ -1737,11 +1728,21 @@ func findLocalProjects(jirix *jiri.X, path string, projects Projects) MultiError
 			return
 		}
 		if isLocal {
+			isSubm, err := IsSubmodule(jirix, path)
+			if err != nil {
+				errs <- fmt.Errorf("Error while processing path %q as a potential submodule: %v", path, err)
+			}
+			// If current project is at a submodule state, no need to check metafiles.
+			if isSubm {
+				return
+			}
 			project, err := ProjectAtPath(jirix, path)
 			if err != nil {
 				errs <- fmt.Errorf("Error while processing path %q: %v", path, err)
 				return
 			}
+
+			// When submodules are enabled and in transition to jiri projects, ProjectAtPath returns project{}.
 			if path != project.Path {
 				logs := []string{
 					fmt.Sprintf("Project %q has path %s, but was found in %s.", project.Name, project.Path, path),
@@ -1793,6 +1794,31 @@ func findLocalProjects(jirix *jiri.X, path string, projects Projects) MultiError
 	close(log)
 	close(workq)
 	wg.Wait()
+	// Add submodules to Local Projects
+	allSubmodules := getAllSubmodules(jirix, projects)
+	for _, super := range allSubmodules {
+		for _, subm := range super {
+			if subm.Prefix == "-" {
+				continue
+			}
+			submProjectKey := MakeProjectKey(subm.Name, subm.Remote)
+			if p, ok := projects[submProjectKey]; ok {
+				// If local projects contain submodule but in jiri project state, then return error.
+				if !p.IsSubmodule {
+					fmt.Printf("%s submodule and project exist at the same time, please run `jiri update`", subm.Name)
+				}
+			}
+			projects[submProjectKey] = Project{
+				Name:           subm.Name,
+				Path:           subm.Path,
+				Remote:         subm.Remote,
+				Revision:       subm.Revision,
+				GitSubmoduleOf: subm.Superproject,
+				IsSubmodule:    true,
+			}
+		}
+
+	}
 	return multiErr
 }
 
@@ -1820,9 +1846,6 @@ func fetchAll(jirix *jiri.X, project Project) error {
 		return err
 	}
 	opts := []gitutil.FetchOpt{gitutil.PruneOpt(true)}
-	if jirix.EnableSubmodules && project.GitSubmodules {
-		opts = append(opts, gitutil.RecurseSubmodulesOpt(true), gitutil.JobsOpt(jirix.Jobs))
-	}
 	if project.HistoryDepth > 0 {
 		opts = append(opts, gitutil.DepthOpt(project.HistoryDepth), gitutil.UpdateShallowOpt(true))
 	}
@@ -1898,6 +1921,16 @@ func syncProjectMaster(jirix *jiri.X, project Project, state ProjectState, rebas
 	}
 
 	scm := gitutil.New(jirix, gitutil.RootDirOpt(project.Path))
+
+	// To determine what submodules are newly added, we add a local branch to flag all local submodules.
+	// For all newly added submodules, the test flag branch would not exist, we would later delete all the branches so jri can track user changes.
+	// For existing submodules, we simply remove our flag branch.
+	// TODO(yupingz): substitute branch name to be randomized everytime jiri runs update.
+	if jirix.EnableSubmodules && project.GitSubmodules {
+		if err := createBranchSubmodules(jirix, project, SubmoduleLocalFlagBranch); err != nil {
+			return err
+		}
+	}
 
 	if diff, err := scm.FilesWithUncommittedChanges(); err != nil {
 		return fmt.Errorf("Cannot get uncommitted changes for project %q: %s", project.Name, err)
@@ -2342,6 +2375,10 @@ func fetchLocalProjects(jirix *jiri.X, localProjects, remoteProjects Projects) e
 	errs := make(chan error, len(localProjects))
 	var wg sync.WaitGroup
 	for key, project := range localProjects {
+		// No need to fetch project locally when it is a submodule state.
+		if project.IsSubmodule {
+			continue
+		}
 		if r, ok := remoteProjects[key]; ok {
 			if project.LocalConfig.Ignore || project.LocalConfig.NoUpdate {
 				jirix.Logger.Warningf("Not updating remotes for project %s(%s) due to its local-config\n\n", project.Name, project.Path)
@@ -2448,7 +2485,14 @@ func updateProjects(jirix *jiri.X, localProjects, remoteProjects Projects, hooks
 	if jirix.EnableSubmodules {
 		superprojectStates := getSuperprojectStates(remoteProjects)
 		for _, p := range superprojectStates {
-			submoduleInit(jirix, p)
+			if local, ok := localProjects[p.Key()]; ok {
+				if local.IsSubmodule {
+					continue
+				}
+			}
+			if err := submoduleInit(jirix, p); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -2471,8 +2515,8 @@ func updateProjects(jirix *jiri.X, localProjects, remoteProjects Projects, hooks
 	if err := setRemoteHeadRevisions(jirix, remoteProjects, localProjects); err != nil {
 		return err
 	}
-
-	// Check which projects have submodules enabled, we remove them from remoteProjects.
+	// When user have submodules enabled, we remove all submodules that have superproject turned on. Submodules state will be
+	// updated from superproject git submodule update directly.
 	if jirix.EnableSubmodules {
 		removeSubmodulesFromProjects(remoteProjects)
 	}
@@ -2700,6 +2744,13 @@ func getProjectStatus(jirix *jiri.X, ps Projects) ([]ProjectStatus, MultiError) 
 // writeMetadata stores the given project metadata in the directory
 // identified by the given path.
 func writeMetadata(jirix *jiri.X, project Project, dir string) (e error) {
+	// For submodules, .git directory does not exist.
+	if _, err := os.Stat(dir); errors.Is(err, os.ErrNotExist) {
+		err := os.Mkdir(dir, os.ModePerm)
+		if err != nil {
+			return err
+		}
+	}
 	metadataDir := filepath.Join(dir, jiri.ProjectMetaDir)
 	if err := os.MkdirAll(metadataDir, os.FileMode(0755)); err != nil {
 		return fmtError(err)

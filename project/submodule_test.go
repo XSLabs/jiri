@@ -17,8 +17,9 @@ func TestSubmoduleRegex(t *testing.T) {
 			[]string{"",
 				"91d92f5732440651499ea7adfa60a362a2bade39", "third_party/libc-tests"},
 		},
+		// When submodules are not inited, they do not contain branch information.
 		{
-			"-91d92f5732440651499ea7adfa60a362a2bade39 third_party/libc-tests (heads/main)",
+			"-91d92f5732440651499ea7adfa60a362a2bade39 third_party/libc-tests",
 			[]string{"-",
 				"91d92f5732440651499ea7adfa60a362a2bade39", "third_party/libc-tests"},
 		},
