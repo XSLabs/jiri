@@ -2574,6 +2574,23 @@ func updateProjects(jirix *jiri.X, localProjects, remoteProjects Projects, hooks
 	jirix.TimerPop()
 
 	jirix.TimerPush("jiri project flag files")
+
+	// Set flags for whether or not fuchsia checkout contains submodules in checkout.gni.
+	flagSet := false
+	if jirix.EnableSubmodules {
+		for _, project := range remoteProjects {
+			if project.GitSubmodules {
+				project.Flag = "build/checkout.gni|submodules=true|unused=unused"
+			}
+		}
+	}
+	if !flagSet {
+		for _, project := range remoteProjects {
+			project.Flag = "build/checkout.gni|submodules=false|unused=unused"
+			break
+		}
+	}
+
 	if err := WriteProjectFlags(jirix, remoteProjects); err != nil {
 		jirix.Logger.Errorf("failures in write jiri project flag files: %v", err)
 	}
