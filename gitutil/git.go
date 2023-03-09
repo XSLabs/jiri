@@ -667,7 +667,7 @@ func (g *Git) IsOnBranch() bool {
 // CurrentGitHooksPath returns the gitHooks directory of a project.
 // Submodules gitHooks are under //.git/modules under superproject.
 func (g *Git) CurrentGitHooksPath() (string, error) {
-	out, err := g.runOutput("rev-parse", "--git-path", "hooks")
+	out, err := g.runOutput("rev-parse", "--path-format=absolute", "--git-path", "hooks")
 	if err != nil {
 		return "", err
 	}
