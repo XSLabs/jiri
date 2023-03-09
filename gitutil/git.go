@@ -303,20 +303,14 @@ func (g *Git) CheckoutBranch(branch string, gitSubmodules bool, opts ...Checkout
 	}
 	// After checkout with submodules update/checkout submodules.
 	if gitSubmodules {
-		return g.SubmoduleUpdate()
+		return g.SubmoduleUpdate(InitOpt(true))
 	}
 	return nil
 }
 
-// SubmoduleInit de-initiates submodules to local config.
-func (g *Git) SubmoduleDeinit(path string) error {
-	args := []string{"submodule", "deinit", path}
-	return g.run(args...)
-}
-
-// SubmoduleInit initiates submodules to local config.
-func (g *Git) SubmoduleInit() error {
-	args := []string{"submodule", "init"}
+// SubmoduleInit de-initiates all local submodules.
+func (g *Git) SubmoduleDeinit() error {
+	args := []string{"submodule", "deinit", "--all"}
 	return g.run(args...)
 }
 

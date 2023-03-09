@@ -688,13 +688,8 @@ func computeOperations(jirix *jiri.X, localProjects, remoteProjects Projects, st
 	}
 	// When we are switching submodules to projects, we deinit all of the current existing local submodules.
 	if !jirix.EnableSubmodules && containLocalSubmodules(localProjects) {
-		for _, local := range localProjects {
-			if !local.IsSubmodule {
-				continue
-			}
-			scm := gitutil.New(jirix, gitutil.RootDirOpt(jirix.Root))
-			scm.SubmoduleDeinit(local.Path)
-		}
+		scm := gitutil.New(jirix, gitutil.RootDirOpt(jirix.Root))
+		scm.SubmoduleDeinit()
 	}
 	for key := range allProjects {
 		var local, remote *Project
