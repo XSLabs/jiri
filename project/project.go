@@ -29,6 +29,7 @@ import (
 	"go.fuchsia.dev/jiri/gitutil"
 	"go.fuchsia.dev/jiri/log"
 	"go.fuchsia.dev/jiri/retry"
+	"golang.org/x/exp/maps"
 )
 
 var (
@@ -211,7 +212,7 @@ func (p Project) ToFile(jirix *jiri.X, filename string) error {
 	if !bytes.HasSuffix(data, newlineBytes) {
 		data = append(data, '\n')
 	}
-	return safeWriteFile(jirix, filename, data)
+	return SafeWriteFile(jirix, filename, data)
 }
 
 // absolutizePaths makes all relative paths absolute by prepending basepath.
@@ -345,6 +346,11 @@ func WriteProjectFlags(jirix *jiri.X, projs Projects) error {
 		if err := os.WriteFile(filepath.Join(jirix.Root, k), []byte(v), 0644); err != nil {
 			writeErrorBuf.WriteString(fmt.Sprintf("write package flag %q to file %q failed: %v\n", v, k, err))
 		}
+	}
+	filesList := maps.Keys(flagMap)
+	// For all files jiri creates, we need to exclude in .git/info/exclude.
+	if err := WriteGitExcludeFile(jirix, filesList, "project"); err != nil {
+		return err
 	}
 	if writeErrorBuf.Len() > 0 {
 		return errors.New(writeErrorBuf.String())
@@ -636,7 +642,7 @@ func (p *Project) writeJiriRevisionFiles(jirix *jiri.X) error {
 	if err != nil {
 		return fmt.Errorf("Cannot find revision for ref %q for project %s(%s): %s", head, p.Name, p.Path, err)
 	}
-	if err := safeWriteFile(jirix, file, []byte(head)); err != nil {
+	if err := SafeWriteFile(jirix, file, []byte(head)); err != nil {
 		return err
 	}
 	file = filepath.Join(p.Path, ".git", "JIRI_LAST_BASE")
@@ -644,7 +650,7 @@ func (p *Project) writeJiriRevisionFiles(jirix *jiri.X) error {
 	if err != nil {
 		return fmt.Errorf("Cannot find current revision for for project %s(%s): %s", p.Name, p.Path, err)
 	}
-	return safeWriteFile(jirix, file, []byte(rev))
+	return SafeWriteFile(jirix, file, []byte(rev))
 }
 
 func (p *Project) setupDefaultPushTarget(jirix *jiri.X) error {
@@ -2758,7 +2764,7 @@ func writeAttributesJSON(jirix *jiri.X) error {
 		return err
 	}
 	jsonFile := filepath.Join(jirix.RootMetaDir(), jiri.AttrsJSON)
-	if err := safeWriteFile(jirix, jsonFile, jsonData); err != nil {
+	if err := SafeWriteFile(jirix, jsonFile, jsonData); err != nil {
 		return err
 	}
 	jirix.Logger.Debugf("package optional attributes written to %s", jsonFile)
