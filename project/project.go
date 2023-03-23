@@ -990,6 +990,9 @@ func LocalProjects(jirix *jiri.X, scanMode ScanMode) (Projects, error) {
 		if projectsExist {
 			for key, p := range snapshotProjects {
 				// If project is enabled as a submodule, .git directory does not exist.
+				if p.IsSubmodule {
+					continue
+				}
 				if jirix.EnableSubmodules {
 					if _, ok := superprojectStates[p.GitSubmoduleOf]; ok {
 						continue
