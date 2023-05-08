@@ -164,8 +164,11 @@ func runInit(env *cmdline.Env, args []string) error {
 		}
 	}
 
-	gitConfigSubm, err := jiri.GitGlobalConfig("jirix.enableSubmodules")
+	gitConfigSubm, err := jiri.GitGlobalConfig("jiri.enableSubmodules")
 	if len(gitConfigSubm) != 0 {
+		if _, err := strconv.ParseBool(gitConfigSubm); err != nil {
+			return fmt.Errorf("'jiri.enableSubmodules' from git config should be true or false")
+		}
 		config.EnableSubmodules = gitConfigSubm
 	}
 

@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strconv"
+	"strings"
 	"sync/atomic"
 	"time"
 
@@ -102,7 +103,7 @@ func GitGlobalConfig(key string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	config := string(out)
+	config := strings.Split(string(out), "\n")[0]
 	return config, nil
 }
 
