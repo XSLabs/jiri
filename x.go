@@ -10,6 +10,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -63,7 +64,7 @@ type Config struct {
 	// version user has opted-in to
 	AnalyticsVersion string `xml:"analytics>version,omitempty"`
 	KeepGitHooks     bool   `xml:"keepGitHooks,omitempty"`
-	EnableSubmodules bool   `xml:"enableSubmodules,omitempty"`
+	EnableSubmodules string `xml:"enableSubmodules,omitempty"`
 
 	XMLName struct{} `xml:"config"`
 }
@@ -93,6 +94,16 @@ func ConfigFromFile(filename string) (*Config, error) {
 		return nil, err
 	}
 	return c, nil
+}
+
+func GitGlobalConfig(key string) (string, error) {
+	cmd := exec.Command("git", "config", "--global", key)
+	out, err := cmd.Output()
+	if err != nil {
+		return "", err
+	}
+	config := string(out)
+	return config, nil
 }
 
 // X holds the execution environment for the jiri tool and related tools.  This
@@ -275,7 +286,15 @@ func NewX(env *cmdline.Env) (*X, error) {
 		x.KeepGitHooks = x.config.KeepGitHooks
 		x.RewriteSsoToHttps = x.config.RewriteSsoToHttps
 		x.SsoCookiePath = x.config.SsoCookiePath
-		x.EnableSubmodules = x.config.EnableSubmodules
+		if x.config.EnableSubmodules == "" {
+			x.EnableSubmodules = false
+		} else {
+			if val, err := strconv.ParseBool(x.config.EnableSubmodules); err != nil {
+				return nil, fmt.Errorf("'config>enableSubmodules' flag should be true or false")
+			} else {
+				x.EnableSubmodules = val
+			}
+		}
 		if x.config.LockfileEnabled == "" {
 			x.LockfileEnabled = true
 		} else {
