@@ -15,6 +15,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
 	"reflect"
@@ -34,6 +35,7 @@ import (
 
 var (
 	errVersionMismatch    = errors.New("snapshot file version mismatch")
+	httpsRe               = regexp.MustCompile("^https://(.*?)\\.googlesource\\.com/(.*)")
 	ssoRe                 = regexp.MustCompile("^sso://(.*?)/")
 	DefaultHookTimeout    = uint(5)  // DefaultHookTimeout is the time in minutes to wait for a hook to timeout.
 	DefaultPackageTimeout = uint(20) // DefaultPackageTimeout is the time in minutes to wait for cipd fetching packages.
@@ -675,6 +677,15 @@ func (p *Project) setupDefaultPushTarget(jirix *jiri.X) error {
 	return nil
 }
 
+func (p *Project) setupPushUrl(jirix *jiri.X) error {
+	scm := gitutil.New(jirix, gitutil.RootDirOpt(p.Path))
+	if err := scm.Config("remote.origin.pushurl", rewriteHttpsToSso(jirix, p.Remote)); err != nil {
+		return fmt.Errorf("not able to set remote.origin.pushurl for project %s(%s) due to error: %v", p.Name, p.Path, err)
+	}
+	jirix.Logger.Debugf("set remote.origin.pushurl to %s for project %s(%s)", rewriteHttpsToSso(jirix, p.Remote), p.Name, p.Path)
+	return nil
+}
+
 func (p *Project) IsOnJiriHead(jirix *jiri.X) (bool, error) {
 	scm := gitutil.New(jirix, gitutil.RootDirOpt(p.Path))
 	jiriHead := "refs/remotes/origin/master"
@@ -927,6 +938,13 @@ func setProjectRevisions(jirix *jiri.X, projects Projects) (Projects, error) {
 		projects[name] = project
 	}
 	return projects, nil
+}
+
+func rewriteHttpsToSso(jirix *jiri.X, remote string) string {
+	if strings.HasPrefix(remote, "sso://") {
+		return remote
+	}
+	return httpsRe.ReplaceAllString(remote, "sso://$1/$2")
 }
 
 func rewriteRemote(jirix *jiri.X, remote string) string {
@@ -2545,6 +2563,13 @@ func updateProjects(jirix *jiri.X, localProjects, remoteProjects Projects, hooks
 	}
 
 	jirix.TimerPush("jiri revision files")
+	// Check if the user has `git-remote-sso` on $PATH, this indicates the user is a Googler
+	// and should be pushing with the sso:// protocol.
+	hasSso := false
+	if _, err := exec.LookPath("git-remote-sso"); err == nil {
+		hasSso = true
+	}
+
 	var wg sync.WaitGroup
 	for _, project := range remoteProjects {
 		wg.Add(1)
@@ -2554,6 +2579,11 @@ func updateProjects(jirix *jiri.X, localProjects, remoteProjects Projects, hooks
 				project.writeJiriRevisionFiles(jirix)
 				if err := project.setupDefaultPushTarget(jirix); err != nil {
 					jirix.Logger.Debugf("set up default push target failed due to error: %v", err)
+				}
+				if hasSso {
+					if err := project.setupPushUrl(jirix); err != nil {
+						jirix.Logger.Debugf("set up pushurl target failed due to error: %v", err)
+					}
 				}
 			}
 		}(jirix, project)
