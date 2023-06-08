@@ -288,7 +288,18 @@ func NewX(env *cmdline.Env) (*X, error) {
 		x.RewriteSsoToHttps = x.config.RewriteSsoToHttps
 		x.SsoCookiePath = x.config.SsoCookiePath
 		if x.config.EnableSubmodules == "" {
-			x.EnableSubmodules = false
+			if gitConfigSubm, err := GitGetConfig("jiri.enableSubmodules"); err == nil {
+				gitConfigEnableSubm, err := strconv.ParseBool(gitConfigSubm)
+				if err != nil {
+					return nil, fmt.Errorf("jiri.enableSubmodules from git config should be true or false")
+				}
+				x.EnableSubmodules = gitConfigEnableSubm
+				if gitConfigEnableSubm {
+					fmt.Printf("Note: currently enabling submodules in this checkout \n")
+				}
+			} else {
+				x.EnableSubmodules = false
+			}
 		} else {
 			if val, err := strconv.ParseBool(x.config.EnableSubmodules); err != nil {
 				return nil, fmt.Errorf("'config>enableSubmodules' flag should be true or false")
