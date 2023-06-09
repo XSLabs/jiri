@@ -7,6 +7,7 @@ package gitutil
 import (
 	"bytes"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -14,10 +15,27 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 
 	"go.fuchsia.dev/jiri"
 	"go.fuchsia.dev/jiri/envvar"
 )
+
+type MultiError []error
+
+func (m MultiError) Error() string {
+	s := []string{}
+	for _, e := range m {
+		if e != nil {
+			s = append(s, e.Error())
+		}
+	}
+	return strings.Join(s, "\n")
+}
+
+func (m MultiError) String() string {
+	return m.Error()
+}
 
 type GitError struct {
 	Root        string
@@ -301,17 +319,32 @@ func (g *Git) CheckoutBranch(branch string, gitSubmodules bool, opts ...Checkout
 	if err := g.run(args...); err != nil {
 		return err
 	}
-	// After checkout with submodules update/checkout submodules.
+	// Update submodules that are already inited.
 	if gitSubmodules {
-		return g.SubmoduleUpdate(InitOpt(true))
+		if err := g.SubmoduleUpdate(InitOpt(false)); err != nil {
+			return err
+		}
+	}
+	// Init all the submodules that not yet inited in tree, and update one by one.
+	if gitSubmodules {
+		if mErr := g.SubmoduleUpdateAll(); mErr != nil {
+			err := errors.New(mErr.String())
+			return err
+		}
 	}
 	return nil
 }
 
-// SubmoduleInit de-initiates all local submodules.
+// SubmoduleDeinit de-initiates all local submodules.
 func (g *Git) SubmoduleDeinit() error {
 	args := []string{"submodule", "deinit", "--all"}
 	return g.run(args...)
+}
+
+// SubmodulePaths returns uninitialized submodules' paths.
+func (g *Git) SubmodulePaths() ([]string, error) {
+	submoduleStatus, _ := g.SubmoduleStatus()
+	return SubmodulePathFromStatus(submoduleStatus)
 }
 
 // SubmoduleUpdate updates submodules for current branch.
@@ -328,6 +361,50 @@ func (g *Git) SubmoduleUpdate(opts ...SubmoduleUpdateOpt) error {
 	// TODO(iankaz): Use Jiri jobsFlag setting (or set submodule.fetchJobs on superproject init)
 	// Number of parallel children to be used for fetching submodules.
 	args = append(args, "--jobs=50")
+	return g.run(args...)
+}
+
+// SubmoduleUpdateAll fetches all submodules that are not currently initiated, one by one.
+func (g *Git) SubmoduleUpdateAll() MultiError {
+	var multiErr MultiError
+	submPaths, err := g.SubmodulePaths()
+	if err != nil {
+		multiErr = append(multiErr, err)
+		return multiErr
+	}
+	if err := g.SubmoduleInit(submPaths); err != nil {
+		multiErr = append(multiErr, err)
+		return multiErr
+	}
+	var wg sync.WaitGroup
+	fetchLimit := make(chan struct{}, 50)
+	for _, path := range submPaths {
+		wg.Add(1)
+		fetchLimit <- struct{}{}
+		go func(path string) {
+			defer func() { <-fetchLimit }()
+			defer wg.Done()
+			if err := g.SubmoduleUpdateModule(path); err != nil {
+				multiErr = append(multiErr, err)
+			}
+		}(path)
+	}
+	wg.Wait()
+	return multiErr
+}
+
+// SubmoduleUpdateModule updates specific module by relative path.
+func (g *Git) SubmoduleUpdateModule(path string) error {
+	args := []string{"submodule", "update", "--", path}
+	return g.run(args...)
+}
+
+// SubmoduleInit inits submodules by paths.
+func (g *Git) SubmoduleInit(submPaths []string) error {
+	args := []string{"submodule", "init", "--"}
+	for _, path := range submPaths {
+		args = append(args, path)
+	}
 	return g.run(args...)
 }
 
