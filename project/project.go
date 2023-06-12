@@ -782,7 +782,7 @@ func CreateSnapshot(jirix *jiri.X, file string, hooks Hooks, pkgs Packages, loca
 	// jiri local submodule config should always match local submodules state.
 	csm := containSubmodules(jirix, localProjects)
 	if jirix.EnableSubmodules != csm {
-		fmt.Printf("Currently, local submodules is %t while user flag is %t, run jiri update or unset EnableSubmodules \n", csm, jirix.EnableSubmodules)
+		fmt.Printf("If not checking out fuchsia, please ignore. Currently, local submodules is %t while user flag is %t, run jiri update or unset EnableSubmodules \n", csm, jirix.EnableSubmodules)
 	}
 	for _, project := range localProjects {
 		manifest.Projects = append(manifest.Projects, project)
@@ -1832,7 +1832,7 @@ func findLocalProjects(jirix *jiri.X, path string, projects Projects) MultiError
 			if p, ok := projects[submProjectKey]; ok {
 				// If local projects contain submodule but in jiri project state, then return error.
 				if !p.IsSubmodule {
-					fmt.Printf("%s submodule and project exist at the same time, please run `jiri update`", subm.Name)
+					fmt.Printf("%s submodule and project exist at the same time, please run `jiri update` \n", subm.Name)
 				}
 			}
 			projects[submProjectKey] = Project{
