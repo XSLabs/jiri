@@ -1675,16 +1675,13 @@ func resetLocalProject(jirix *jiri.X, local, remote Project, cleanupBranches boo
 
 // IsLocalProject returns true if there is a project at the given path.
 func IsLocalProject(jirix *jiri.X, path string) (bool, error) {
+	dotGit := filepath.Join(path, ".git")
+	if _, err := os.Stat(dotGit); err != nil {
+		return false, nil
+	}
 	scm := gitutil.New(jirix, gitutil.RootDirOpt(path))
 	gitDir, err := scm.AbsoluteGitDir()
 	if err != nil {
-		return false, nil
-	}
-	topLevel, err := scm.TopLevel()
-	if err != nil {
-		return false, err
-	}
-	if path != topLevel {
 		return false, nil
 	}
 	// Existence of a metadata directory is how we know we've found a
