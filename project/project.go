@@ -1684,6 +1684,13 @@ func IsLocalProject(jirix *jiri.X, path string) (bool, error) {
 	if err != nil {
 		return false, nil
 	}
+	topLevel, err := scm.TopLevel()
+	if err != nil {
+		return false, err
+	}
+	if path != topLevel {
+		return false, nil
+	}
 	// Existence of a metadata directory is how we know we've found a
 	// Jiri-maintained project.
 	metadataDir := filepath.Join(gitDir, jiri.ProjectMetaDir)
