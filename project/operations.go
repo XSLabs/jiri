@@ -241,6 +241,14 @@ func (op createOperation) Run(jirix *jiri.X) (e error) {
 		}
 		return err
 	}
+
+	// Remove branches for submodules if current project is a superproject.
+	if jirix.EnableSubmodules && op.project.GitSubmodules {
+		if err := removeAllSubmoduleBranches(jirix, op.project); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 

@@ -179,6 +179,28 @@ func removeSubmoduleBranches(jirix *jiri.X, superproject Project, sentinalBranch
 	return nil
 }
 
+// removeAllSubmoduleBranches removes all branches for submodules.
+func removeAllSubmoduleBranches(jirix *jiri.X, superproject Project) error {
+	if !superproject.GitSubmodules {
+		return nil
+	}
+	submStates, _ := getSubmodulesStatus(jirix, superproject)
+	for _, subm := range submStates {
+		if subm.Prefix == "-" {
+			continue
+		}
+		scm := gitutil.New(jirix, gitutil.RootDirOpt(subm.Path))
+		branches, _, _ := scm.GetBranches()
+		for _, b := range branches {
+			if err := scm.DeleteBranch(b); err != nil {
+				jirix.Logger.Warningf("not able to delete branch %s for superproject %s(%s)\n\n", b, superproject.Name, superproject.Path)
+				return err
+			}
+		}
+	}
+	return nil
+}
+
 // submodulesToProject converts submodules to project map with path as key.
 func submoduleToProject(submodules Submodules, initOnly bool) map[string]Project {
 	projects := make(map[string]Project)
