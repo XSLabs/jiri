@@ -61,7 +61,7 @@ func createBranchSubmodules(jirix *jiri.X, superproject Project, branch string) 
 			continue
 		}
 		scm := gitutil.New(jirix, gitutil.RootDirOpt(subm.Path))
-		if err := scm.CreateBranch(branch); err != nil {
+		if err := scm.CreateBranchFromRef(branch, "origin/HEAD"); err != nil {
 			return err
 		}
 	}
@@ -148,6 +148,27 @@ func removeSubmodulesFromProjects(projects Projects) Projects {
 	return projects
 }
 
+// cleanSubmoduleSentinalBranches removes the sentinal branch from submodules.
+// This ensures a healthy state even after a failed `jiri update`.
+func cleanSubmoduleSentinalBranches(jirix *jiri.X, superproject Project, sentinalBranch string) error {
+	if !superproject.GitSubmodules {
+		return nil
+	}
+	submStates, _ := getSubmodulesStatus(jirix, superproject)
+	for _, subm := range submStates {
+		if subm.Prefix == "-" {
+			continue
+		}
+		scm := gitutil.New(jirix, gitutil.RootDirOpt(subm.Path))
+		if exist, _ := scm.CheckBranchExists(sentinalBranch); exist {
+			if err := scm.DeleteBranch(sentinalBranch, gitutil.ForceOpt(true)); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
 // removeSubmoduleBranches removes initial branches from submodules.
 // We create a local sentinal branch in all submodules first before running update.
 // If submodules were created for the first time, "local-submodule-sentinal" branch would not exist. We remove all branches.
@@ -171,7 +192,7 @@ func removeSubmoduleBranches(jirix *jiri.X, superproject Project, sentinalBranch
 				}
 			}
 		} else {
-			if err := scm.DeleteBranch(sentinalBranch); err != nil {
+			if err := scm.DeleteBranch(sentinalBranch, gitutil.ForceOpt(true)); err != nil {
 				return err
 			}
 		}

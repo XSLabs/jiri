@@ -1464,6 +1464,18 @@ func (g *Git) Show(ref, file string) (string, error) {
 	return strings.Join(out, "\n"), nil
 }
 
+// GitDir returns the absolute git dir for the repository.
+func (g *Git) AbsoluteGitDir() (string, error) {
+	out, err := g.runOutput("rev-parse", "--absolute-git-dir")
+	if err != nil {
+		return "", err
+	}
+	if got, want := len(out), 1; got != want {
+		return "", fmt.Errorf("unexpected length of %v: got %v, want %v", out, got, want)
+	}
+	return out[0], nil
+}
+
 // UntrackedFiles returns the list of files that are not tracked.
 func (g *Git) UntrackedFiles() ([]string, error) {
 	out, err := g.runOutput("ls-files", "--others", "--directory", "--no-empty-directory", "--exclude-standard")

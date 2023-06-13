@@ -298,8 +298,12 @@ func (op deleteOperation) Run(jirix *jiri.X) error {
 	}
 
 	if extraBranches || uncommitted || untracked {
+		gitDir, err := op.project.AbsoluteGitDir(jirix)
+		if err != nil {
+			return err
+		}
 		rmCommand := jirix.Color.Yellow("rm -rf %q", op.source)
-		unManageCommand := jirix.Color.Yellow("rm -rf %q", filepath.Join(op.source, jiri.ProjectMetaDir))
+		unManageCommand := jirix.Color.Yellow("rm -rf %q", filepath.Join(gitDir, jiri.ProjectMetaDir))
 		msg := ""
 		if extraBranches {
 			msg = fmt.Sprintf("Project %q won't be deleted as it contains branches", op.project.Name)
@@ -735,8 +739,9 @@ func computeOp(jirix *jiri.X, local, remote *Project, state *ProjectState, rebas
 		// We skip operations on submodules when we enabled submodules and rely on superproject updates.
 		if jirix.EnableSubmodules && local.IsSubmodule {
 			return nullOperation{commonOperation{
-				source: local.Path,
-				state:  *state,
+				project: *local,
+				source:  local.Path,
+				state:   *state,
 			}}
 		}
 		return deleteOperation{commonOperation{

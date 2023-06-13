@@ -67,7 +67,11 @@ func checkJiriRevFiles(t *testing.T, jirix *jiri.X, p project.Project) {
 
 	g := gitutil.New(fake.X, gitutil.RootDirOpt(p.Path))
 
-	file := filepath.Join(p.Path, ".git", "JIRI_HEAD")
+	gitDir, err := g.AbsoluteGitDir()
+	if err != nil {
+		t.Fatalf("AbsoluteGitDir failed: %s", err)
+	}
+	file := filepath.Join(gitDir, "JIRI_HEAD")
 	data, err := os.ReadFile(file)
 	if err != nil {
 		t.Fatalf("ReadFile(%v) failed: %s", file, err)
@@ -94,7 +98,7 @@ func checkJiriRevFiles(t *testing.T, jirix *jiri.X, p project.Project) {
 	if revisionCommit != headFileCommit {
 		t.Fatalf("JIRI_HEAD contains %s (%s) expected %s (%s)", headFileContents, headFileCommit, projectRevision, revisionCommit)
 	}
-	file = filepath.Join(p.Path, ".git", "JIRI_LAST_BASE")
+	file = filepath.Join(gitDir, "JIRI_LAST_BASE")
 	data, err = os.ReadFile(file)
 	if err != nil {
 		t.Fatalf("ReadFile(%v) failed: %s", file, err)
@@ -427,44 +431,6 @@ func TestUpdateUniverseWhenLocalTracksEachOther(t *testing.T) {
 		}
 		if b.Revision != expectedRev {
 			t.Fatalf("Branch %q should have rev %q, instead it has %q", b.Name, expectedRev, b.Revision)
-		}
-	}
-}
-
-// TestOldMetaDirIsMovedOnUpdate tests that old metadir os moved to new
-// location on update and projects are updated properly
-func TestOldMetaDirIsMovedOnUpdate(t *testing.T) {
-	localProjects, fake, cleanup := setupUniverse(t)
-	defer cleanup()
-
-	if err := fake.UpdateUniverse(false); err != nil {
-		t.Fatal(err)
-	}
-	for i, p := range localProjects {
-		oldPath := filepath.Join(p.Path, jiri.OldProjectMetaDir)
-		newPath := filepath.Join(p.Path, jiri.ProjectMetaDir)
-
-		// move new path to old path to replicate old structure
-		if err := os.Rename(newPath, oldPath); err != nil {
-			t.Fatal(err)
-		}
-		if i != 1 {
-			writeReadme(t, fake.X, fake.Projects[p.Name], "new readme")
-		}
-	}
-	if err := fake.UpdateUniverse(false); err != nil {
-		t.Fatal(err)
-	}
-	for i, p := range localProjects {
-		newPath := filepath.Join(p.Path, jiri.ProjectMetaDir)
-		if err := dirExists(newPath); err != nil {
-			t.Fatalf("expected metadata to exist at path %q but none found", newPath)
-		}
-		// Check all projects are at latest
-		if i != 1 {
-			checkReadme(t, fake.X, p, "new readme")
-		} else {
-			checkReadme(t, fake.X, p, "initial readme")
 		}
 	}
 }

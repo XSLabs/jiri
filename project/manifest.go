@@ -100,8 +100,6 @@ var (
 	endImportSoloBytes  = []byte("></import>")
 	endProjectSoloBytes = []byte("></project>")
 	endElemSoloBytes    = []byte("/>")
-
-	errGitHookNotRequired = errors.New("git hooks are not required")
 )
 
 const (
@@ -416,7 +414,11 @@ func (lc *LocalConfig) ToFile(jirix *jiri.X, filename string) error {
 }
 
 func WriteLocalConfig(jirix *jiri.X, project Project, lc LocalConfig) error {
-	configFile := filepath.Join(project.Path, jiri.ProjectMetaDir, jiri.ProjectConfigFile)
+	gitDir, err := project.AbsoluteGitDir(jirix)
+	if err != nil {
+		return err
+	}
+	configFile := filepath.Join(gitDir, jiri.ProjectMetaDir, jiri.ProjectConfigFile)
 	return lc.ToFile(jirix, configFile)
 }
 
@@ -1307,13 +1309,6 @@ func (f commitMsgFetcher) fetch(jirix *jiri.X, gerritHost, path string) ([]byte,
 				// Network or disk IO error, halt jiri
 				return nil, err
 			}
-			// gerritHost require SSO login
-			if jirix.RewriteSsoToHttps {
-				// Gerrit host require SSO but jiri has rewritesso flag turned on
-				// In this case git hooks are useless, stop fetching git hooks
-				return nil, errGitHookNotRequired
-			}
-
 			// Use commit-msg in cache if the domain has same eTLD and SLD.
 			for k, v := range f {
 				urlK, err := url.Parse(k)
@@ -1367,6 +1362,10 @@ func applyGitHooks(jirix *jiri.X, ops []operation) error {
 	jirix.TimerPush("apply githooks")
 	defer jirix.TimerPop()
 	commitMsgFetcher := commitMsgFetcher{}
+	bytes, err := commitMsgFetcher.fetch(jirix, "https://gerrit-review.googlesource.com", "/tools/hooks/commit-msg")
+	if err != nil {
+		return err
+	}
 	for _, op := range ops {
 		// If project directory no longer exist, we don't want to run hooks.
 		if _, err := os.Stat(op.Project().Path); os.IsNotExist(err) {
@@ -1387,35 +1386,22 @@ func applyGitHooks(jirix *jiri.X, ops []operation) error {
 		if topLevel != op.Project().Path {
 			continue
 		}
-		// gitHooksDstDir := filepath.Join(op.Project().Path, ".git", "hooks")
 		if !op.Project().LocalConfig.Ignore && !op.Project().LocalConfig.NoUpdate {
-			if op.Project().GerritHost != "" {
-				if err := os.MkdirAll(gitHooksDstDir, 0755); err != nil {
-					return fmtError(err)
-				}
-				hookPath := filepath.Join(gitHooksDstDir, "commit-msg")
-				commitHook, err := os.Create(hookPath)
-				if err != nil {
-					return fmtError(err)
-				}
-				bytes, err := commitMsgFetcher.fetch(jirix, op.Project().GerritHost, "/tools/hooks/commit-msg")
-				if err != nil {
-					if err != errGitHookNotRequired {
-						jirix.Logger.Debugf("%v", err)
-					}
-					commitHook.Close()
-					os.Remove(hookPath)
-					continue
-				}
-
-				if _, err := commitHook.Write(bytes); err != nil {
-					return err
-				}
-				jirix.Logger.Debugf("Saved commit-msg hook to project %q", op.Project().Path)
-				commitHook.Close()
-				if err := os.Chmod(hookPath, 0750); err != nil {
-					return fmtError(err)
-				}
+			if err := os.MkdirAll(gitHooksDstDir, 0755); err != nil {
+				return fmtError(err)
+			}
+			hookPath := filepath.Join(gitHooksDstDir, "commit-msg")
+			commitHook, err := os.Create(hookPath)
+			if err != nil {
+				return fmtError(err)
+			}
+			if _, err := commitHook.Write(bytes); err != nil {
+				return err
+			}
+			jirix.Logger.Debugf("Saved commit-msg hook to project %q", op.Project().Path)
+			commitHook.Close()
+			if err := os.Chmod(hookPath, 0750); err != nil {
+				return fmtError(err)
 			}
 		}
 		if op.Project().GitHooks == "" {
