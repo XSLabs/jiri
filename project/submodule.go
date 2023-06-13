@@ -102,10 +102,10 @@ func getSubmodulesStatus(jirix *jiri.X, superproject Project) (Submodules, error
 		subm.Path = filepath.Join(superproject.Path, submConfig[3])
 		submodules[subm.Name] = subm
 		if subm.Prefix == "+" {
-			jirix.Logger.Warningf("Submodule %s current checkout does not match the SHA-1 to the index of the containing repository.", subm.Name)
+			jirix.Logger.Infof("Submodule %s current checkout does not match the SHA-1 to the index of the containing repository.", subm.Name)
 		}
 		if subm.Prefix == "U" {
-			jirix.Logger.Warningf("Submodule %s has merge conflicts.", subm.Name)
+			jirix.Logger.Infof("Submodule %s has merge conflicts.", subm.Name)
 		}
 	}
 	return submodules, nil
