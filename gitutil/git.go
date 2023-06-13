@@ -1356,6 +1356,11 @@ func (g *Git) SetRemoteUrl(name, url string) error {
 	return g.run("remote", "set-url", name, url)
 }
 
+// SetRemoteHead sets the remote HEAD symref.
+func (g *Git) SetRemoteHead() error {
+	return g.run("remote", "set-head", "origin", "-a")
+}
+
 // SubmoduleConfig gets the field of the subdmodule from the submodule config.
 func (g *Git) SubmoduleConfig(name, field string) (string, error) {
 	configKey := fmt.Sprintf("submodule.%s.%s", name, field)

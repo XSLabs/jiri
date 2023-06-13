@@ -61,6 +61,11 @@ func createBranchSubmodules(jirix *jiri.X, superproject Project, branch string) 
 			continue
 		}
 		scm := gitutil.New(jirix, gitutil.RootDirOpt(subm.Path))
+		if exist, _ := scm.CheckBranchExists("origin/HEAD"); !exist {
+			if err := scm.SetRemoteHead(); err != nil {
+				return err
+			}
+		}
 		if err := scm.CreateBranchFromRef(branch, "origin/HEAD"); err != nil {
 			return err
 		}
