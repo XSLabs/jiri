@@ -1405,8 +1405,10 @@ func applyGitHooks(jirix *jiri.X, ops []operation) error {
 			}
 		}
 		if op.Project().GitHooks == "" {
+			jirix.Logger.Debugf("GitHooks unset for %s", op.Project().Name)
 			continue
 		}
+		jirix.Logger.Debugf("GitHooks is %s for %s", op.Project().GitHooks, op.Project().Name)
 		// Apply git hooks, overwriting any existing hooks.  Jiri is in control of
 		// writing all hooks.
 
@@ -1438,6 +1440,7 @@ func applyGitHooks(jirix *jiri.X, ops []operation) error {
 			return nil
 		}
 		if err := filepath.Walk(op.Project().GitHooks, copyFn); err != nil {
+			jirix.Logger.Debugf("Failed to copy hooks for %s: %v", op.Project().Name, err)
 			return err
 		}
 	}
