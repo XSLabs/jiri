@@ -1430,7 +1430,12 @@ func applyGitHooks(jirix *jiri.X, ops []operation) error {
 				return fmtError(err)
 			}
 			// The file *must* be executable to be picked up by git.
-			return fmtError(os.WriteFile(dst, src, 0755))
+			err = os.WriteFile(dst, src, 0755)
+			if err != nil {
+				return fmtError(err)
+			}
+			jirix.Logger.Debugf("Saved %s hook to hooksdir (%s) for project %s", filepath.Base(path), gitHooksDstDir, op.Project().Name)
+			return nil
 		}
 		if err := filepath.Walk(op.Project().GitHooks, copyFn); err != nil {
 			return err
