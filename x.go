@@ -65,6 +65,7 @@ type Config struct {
 	AnalyticsVersion string `xml:"analytics>version,omitempty"`
 	KeepGitHooks     bool   `xml:"keepGitHooks,omitempty"`
 	EnableSubmodules string `xml:"enableSubmodules,omitempty"`
+	ExcludeDirs       []string `xml:"excludeDirs,omitempty"`
 
 	XMLName struct{} `xml:"config"`
 }
@@ -144,6 +145,7 @@ type X struct {
 	AnalyticsSession    *analytics_util.AnalyticsSession
 	OverrideWarned      bool
 	EnableSubmodules    bool
+	ExcludeDirs         []string
 }
 
 func (jirix *X) IncrementFailures() {
@@ -339,6 +341,11 @@ func NewX(env *cmdline.Env) (*X, error) {
 		x.PartialSkip = x.config.PartialSkip
 		x.OffloadPackfiles = x.config.OffloadPackfiles
 		x.Dissociate = x.config.Dissociate
+		x.ExcludeDirs = x.config.ExcludeDirs
+		if len(x.ExcludeDirs) == 0 && x.ExcludeDirs == nil {
+			x.ExcludeDirs = append(x.ExcludeDirs, "out")
+			x.ExcludeDirs = append(x.ExcludeDirs, "prebuilt")
+		}
 	}
 	x.Cache, err = findCache(root, x.config)
 	if err != nil {

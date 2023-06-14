@@ -53,6 +53,7 @@ var (
 	offloadPackfilesFlag  bool
 	cipdParanoidFlag      string
 	cipdMaxThreads        int
+	excludeDirsFlag       arrayFlag
 )
 
 const (
@@ -81,6 +82,7 @@ func init() {
 	cmdInit.Flags.StringVar(&cipdParanoidFlag, "cipd-paranoid-mode", "", "Whether to use paranoid mode in cipd.")
 	// Default (0) causes CIPD to use as many threads as there are CPUs.
 	cmdInit.Flags.IntVar(&cipdMaxThreads, "cipd-max-threads", 0, "Number of threads to use for unpacking CIPD packages. If zero, uses all CPUs.")
+	cmdInit.Flags.Var(&excludeDirsFlag, "exclude-dirs", "Directories to skip when searching for local projects (Default: out).")
 }
 
 func runInit(env *cmdline.Env, args []string) error {
@@ -254,6 +256,14 @@ func runInit(env *cmdline.Env, args []string) error {
 				config.AnalyticsUserId = ""
 			}
 		}
+	}
+
+	if len(excludeDirsFlag) != 0 {
+		config.ExcludeDirs = []string{}
+	}
+
+	for _, r := range excludeDirsFlag {
+		config.ExcludeDirs = append(config.ExcludeDirs, r)
 	}
 
 	if err := config.Write(configPath); err != nil {
