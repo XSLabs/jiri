@@ -296,7 +296,7 @@ func NewX(env *cmdline.Env) (*X, error) {
 				}
 				x.EnableSubmodules = gitConfigEnableSubm
 				if gitConfigEnableSubm {
-					fmt.Printf("Note: currently enabling submodules in this checkout \n")
+					x.Logger.Infof("Note: currently enabling submodules in this checkout \n")
 				}
 			} else {
 				x.EnableSubmodules = false
