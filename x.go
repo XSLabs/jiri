@@ -62,10 +62,10 @@ type Config struct {
 	PartialSkip       []string `xml:"partialSkip,omitempty"`
 	OffloadPackfiles  bool     `xml:"offloadPackfiles,omitempty"`
 	// version user has opted-in to
-	AnalyticsVersion string `xml:"analytics>version,omitempty"`
-	KeepGitHooks     bool   `xml:"keepGitHooks,omitempty"`
-	EnableSubmodules string `xml:"enableSubmodules,omitempty"`
-	ExcludeDirs       []string `xml:"excludeDirs,omitempty"`
+	AnalyticsVersion string   `xml:"analytics>version,omitempty"`
+	KeepGitHooks     bool     `xml:"keepGitHooks,omitempty"`
+	EnableSubmodules string   `xml:"enableSubmodules,omitempty"`
+	ExcludeDirs      []string `xml:"excludeDirs,omitempty"`
 
 	XMLName struct{} `xml:"config"`
 }

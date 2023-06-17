@@ -1819,7 +1819,7 @@ func findLocalProjects(jirix *jiri.X, path string, projects Projects) MultiError
 					shouldProcess = true
 					if path == jirix.Root {
 						for _, p := range jirix.ExcludeDirs{
-							if fileInfo.Name () == p {
+							if fileInfo.Name() == p {
 								jirix.Logger.Debugf("Skipped directory %s in %s for local project search", fileInfo.Name(), path)
 								shouldProcess = false
 								break
