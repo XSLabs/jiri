@@ -1247,9 +1247,13 @@ func (g *Git) Rebase(upstream string, opts ...RebaseOpt) error {
 // CherryPickAbort aborts an in-progress cherry-pick operation.
 func (g *Git) CherryPickAbort() error {
 	// First check if cherry-pick is in progress
-	path := ".git/CHERRY_PICK_HEAD"
+	gitDir, err := g.AbsoluteGitDir()
+	if err != nil {
+		return err
+	}
+	path := "CHERRY_PICK_HEAD"
 	if g.rootDir != "" {
-		path = filepath.Join(g.rootDir, path)
+		path = filepath.Join(gitDir, path)
 	}
 	if _, err := os.Stat(path); err != nil {
 		if os.IsNotExist(err) {

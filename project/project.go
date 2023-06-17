@@ -1468,8 +1468,8 @@ func UpdateUniverse(jirix *jiri.X, gc, localManifest, rebaseTracked, rebaseUntra
 
 		// Unset assume-unchanged for all local projects
 		// Check if jirix is a git repository.
-		gitDir := filepath.Join(jirix.Root, ".git")
-		if _, err := os.Stat(gitDir); err == nil {
+		dotGit := filepath.Join(jirix.Root, ".git")
+		if _, err := os.Stat(dotGit); err == nil {
 			scm := gitutil.New(jirix, gitutil.RootDirOpt(jirix.Root))
 			for _, project := range localProjects {
 				projectRelPath, _ := filepath.Rel(jirix.Root, project.Path)
@@ -1709,8 +1709,8 @@ func IsLocalProject(jirix *jiri.X, path string) (bool, error) {
 // IsSubmodule returns true if there is a file (.git) instead of a directory (.git/).
 // We first check if directory IsLocalProject before checking whether or not it's a submodule.
 func IsSubmodule(jirix *jiri.X, path string) (bool, error) {
-	gitDir := filepath.Join(path, ".git")
-	info, err := os.Stat(gitDir)
+	dotGit := filepath.Join(path, ".git")
+	info, err := os.Stat(dotGit)
 	if err == nil && !info.IsDir() {
 		return true, nil
 	}
@@ -2271,11 +2271,16 @@ func updateOrCreateCache(jirix *jiri.X, dir, remote, branch, revision string, de
 	}
 	errCacheCorruption := errors.New("git cache corrupted")
 	updateCache := func() error {
+		scm := gitutil.New(jirix, gitutil.RootDirOpt(dir))
 		// Test if git cache is intact
 		var objectsDir string
 		if jirix.UsePartialClone(remote) {
 			// Partial clones do not use --bare so objects is in .git/
-			objectsDir = filepath.Join(dir, ".git", "objects")
+			gitDir, err := scm.AbsoluteGitDir()
+			if err != nil {
+				return err
+			}
+			objectsDir = filepath.Join(gitDir, "objects")
 		} else {
 			objectsDir = filepath.Join(dir, "objects")
 		}
@@ -2283,7 +2288,6 @@ func updateOrCreateCache(jirix *jiri.X, dir, remote, branch, revision string, de
 			jirix.Logger.Warningf("could not access objects directory under git cache directory %q due to error: %v", dir, err)
 			return errCacheCorruption
 		}
-		scm := gitutil.New(jirix, gitutil.RootDirOpt(dir))
 		if jirix.OffloadPackfiles {
 			if err := scm.Config("fetch.uriprotocols", "https"); err != nil {
 				return err
@@ -2613,8 +2617,8 @@ func updateProjects(jirix *jiri.X, localProjects, remoteProjects Projects, hooks
 
 	// Set project to assume-unchanged to index in tree to avoid unpreditable submodule changes.
 	// Exclude non-submodules.
-	gitDir := filepath.Join(jirix.Root, ".git")
-	if _, err := os.Stat(gitDir); err == nil {
+	dotGit := filepath.Join(jirix.Root, ".git")
+	if _, err := os.Stat(dotGit); err == nil {
 		scm := gitutil.New(jirix, gitutil.RootDirOpt(jirix.Root))
 		for _, project := range remoteProjects {
 			projectRelPath, _ := filepath.Rel(jirix.Root, project.Path)
