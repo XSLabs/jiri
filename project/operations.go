@@ -22,6 +22,15 @@ import (
 	"go.fuchsia.dev/jiri/osutil"
 )
 
+const (
+	changeRemoteOpKind = "change-remote"
+	createOpKind = "create"
+	deleteOpKind = "delete"
+	moveOpKind = "move"
+	nullOpKind = "null"
+	updateOpKind = "update"
+)
+
 type operation interface {
 	// Project identifies the project this operation pertains to.
 	Project() Project
@@ -71,7 +80,7 @@ type createOperation struct {
 }
 
 func (op createOperation) Kind() string {
-	return "create"
+	return createOpKind
 }
 
 func (op createOperation) checkoutProject(jirix *jiri.X, cache string) error {
@@ -266,7 +275,7 @@ type deleteOperation struct {
 }
 
 func (op deleteOperation) Kind() string {
-	return "delete"
+	return deleteOpKind
 }
 
 func (op deleteOperation) Run(jirix *jiri.X) error {
@@ -380,7 +389,7 @@ type moveOperation struct {
 }
 
 func (op moveOperation) Kind() string {
-	return "move"
+	return moveOpKind
 }
 
 func (op moveOperation) Run(jirix *jiri.X) error {
@@ -439,7 +448,7 @@ type changeRemoteOperation struct {
 }
 
 func (op changeRemoteOperation) Kind() string {
-	return "change-remote"
+	return changeRemoteOpKind
 }
 
 func (op changeRemoteOperation) Run(jirix *jiri.X) error {
@@ -514,7 +523,7 @@ type updateOperation struct {
 }
 
 func (op updateOperation) Kind() string {
-	return "update"
+	return updateOpKind
 }
 
 func (op updateOperation) Run(jirix *jiri.X) error {
@@ -545,7 +554,7 @@ type nullOperation struct {
 }
 
 func (op nullOperation) Kind() string {
-	return "null"
+	return nullOpKind
 }
 
 func (op nullOperation) Run(jirix *jiri.X) error {
@@ -594,25 +603,27 @@ func (ops operations) Less(i, j int) bool {
 		return strings.HasPrefix(child, parent+string(filepath.Separator))
 	}
 
-	vals := make([]int, 2)
-	for idx, op := range []operation{ops[i], ops[j]} {
-		switch op.Kind() {
-		case "delete":
-			vals[idx] = 0
-		case "change-remote":
-			vals[idx] = 1
-		case "move":
-			vals[idx] = 2
-		case "create":
-			vals[idx] = 3
-		case "update":
-			vals[idx] = 4
-		case "null":
-			vals[idx] = 5
+	opKindToPriority := func(kind string) int {
+		var priortity int
+		switch kind {
+		case deleteOpKind:
+			priortity = 0
+		case changeRemoteOpKind:
+			priortity = 1
+		case moveOpKind:
+			priortity = 2
+		case updateOpKind:
+			priortity = 3
+		case createOpKind:
+			priortity = 4
+		case nullOpKind:
+			priortity = 5
 		}
+		return priortity
 	}
-	if vals[0] == 2 { // Move
-		if vals[1] == 4 { // Update
+
+	if ops[i].Kind() == moveOpKind {
+		if ops[j].Kind() == updateOpKind {
 			// Move is in a child project of Update
 			if isSubdir(ops[i].Source(), ops[j].Source()) {
 				// Move out
@@ -621,13 +632,13 @@ func (ops operations) Less(i, j int) bool {
 				}
 			}
 		}
-		if vals[1] == 3 { // Create
+		if ops[j].Kind() == createOpKind {
 			// Create is the parent of the move destination
 			if isSubdir(ops[i].Destination(), ops[j].Destination()) {
 				return false // Move happens after create
 			}
 		}
-		if vals[1] == 2 { // Move
+		if ops[j].Kind() == moveOpKind {
 			// Move out
 			if isSubdir(ops[i].Destination(), ops[i].Source()) {
 				return true
@@ -638,14 +649,14 @@ func (ops operations) Less(i, j int) bool {
 		}
 	}
 
-	if vals[0] == 3 { // Create
-		if vals[1] == 2 { // Move
+	if ops[i].Kind() == createOpKind {
+		if ops[j].Kind() == moveOpKind {
 			// Move out
 			if isSubdir(ops[j].Destination(), ops[i].Destination()) {
 				return true
 			}
 		}
-		if vals[1] == 4 { // Update
+		if ops[j].Kind() == updateOpKind {
 			// Create in child
 			if isSubdir(ops[i].Destination(), ops[j].Destination()) {
 				return false
@@ -653,12 +664,12 @@ func (ops operations) Less(i, j int) bool {
 		}
 	}
 
-	if vals[0] == 4 { //Update
-		if vals[1] == 2 || vals[1] == 3 { // Move/Create
+	if ops[i].Kind() == updateOpKind {
+		if ops[j].Kind() == moveOpKind || ops[j].Kind() == createOpKind {
 			// Op in child
 			if isSubdir(ops[j].Destination(), ops[i].Source()) {
 				// Move out
-				if vals[1] == 2 && isSubdir(ops[j].Destination(), ops[j].Source()) {
+				if ops[j].Kind() == moveOpKind && isSubdir(ops[j].Destination(), ops[j].Source()) {
 					return false // Move out happens before update
 				}
 				return true
@@ -666,11 +677,11 @@ func (ops operations) Less(i, j int) bool {
 		}
 	}
 
-	if vals[0] != vals[1] {
-		return vals[0] < vals[1]
+	if ops[i].Kind() != ops[j].Kind() {
+		return opKindToPriority(ops[i].Kind()) < opKindToPriority(ops[j].Kind())
 	}
 
-	if vals[0] == 0 { // Delete
+	if ops[i].Kind() == deleteOpKind {
 		return ops[i].Source() > ops[j].Source()
 	}
 
