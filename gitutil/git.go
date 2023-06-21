@@ -319,13 +319,8 @@ func (g *Git) CheckoutBranch(branch string, gitSubmodules bool, opts ...Checkout
 	if err := g.run(args...); err != nil {
 		return err
 	}
-	// Update submodules that are already inited.
-	if gitSubmodules {
-		if err := g.SubmoduleUpdate(InitOpt(false)); err != nil {
-			return err
-		}
-	}
-	// Init all the submodules that not yet inited in tree, and update one by one.
+	// Update all submodules, both curent and new.
+	// Uninited submodules are updated one by one.
 	if gitSubmodules {
 		if mErr := g.SubmoduleUpdateAll(); mErr != nil {
 			err := errors.New(mErr.String())
@@ -364,8 +359,23 @@ func (g *Git) SubmoduleUpdate(opts ...SubmoduleUpdateOpt) error {
 	return g.run(args...)
 }
 
-// SubmoduleUpdateAll fetches all submodules that are not currently initiated, one by one.
+// SubmoduleUpdateAll updates all submodules, including the ones that are not yet inited.
 func (g *Git) SubmoduleUpdateAll() MultiError {
+	var multiErr MultiError
+	// Update submodules that are currently inited first.
+	if err := g.SubmoduleUpdate(InitOpt(false)); err != nil {
+		multiErr = append(multiErr, err)
+	}
+	// Update un-inited submodules one by one with path.
+	if mErr := g.SubmoduleUpdateNew(); mErr != nil {
+		for _, err := range mErr {
+			multiErr = append(multiErr, err)
+		}
+	}
+	return multiErr
+}
+
+func (g *Git) SubmoduleUpdateNew() MultiError {
 	var multiErr MultiError
 	submPaths, err := g.SubmodulePaths()
 	if err != nil {
