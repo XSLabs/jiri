@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"regexp"
+	"sync"
 
 	"go.fuchsia.dev/jiri"
 	"go.fuchsia.dev/jiri/gitutil"
@@ -27,6 +28,33 @@ type Submodule struct {
 type Submodules map[string]Submodule
 
 var submoduleConfigRegex = regexp.MustCompile(`([-+U]?)([a-fA-F0-9]{40})\s([^\s]*)\s?`)
+
+// checkSubmodulestates checks if all submodules synced properly.
+func checkSubmodulestates(jirix *jiri.X, superproject Project) error {
+	subms, err := getSubmodulesStatus(jirix, superproject)
+	if err != nil {
+		return err
+	}
+	var wg sync.WaitGroup
+	for _, subm := range subms {
+		if subm.Prefix != "-" {
+			proj := submoduleToProject(subm)
+			wg.Add(1)
+			go func(proj Project) {
+				defer wg.Done()
+				proj.writeJiriRevisionFiles(jirix)
+			}(proj)
+		}
+		if subm.Prefix == "+" {
+			jirix.Logger.Infof("Submodule %s current checkout does not match the SHA-1 to the index of superproject. \n", subm.Name)
+			continue
+		}
+		if subm.Prefix == "U" {
+			jirix.Logger.Infof("Submodule %s has merge conflicts.", subm.Name)
+		}
+	}
+	return nil
+}
 
 // containSubmodules checks if any of the projects contain submodules.
 func containSubmodules(jirix *jiri.X, projects Projects) bool {
@@ -227,21 +255,27 @@ func removeAllSubmoduleBranches(jirix *jiri.X, superproject Project) error {
 	return nil
 }
 
+// submoduleToProject converts submodule to project
+func submoduleToProject(subm Submodule) Project {
+	project := Project{
+		Name:        subm.Name,
+		Path:        subm.Path,
+		Remote:      subm.Remote,
+		Revision:    subm.Revision,
+		IsSubmodule: true,
+	}
+	return project
+}
+
 // submodulesToProject converts submodules to project map with path as key.
-func submoduleToProject(submodules Submodules, initOnly bool) map[string]Project {
+func submodulesToProjects(submodules Submodules, initOnly bool) map[string]Project {
 	projects := make(map[string]Project)
 	for _, subm := range submodules {
 		// When initOnly is flagged, we only include submodules that are initialized.
 		if initOnly && subm.Prefix == "-" {
 			continue
 		}
-		project := Project{
-			Name:        subm.Name,
-			Path:        subm.Path,
-			Remote:      subm.Remote,
-			Revision:    subm.Revision,
-			IsSubmodule: true,
-		}
+		project := submoduleToProject(subm)
 		projects[project.Path] = project
 	}
 	return projects

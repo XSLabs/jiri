@@ -1818,7 +1818,7 @@ func findLocalProjects(jirix *jiri.X, path string, projects Projects) MultiError
 				if fileInfo.IsDir() && !strings.HasPrefix(fileInfo.Name(), ".") {
 					shouldProcess = true
 					if path == jirix.Root {
-						for _, p := range jirix.ExcludeDirs{
+						for _, p := range jirix.ExcludeDirs {
 							if fileInfo.Name() == p {
 								jirix.Logger.Debugf("Skipped directory %s in %s for local project search", fileInfo.Name(), path)
 								shouldProcess = false
@@ -2664,6 +2664,24 @@ func updateProjects(jirix *jiri.X, localProjects, remoteProjects Projects, hooks
 		}(jirix, &project)
 	}
 	wg.Wait()
+	jirix.TimerPop()
+
+	var wgsm sync.WaitGroup
+	jirix.TimerPush("jiri submodule revision check and appy JIRI_HEAD")
+	if jirix.EnableSubmodules {
+		for _, project := range remoteProjects {
+			wgsm.Add(1)
+			go func(jirix *jiri.X, project Project) {
+				defer wgsm.Done()
+				if !project.GitSubmodules {
+					return
+				}
+				if err := checkSubmodulestates(jirix, project); err != nil {
+					jirix.Logger.Debugf("writing jiri revision files failued due to error: %v", err)
+				}
+			}(jirix, project)
+		}
+	}
 	jirix.TimerPop()
 
 	jirix.TimerPush("jiri project flag files")
