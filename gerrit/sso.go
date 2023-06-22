@@ -22,6 +22,7 @@ import (
 
 	"go.fuchsia.dev/jiri"
 	"go.fuchsia.dev/jiri/gitutil"
+	"go.fuchsia.dev/jiri/retry"
 	"golang.org/x/net/publicsuffix"
 )
 
@@ -110,26 +111,31 @@ func (j *ssoCookieJar) GetSSOCookie(u *url.URL) (cookie *http.Cookie) {
 // FetchFile downloads a file and returns its content to a byte slice. It will
 // return ErrRedirectOnGerrit if redirection is detected, which indicates that
 // user authentication is required.
-func FetchFile(gerritHost, path string) ([]byte, error) {
+func FetchFile(jirix *jiri.X, gerritHost, path string) ([]byte, error) {
 	client := &http.Client{
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			return http.ErrUseLastResponse
 		},
 	}
 	downloadPath := gerritHost + path
-	resp, err := client.Get(downloadPath)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-	// Check if there is an redirection
-	if resp.StatusCode != http.StatusOK {
-		if _, err := resp.Location(); err == nil {
-			return nil, ErrRedirectOnGerrit
+	var b []byte
+	err := retry.Function(jirix, func() error {
+		resp, err := client.Get(downloadPath)
+		if err != nil {
+			return err
 		}
-		return nil, fmt.Errorf("expecting status code %d from %q, got %d ", http.StatusOK, downloadPath, resp.StatusCode)
-	}
-	return io.ReadAll(resp.Body)
+		defer resp.Body.Close()
+		// Check if there is an redirection
+		if resp.StatusCode != http.StatusOK {
+			if _, err := resp.Location(); err == nil {
+				return ErrRedirectOnGerrit
+			}
+			return fmt.Errorf("expecting status code %d from %q, got %d ", http.StatusOK, downloadPath, resp.StatusCode)
+		}
+		b, err = io.ReadAll(resp.Body)
+		return err
+	}, fmt.Sprintf("Download %s", downloadPath), retry.AttemptsOpt(jirix.Attempts))
+	return b, err
 }
 
 func fetchFileWithJar(jirix *jiri.X, gerritHost, path string, jar http.CookieJar) ([]byte, error) {

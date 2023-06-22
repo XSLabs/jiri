@@ -1303,7 +1303,7 @@ func (f commitMsgFetcher) fetch(jirix *jiri.X, gerritHost, path string) ([]byte,
 	bytes, ok := f[gerritHost]
 	if !ok {
 		jirix.Logger.Debugf("Fetching %q", gerritHost+"/tools/hooks/commit-msg")
-		data, err := gerrit.FetchFile(gerritHost, "/tools/hooks/commit-msg")
+		data, err := gerrit.FetchFile(jirix, gerritHost, "/tools/hooks/commit-msg")
 		if err != nil {
 			if err != gerrit.ErrRedirectOnGerrit {
 				// Network or disk IO error, halt jiri
@@ -1343,7 +1343,7 @@ func (f commitMsgFetcher) fetch(jirix *jiri.X, gerritHost, path string) ([]byte,
 			if data == nil {
 				// Could not find commit-msg in cache from domains with same eTLD and SLD.
 				// Fetch commit-msg from fuchsia's gerrit server.
-				data, err = gerrit.FetchFile(fuchsiaGerritHost, "/tools/hooks/commit-msg")
+				data, err = gerrit.FetchFile(jirix, fuchsiaGerritHost, "/tools/hooks/commit-msg")
 				if err != nil {
 					// This will only happen if configuration error occured on fuchsia gerrit server
 					return nil, fmt.Errorf("download commit-msg hook from host %q failed due to error %v", fuchsiaGerritHost, err)
