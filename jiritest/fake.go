@@ -139,7 +139,7 @@ func (fake FakeJiriRoot) AddPackage(pkg project.Package) error {
 // repository.
 func (fake FakeJiriRoot) DisableRemoteManifestPush() error {
 	dir := gitutil.RootDirOpt(filepath.Join(fake.remote, ManifestProjectPath))
-	if err := gitutil.New(fake.X, dir).CheckoutBranch("master", false); err != nil {
+	if err := gitutil.New(fake.X, dir).CheckoutBranch("master", false, false); err != nil {
 		return err
 	}
 	return nil
@@ -157,7 +157,7 @@ func (fake FakeJiriRoot) EnableRemoteManifestPush() error {
 	} else if err != nil {
 		return err
 	}
-	if err := scm.CheckoutBranch("non-master", false); err != nil {
+	if err := scm.CheckoutBranch("non-master", false, false); err != nil {
 		return err
 	}
 	return nil
@@ -202,7 +202,7 @@ func (fake FakeJiriRoot) ReadRemoteManifest() (*project.Manifest, error) {
 // UpdateUniverse synchronizes the content of the Vanadium fake based
 // on the content of the remote manifest.
 func (fake FakeJiriRoot) UpdateUniverse(gc bool) error {
-	if err := project.UpdateUniverse(fake.X, gc, false, false, false, false, true /*run-hooks*/, true /*run-packages*/, project.DefaultHookTimeout, project.DefaultPackageTimeout, nil); err != nil {
+	if err := project.UpdateUniverse(fake.X, gc, false, false, false, false, true /*run-hooks*/, true /*run-packages*/, false /*rebase-subdmodules*/, project.DefaultHookTimeout, project.DefaultPackageTimeout, nil); err != nil {
 		return err
 	}
 	return nil

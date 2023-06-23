@@ -24,11 +24,11 @@ import (
 
 const (
 	changeRemoteOpKind = "change-remote"
-	createOpKind = "create"
-	deleteOpKind = "delete"
-	moveOpKind = "move"
-	nullOpKind = "null"
-	updateOpKind = "update"
+	createOpKind       = "create"
+	deleteOpKind       = "delete"
+	moveOpKind         = "move"
+	nullOpKind         = "null"
+	updateOpKind       = "update"
 )
 
 type operation interface {
@@ -382,10 +382,11 @@ func (op deleteOperation) Test(jirix *jiri.X) error {
 // moveOperation represents the relocation of a project.
 type moveOperation struct {
 	commonOperation
-	rebaseTracked   bool
-	rebaseUntracked bool
-	rebaseAll       bool
-	snapshot        bool
+	rebaseTracked    bool
+	rebaseUntracked  bool
+	rebaseAll        bool
+	rebaseSubmodules bool
+	snapshot         bool
 }
 
 func (op moveOperation) Kind() string {
@@ -403,7 +404,7 @@ func (op moveOperation) Run(jirix *jiri.X) error {
 			return fmtError(err)
 		}
 	}
-	if err := syncProjectMaster(jirix, op.project, op.state, op.rebaseTracked, op.rebaseUntracked, op.rebaseAll, op.snapshot); err != nil {
+	if err := syncProjectMaster(jirix, op.project, op.state, op.rebaseTracked, op.rebaseUntracked, op.rebaseAll, op.rebaseSubmodules, op.snapshot); err != nil {
 		return err
 	}
 	return writeMetadata(jirix, op.project, op.project.Path)
@@ -441,10 +442,11 @@ func (op moveOperation) Test(jirix *jiri.X) error {
 // changeRemoteOperation represents the change of remote URL
 type changeRemoteOperation struct {
 	commonOperation
-	rebaseTracked   bool
-	rebaseUntracked bool
-	rebaseAll       bool
-	snapshot        bool
+	rebaseTracked    bool
+	rebaseUntracked  bool
+	rebaseAll        bool
+	rebaseSubmodules bool
+	snapshot         bool
 }
 
 func (op changeRemoteOperation) Kind() string {
@@ -498,7 +500,7 @@ func (op changeRemoteOperation) Run(jirix *jiri.X) error {
 		return err
 	}
 
-	if err := syncProjectMaster(jirix, op.project, op.state, op.rebaseTracked, op.rebaseUntracked, op.rebaseAll, op.snapshot); err != nil {
+	if err := syncProjectMaster(jirix, op.project, op.state, op.rebaseTracked, op.rebaseUntracked, op.rebaseAll, op.rebaseSubmodules, op.snapshot); err != nil {
 		return err
 	}
 
@@ -516,10 +518,11 @@ func (op changeRemoteOperation) Test(jirix *jiri.X) error {
 // updateOperation represents the update of a project.
 type updateOperation struct {
 	commonOperation
-	rebaseTracked   bool
-	rebaseUntracked bool
-	rebaseAll       bool
-	snapshot        bool
+	rebaseTracked    bool
+	rebaseUntracked  bool
+	rebaseAll        bool
+	rebaseSubmodules bool
+	snapshot         bool
 }
 
 func (op updateOperation) Kind() string {
@@ -527,7 +530,7 @@ func (op updateOperation) Kind() string {
 }
 
 func (op updateOperation) Run(jirix *jiri.X) error {
-	if err := syncProjectMaster(jirix, op.project, op.state, op.rebaseTracked, op.rebaseUntracked, op.rebaseAll, op.snapshot); err != nil {
+	if err := syncProjectMaster(jirix, op.project, op.state, op.rebaseTracked, op.rebaseUntracked, op.rebaseAll, op.rebaseSubmodules, op.snapshot); err != nil {
 		return err
 	}
 	// If we enabled submodules and current project is a superproject, we need to remove intial branches and foo branch.
@@ -700,7 +703,7 @@ func (ops operations) Swap(i, j int) {
 // projects.
 // In the case of submodules, computeOperation will check for necessary
 // deletions of jiri projects and initialize submodules in place of projects.
-func computeOperations(jirix *jiri.X, localProjects, remoteProjects Projects, states map[ProjectKey]*ProjectState, rebaseTracked, rebaseUntracked, rebaseAll, snapshot bool) operations {
+func computeOperations(jirix *jiri.X, localProjects, remoteProjects Projects, states map[ProjectKey]*ProjectState, rebaseTracked, rebaseUntracked, rebaseAll, rebaseSubmodules, snapshot bool) operations {
 	result := operations{}
 	allProjects := map[ProjectKey]bool{}
 	for _, p := range localProjects {
@@ -731,13 +734,13 @@ func computeOperations(jirix *jiri.X, localProjects, remoteProjects Projects, st
 		if s, ok := states[key]; ok {
 			state = s
 		}
-		result = append(result, computeOp(jirix, local, remote, state, rebaseTracked, rebaseUntracked, rebaseAll, snapshot))
+		result = append(result, computeOp(jirix, local, remote, state, rebaseTracked, rebaseUntracked, rebaseAll, rebaseSubmodules, snapshot))
 	}
 	sort.Sort(result)
 	return result
 }
 
-func computeOp(jirix *jiri.X, local, remote *Project, state *ProjectState, rebaseTracked, rebaseUntracked, rebaseAll, snapshot bool) operation {
+func computeOp(jirix *jiri.X, local, remote *Project, state *ProjectState, rebaseTracked, rebaseUntracked, rebaseAll, rebaseSubmodules, snapshot bool) operation {
 	switch {
 	case local == nil && remote != nil:
 		return createOperation{commonOperation{
@@ -797,7 +800,7 @@ func computeOp(jirix *jiri.X, local, remote *Project, state *ProjectState, rebas
 				project:     *remote,
 				source:      local.Path,
 				state:       *state,
-			}, rebaseTracked, rebaseUntracked, rebaseAll, snapshot}
+			}, rebaseTracked, rebaseUntracked, rebaseAll, rebaseSubmodules, snapshot}
 		case local.Path != remote.Path:
 			if remote.Path == jirix.Root {
 				return createOperation{commonOperation{
@@ -813,7 +816,7 @@ func computeOp(jirix *jiri.X, local, remote *Project, state *ProjectState, rebas
 				project:     *remote,
 				source:      local.Path,
 				state:       *state,
-			}, rebaseTracked, rebaseUntracked, rebaseAll, snapshot}
+			}, rebaseTracked, rebaseUntracked, rebaseAll, rebaseSubmodules, snapshot}
 		// No need to update projects when current project exists as a submodule
 		case jirix.EnableSubmodules && local.IsSubmodule:
 			return nullOperation{commonOperation{
@@ -828,7 +831,7 @@ func computeOp(jirix *jiri.X, local, remote *Project, state *ProjectState, rebas
 				project:     *remote,
 				source:      local.Path,
 				state:       *state,
-			}, rebaseTracked, rebaseUntracked, rebaseAll, snapshot}
+			}, rebaseTracked, rebaseUntracked, rebaseAll, rebaseSubmodules, snapshot}
 		case jirix.EnableSubmodules && local.GitSubmodules:
 			// Always update superproject when submoduels are enabled.
 			return updateOperation{commonOperation{
@@ -836,21 +839,21 @@ func computeOp(jirix *jiri.X, local, remote *Project, state *ProjectState, rebas
 				project:     *remote,
 				source:      local.Path,
 				state:       *state,
-			}, rebaseTracked, rebaseUntracked, rebaseAll, snapshot}
+			}, rebaseTracked, rebaseUntracked, rebaseAll, rebaseSubmodules, snapshot}
 		case localBranchesNeedUpdating || (state.CurrentBranch.Name == "" && local.Revision != remote.Revision):
 			return updateOperation{commonOperation{
 				destination: remote.Path,
 				project:     *remote,
 				source:      local.Path,
 				state:       *state,
-			}, rebaseTracked, rebaseUntracked, rebaseAll, snapshot}
+			}, rebaseTracked, rebaseUntracked, rebaseAll, rebaseSubmodules, snapshot}
 		case state.CurrentBranch.Tracking == nil && local.Revision != remote.Revision:
 			return updateOperation{commonOperation{
 				destination: remote.Path,
 				project:     *remote,
 				source:      local.Path,
 				state:       *state,
-			}, rebaseTracked, rebaseUntracked, rebaseAll, snapshot}
+			}, rebaseTracked, rebaseUntracked, rebaseAll, rebaseSubmodules, snapshot}
 		default:
 			return nullOperation{commonOperation{
 				destination: remote.Path,

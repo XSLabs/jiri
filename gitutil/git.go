@@ -296,7 +296,7 @@ func (g *Git) IsRevAvailable(jirix *jiri.X, remote, rev string) bool {
 }
 
 // CheckoutBranch checks out the given branch.
-func (g *Git) CheckoutBranch(branch string, gitSubmodules bool, opts ...CheckoutOpt) error {
+func (g *Git) CheckoutBranch(branch string, gitSubmodules, rebaseSubmodules bool, opts ...CheckoutOpt) error {
 	args := []string{"checkout"}
 	var force ForceOpt = false
 	var detach DetachOpt = false
@@ -322,7 +322,7 @@ func (g *Git) CheckoutBranch(branch string, gitSubmodules bool, opts ...Checkout
 	// Update all submodules, both curent and new.
 	// Uninited submodules are updated one by one.
 	if gitSubmodules {
-		if mErr := g.SubmoduleUpdateAll(); mErr != nil {
+		if mErr := g.SubmoduleUpdateAll(rebaseSubmodules); mErr != nil {
 			err := errors.New(mErr.String())
 			return err
 		}
@@ -347,6 +347,10 @@ func (g *Git) SubmoduleUpdate(opts ...SubmoduleUpdateOpt) error {
 	args := []string{"submodule", "update"}
 	for _, opt := range opts {
 		switch typedOpt := opt.(type) {
+		case RebaseSubmodules:
+			if typedOpt {
+				args = append(args, "--rebase")
+			}
 		case InitOpt:
 			if typedOpt {
 				args = append(args, "--init")
@@ -360,10 +364,10 @@ func (g *Git) SubmoduleUpdate(opts ...SubmoduleUpdateOpt) error {
 }
 
 // SubmoduleUpdateAll updates all submodules, including the ones that are not yet inited.
-func (g *Git) SubmoduleUpdateAll() MultiError {
+func (g *Git) SubmoduleUpdateAll(rebaseSubmodules bool) MultiError {
 	var multiErr MultiError
 	// Update submodules that are currently inited first.
-	if err := g.SubmoduleUpdate(InitOpt(false)); err != nil {
+	if err := g.SubmoduleUpdate(InitOpt(false), RebaseSubmodules(rebaseSubmodules)); err != nil {
 		multiErr = append(multiErr, err)
 	}
 	// Update un-inited submodules one by one with path.

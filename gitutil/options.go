@@ -168,3 +168,7 @@ func (RepackAllOpt) repackOpt() {}
 type RemoveRedundantOpt bool
 
 func (RemoveRedundantOpt) repackOpt() {}
+
+type RebaseSubmodules bool
+
+func (RebaseSubmodules) submoduleUpdateOpt() {}
