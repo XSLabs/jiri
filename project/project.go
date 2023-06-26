@@ -1861,7 +1861,9 @@ func findLocalProjects(jirix *jiri.X, path string, projects Projects) MultiError
 			if p, ok := projects[submProjectKey]; ok {
 				// If local projects contain submodule but in jiri project state, then return error.
 				if !p.IsSubmodule {
-					fmt.Printf("%s submodule and project exist at the same time, please run `jiri update` \n", subm.Name)
+					fmt.Printf("Transitioning to %s submodule in path %s, but currently unable to delete project in the same location. " +
+					"Please check if you have local branches in the project aand upload your changes and remove them. Then rerun `jiri update` \n",
+					subm.Name, subm.Path)
 				}
 			}
 			projects[submProjectKey] = Project{
