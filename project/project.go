@@ -1469,7 +1469,7 @@ func UpdateUniverse(jirix *jiri.X, gc, localManifest, rebaseTracked, rebaseUntra
 		// Unset assume-unchanged for all local projects
 		// Check if jirix is a git repository and if submodules are enabled.
 		if jirix.EnableSubmodules {
-			if err := unchangeLocalProject(jirix, localProjects); err != nil {
+			if err := gitIndexExcludeLocalProject(jirix, localProjects); err != nil {
 				return err
 			}
 		}
@@ -1627,9 +1627,9 @@ func CleanupProjects(jirix *jiri.X, localProjects Projects, cleanupBranches bool
 	return nil
 }
 
-// unchangeLocalProject sets projects to assume-unchanged to index in tree to avoid unpreditable submodule changes.
+// gitIndexExcludeLocalProject sets projects to assume-unchanged to index in tree to avoid unpreditable submodule changes.
 // Only applies this when submodules are enabled. Also exclude non-submodules for assume-unchanged.
-func unchangeLocalProject(jirix *jiri.X, projects Projects) error {
+func gitIndexExcludeLocalProject(jirix *jiri.X, projects Projects) error {
 	dotGit := filepath.Join(jirix.Root, ".git")
 	if _, err := os.Stat(dotGit); err == nil {
 		scm := gitutil.New(jirix, gitutil.RootDirOpt(jirix.Root))
@@ -2632,7 +2632,7 @@ func updateProjects(jirix *jiri.X, localProjects, remoteProjects Projects, hooks
 	// Set project to assume-unchanged to index in tree to avoid unpreditable submodule changes.
 	// Exclude non-submodules.
 	if jirix.EnableSubmodules {
-		if err := unchangeLocalProject(jirix, remoteProjects); err != nil {
+		if err := gitIndexExcludeLocalProject(jirix, remoteProjects); err != nil {
 			return err
 		}
 	}
