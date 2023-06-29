@@ -1467,19 +1467,10 @@ func UpdateUniverse(jirix *jiri.X, gc, localManifest, rebaseTracked, rebaseUntra
 		}
 
 		// Unset assume-unchanged for all local projects
-		// Check if jirix is a git repository.
-		dotGit := filepath.Join(jirix.Root, ".git")
-		if _, err := os.Stat(dotGit); err == nil {
-			scm := gitutil.New(jirix, gitutil.RootDirOpt(jirix.Root))
-			for _, project := range localProjects {
-				projectRelPath, _ := filepath.Rel(jirix.Root, project.Path)
-				// Exclude projects that are not meant to be submodules, e.g. fuchsia.git and integration.
-				// Submodule representing the jiri project might not exist in the index, check before update-index.
-				if scm.IsInIndex(projectRelPath) && project.GitSubmoduleOf != "" {
-					if err := scm.AssumeUnchanged(false, projectRelPath); err != nil {
-						return err
-					}
-				}
+		// Check if jirix is a git repository and if submodules are enabled.
+		if jirix.EnableSubmodules {
+			if err := unchangeLocalProject(jirix, localProjects); err != nil {
+				return err
 			}
 		}
 
@@ -1632,6 +1623,26 @@ func CleanupProjects(jirix *jiri.X, localProjects Projects, cleanupBranches bool
 	}
 	if len(multiErr) != 0 {
 		return multiErr
+	}
+	return nil
+}
+
+// unchangeLocalProject sets projects to assume-unchanged to index in tree to avoid unpreditable submodule changes.
+// Only applies this when submodules are enabled. Also exclude non-submodules for assume-unchanged.
+func unchangeLocalProject(jirix *jiri.X, projects Projects) error {
+	dotGit := filepath.Join(jirix.Root, ".git")
+	if _, err := os.Stat(dotGit); err == nil {
+		scm := gitutil.New(jirix, gitutil.RootDirOpt(jirix.Root))
+		for _, project := range projects {
+			projectRelPath, _ := filepath.Rel(jirix.Root, project.Path)
+			// Exclude projects that are not meant to be submodules.
+			// Check if submodule exist in git index.
+			if scm.IsInIndex(projectRelPath) && project.GitSubmoduleOf != "" {
+				if err := scm.AssumeUnchanged(true, projectRelPath); err != nil {
+					return err
+				}
+			}
+		}
 	}
 	return nil
 }
@@ -1861,9 +1872,9 @@ func findLocalProjects(jirix *jiri.X, path string, projects Projects) MultiError
 			if p, ok := projects[submProjectKey]; ok {
 				// If local projects contain submodule but in jiri project state, then return error.
 				if !p.IsSubmodule {
-					fmt.Printf("Transitioning to %s submodule in path %s, but currently unable to delete project in the same location. " +
-					"Please check if you have local branches in the project aand upload your changes and remove them. Then rerun `jiri update` \n",
-					subm.Name, subm.Path)
+					fmt.Printf("Transitioning to %s submodule in path %s, but currently unable to delete project in the same location. "+
+						"Please check if you have local branches in the project aand upload your changes and remove them. Then rerun `jiri update` \n",
+						subm.Name, subm.Path)
 				}
 			}
 			projects[submProjectKey] = Project{
@@ -2620,18 +2631,9 @@ func updateProjects(jirix *jiri.X, localProjects, remoteProjects Projects, hooks
 
 	// Set project to assume-unchanged to index in tree to avoid unpreditable submodule changes.
 	// Exclude non-submodules.
-	dotGit := filepath.Join(jirix.Root, ".git")
-	if _, err := os.Stat(dotGit); err == nil {
-		scm := gitutil.New(jirix, gitutil.RootDirOpt(jirix.Root))
-		for _, project := range remoteProjects {
-			projectRelPath, _ := filepath.Rel(jirix.Root, project.Path)
-			// Exclude projects that are not meant to be submodules.
-			// Check if submodule exist in git index.
-			if scm.IsInIndex(projectRelPath) && project.GitSubmoduleOf != "" {
-				if err := scm.AssumeUnchanged(true, projectRelPath); err != nil {
-					return err
-				}
-			}
+	if jirix.EnableSubmodules {
+		if err := unchangeLocalProject(jirix, remoteProjects); err != nil {
+			return err
 		}
 	}
 
