@@ -106,13 +106,14 @@ type projectInfoOutput struct {
 	Path string `json:"path"`
 
 	// Relative path w.r.t to root
-	RelativePath  string   `json:"relativePath"`
-	Remote        string   `json:"remote"`
-	Revision      string   `json:"revision"`
-	CurrentBranch string   `json:"current_branch,omitempty"`
-	Branches      []string `json:"branches,omitempty"`
-	Manifest      string   `json:"manifest,omitempty"`
-	GerritHost    string   `json:"gerrithost,omitempty"`
+	RelativePath   string   `json:"relativePath"`
+	Remote         string   `json:"remote"`
+	Revision       string   `json:"revision"`
+	CurrentBranch  string   `json:"current_branch,omitempty"`
+	Branches       []string `json:"branches,omitempty"`
+	Manifest       string   `json:"manifest,omitempty"`
+	GerritHost     string   `json:"gerrithost,omitempty"`
+	GitSubmoduleOf string   `json:"gitsubmoduleof,omitempty"`
 }
 
 // runProjectInfo provides structured info on local projects.
@@ -223,14 +224,15 @@ func runProjectInfo(jirix *jiri.X, args []string) error {
 			panic(err)
 		}
 		info[i] = projectInfoOutput{
-			Name:          state.Project.Name,
-			Path:          state.Project.Path,
-			RelativePath:  rp,
-			Remote:        state.Project.Remote,
-			Revision:      state.Project.Revision,
-			CurrentBranch: state.CurrentBranch.Name,
-			Manifest:      state.Project.ManifestPath,
-			GerritHost:    state.Project.GerritHost,
+			Name:           state.Project.Name,
+			Path:           state.Project.Path,
+			RelativePath:   rp,
+			Remote:         state.Project.Remote,
+			Revision:       state.Project.Revision,
+			CurrentBranch:  state.CurrentBranch.Name,
+			Manifest:       state.Project.ManifestPath,
+			GerritHost:     state.Project.GerritHost,
+			GitSubmoduleOf: state.Project.GitSubmoduleOf,
 		}
 		for _, b := range state.Branches {
 			info[i].Branches = append(info[i].Branches, b.Name)
@@ -249,6 +251,7 @@ func runProjectInfo(jirix *jiri.X, args []string) error {
 			fmt.Printf("  Path:     %s\n", i.Path)
 			fmt.Printf("  Remote:   %s\n", i.Remote)
 			fmt.Printf("  Revision: %s\n", i.Revision)
+			fmt.Printf("  GitSubmoduleOf: %s\n", i.GitSubmoduleOf)
 			if useRemoteProjects {
 				fmt.Printf("  Manifest: %s\n", i.Manifest)
 			}
