@@ -1637,7 +1637,7 @@ func gitIndexExcludeLocalProject(jirix *jiri.X, projects Projects) error {
 			projectRelPath, _ := filepath.Rel(jirix.Root, project.Path)
 			// Exclude projects that are not meant to be submodules.
 			// Check if submodule exist in git index.
-			if scm.IsInIndex(projectRelPath) && project.GitSubmoduleOf != "" {
+			if scm.IsInIndex(projectRelPath) && project.GitSubmoduleOf == "" {
 				if err := scm.AssumeUnchanged(true, projectRelPath); err != nil {
 					return err
 				}
