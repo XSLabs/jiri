@@ -453,10 +453,6 @@ func (g *Git) Clone(repo, path string, opts ...CloneOpt) error {
 			if typedOpt {
 				args = append(args, "--filter=blob:none")
 			}
-		case OffloadPackfilesOpt:
-			if typedOpt {
-				args = append([]string{"-c", "fetch.uriprotocols=https"}, args...)
-			}
 		case RecurseSubmodulesOpt:
 			// TODO(iankaz): Add setting submodule.fetchJobs in git config to jiri init
 			if typedOpt {
@@ -1579,6 +1575,9 @@ func (g *Git) runGit(stdout, stderr io.Writer, args ...string) error {
 	}
 	if !g.jirix.EnableSubmodules {
 		args = append([]string{"-c", fmt.Sprintf("submodule.recurse=%t", false)}, args...)
+	}
+	if g.jirix.OffloadPackfiles {
+		args = append([]string{"-c", "fetch.uriprotocols=https"}, args...)
 	}
 	var outbuf bytes.Buffer
 	var errbuf bytes.Buffer

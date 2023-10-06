@@ -99,11 +99,6 @@ func (op createOperation) checkoutProject(jirix *jiri.X, cache string) error {
 		if err := scm.Config("core.repositoryformatversion", "1"); err != nil {
 			return err
 		}
-		if jirix.OffloadPackfiles {
-			if err := scm.Config("fetch.uriprotocols", "https"); err != nil {
-				return err
-			}
-		}
 		if jirix.UsePartialClone(op.project.Remote) {
 			if err := scm.Config("extensions.partialClone", "origin"); err != nil {
 				return err
@@ -167,19 +162,11 @@ func (op createOperation) checkoutProject(jirix *jiri.X, cache string) error {
 		if (cache == r || cache == "") && jirix.UsePartialClone(op.project.Remote) {
 			opts = append(opts, gitutil.OmitBlobsOpt(true))
 		}
-		if jirix.OffloadPackfiles {
-			opts = append(opts, gitutil.OffloadPackfilesOpt(true))
-		}
 		if jirix.Dissociate {
 			opts = append(opts, gitutil.DissociateOpt(true))
 		}
 		if err = clone(jirix, r, op.destination, opts...); err != nil {
 			return err
-		}
-		if jirix.OffloadPackfiles {
-			if err := scm.Config("fetch.uriprotocols", "https"); err != nil {
-				return err
-			}
 		}
 	}
 

@@ -140,10 +140,6 @@ type UpdateHeadOkOpt bool
 
 func (UpdateHeadOkOpt) fetchOpt() {}
 
-type OffloadPackfilesOpt bool
-
-func (OffloadPackfilesOpt) cloneOpt() {}
-
 type RecurseSubmodulesOpt bool
 
 func (RecurseSubmodulesOpt) cloneOpt() {}
