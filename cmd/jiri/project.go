@@ -26,6 +26,7 @@ var (
 	jsonOutputFlag    string
 	regexpFlag        bool
 	templateFlag      string
+	useLocalManifest  bool
 )
 
 func init() {
@@ -34,6 +35,7 @@ func init() {
 	cmdProject.Flags.StringVar(&jsonOutputFlag, "json-output", "", "Path to write operation results to.")
 	cmdProject.Flags.BoolVar(&regexpFlag, "regexp", false, "Use argument as regular expression.")
 	cmdProject.Flags.StringVar(&templateFlag, "template", "", "The template for the fields to display.")
+	cmdProject.Flags.BoolVar(&useLocalManifest, "use-local-manifest", false, "List project status  based on local manifest.")
 	cmdProject.Flags.BoolVar(&useRemoteProjects, "list-remote-projects", false, "List remote projects instead of local projects.")
 }
 
@@ -141,7 +143,12 @@ func runProjectInfo(jirix *jiri.X, args []string) error {
 
 	var states map[project.ProjectKey]*project.ProjectState
 	var keys project.ProjectKeys
-	projects, err := project.LocalProjects(jirix, project.FastScan)
+	var projects project.Projects
+	if useLocalManifest {
+		projects, _, _, err = project.LoadManifestFile(jirix, jirix.JiriManifestFile(), projects, true)
+	} else {
+		projects, err = project.LocalProjects(jirix, project.FastScan)
+	}
 	if err != nil {
 		return err
 	}
