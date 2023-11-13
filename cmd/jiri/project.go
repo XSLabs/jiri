@@ -145,7 +145,7 @@ func runProjectInfo(jirix *jiri.X, args []string) error {
 	var keys project.ProjectKeys
 	var projects project.Projects
 	if useLocalManifest {
-		projects, _, _, err = project.LoadManifestFile(jirix, jirix.JiriManifestFile(), projects, true)
+		projects, _, _, err = project.LoadUpdatedManifest(jirix, projects, true)
 	} else {
 		projects, err = project.LocalProjects(jirix, project.FastScan)
 	}
