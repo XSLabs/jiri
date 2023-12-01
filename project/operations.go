@@ -174,7 +174,7 @@ func (op createOperation) checkoutProject(jirix *jiri.X, cache string) error {
 		return fmtError(err)
 	}
 
-	if err := checkoutHeadRevision(jirix, op.project, false); err != nil {
+	if err := checkoutHeadRevision(jirix, op.project, false, false); err != nil {
 		return err
 	}
 
