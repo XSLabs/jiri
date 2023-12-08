@@ -118,6 +118,10 @@ func FetchFile(jirix *jiri.X, gerritHost, path string) ([]byte, error) {
 		},
 	}
 	downloadPath := gerritHost + path
+	// Retry the fetch a hardcoded number of times. jirix.Attempts is intended
+	// to only apply to Git operations, and Git operation retries may be
+	// disabled even when HTTP file fetches should still be retried.
+	const maxAttempts = 3
 	var b []byte
 	err := retry.Function(jirix, func() error {
 		resp, err := client.Get(downloadPath)
@@ -134,7 +138,7 @@ func FetchFile(jirix *jiri.X, gerritHost, path string) ([]byte, error) {
 		}
 		b, err = io.ReadAll(resp.Body)
 		return err
-	}, fmt.Sprintf("Download %s", downloadPath), retry.AttemptsOpt(jirix.Attempts))
+	}, fmt.Sprintf("Download %s", downloadPath), retry.AttemptsOpt(maxAttempts))
 	return b, err
 }
 
