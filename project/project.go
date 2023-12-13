@@ -1942,7 +1942,7 @@ func checkoutHeadRevision(jirix *jiri.X, project Project, forceCheckout, rebaseS
 	}
 	git := gitutil.New(jirix, gitutil.RootDirOpt(project.Path))
 	opts := []gitutil.CheckoutOpt{gitutil.DetachOpt(true), gitutil.ForceOpt(forceCheckout)}
-	err = git.CheckoutBranch(revision, (project.GitSubmodules && jirix.EnableSubmodules), rebaseSubmodules, opts...)
+	err = git.CheckoutBranch(revision, (project.GitSubmodules && jirix.EnableSubmodules), false /* rebaseSubmodules */, opts...)
 	if err == nil {
 		return nil
 	}
@@ -1951,7 +1951,7 @@ func checkoutHeadRevision(jirix *jiri.X, project Project, forceCheckout, rebaseS
 		if err2 := git.FetchRefspec("origin", project.Revision, jirix.EnableSubmodules); err2 != nil {
 			return fmt.Errorf("error while fetching after failed to checkout revision %s for project %s (%s): %s\ncheckout error: %v", revision, project.Name, project.Path, err2, err)
 		}
-		return git.CheckoutBranch(revision, (project.GitSubmodules && jirix.EnableSubmodules), rebaseSubmodules, opts...)
+		return git.CheckoutBranch(revision, (project.GitSubmodules && jirix.EnableSubmodules), false /* rebaseSubmodules */, opts...)
 	}
 
 	return err
