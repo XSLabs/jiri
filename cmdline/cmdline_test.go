@@ -2885,6 +2885,8 @@ The global flags are:
    Displays metadata for the program and exits.
  -time=false
    Dump timing information to stderr before exiting the program.
+ -timefile=
+   File to dump timing information to, if not stderr.
 `,
 		},
 		{
@@ -2905,6 +2907,8 @@ The global flags are:
    Displays metadata for the program and exits.
  -time=false
    Dump timing information to stderr before exiting the program.
+ -timefile=
+   File to dump timing information to, if not stderr.
 `,
 		},
 		{

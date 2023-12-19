@@ -155,20 +155,42 @@ func Main(root *Command) {
 	}
 	err := ParseAndRun(root, env, os.Args[1:])
 	code := ExitCode(err, env.Stderr)
-	if *flagTime && env.Timer != nil {
-		env.Timer.Finish()
-		p := timing.IntervalPrinter{Zero: env.Timer.Zero}
-		if err := p.Print(env.Stderr, env.Timer.Intervals, env.Timer.Now()); err != nil {
-			code2 := ExitCode(err, env.Stderr)
-			if code == 0 {
-				code = code2
-			}
+	if err := writeTiming(env, *flagTime, *flagTimeFile); err != nil {
+		if code == 0 {
+			code = ExitCode(err, env.Stderr)
 		}
 	}
 	os.Exit(code)
 }
 
+func writeTiming(env *Env, timingEnabled bool, timeFile string) error {
+	if !timingEnabled || env.Timer == nil {
+		return nil
+	}
+
+	env.Timer.Finish()
+	p := timing.IntervalPrinter{Zero: env.Timer.Zero}
+	w := env.Stderr
+	var cleanup func() error
+	if timeFile != "" {
+		f, openErr := os.OpenFile(timeFile, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o600)
+		if openErr != nil {
+			return openErr
+		}
+		w = f
+		cleanup = f.Close
+	}
+	err := p.Print(w, env.Timer.Intervals, env.Timer.Now())
+	if cleanup != nil {
+		if err2 := cleanup(); err == nil {
+			err = err2
+		}
+	}
+	return err
+}
+
 var flagTime = flag.Bool("time", false, "Dump timing information to stderr before exiting the program.")
+var flagTimeFile = flag.String("timefile", "", "File to dump timing information to, if not stderr.")
 
 // Parse parses args against the command tree rooted at root down to a leaf
 // command.  A single path through the command tree is traversed, based on the
