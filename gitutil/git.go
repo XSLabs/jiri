@@ -754,14 +754,21 @@ func (g *Git) IsOnBranch() bool {
 // CurrentGitHooksPath returns the gitHooks directory of a project.
 // Submodules gitHooks are under //.git/modules under superproject.
 func (g *Git) CurrentGitHooksPath() (string, error) {
-	out, err := g.runOutput("rev-parse", "--path-format=absolute", "--git-path", "hooks")
+	out, err := g.runOutput("rev-parse", "--git-path", "hooks")
 	if err != nil {
 		return "", err
 	}
 	if len(out) != 1 {
 		return "", fmt.Errorf("unexpected length of %v: got %v, want 1", out, len(out))
 	}
-	return out[0], nil
+	hooksPath := out[0]
+	// rev-parse will return an absolute path if the hooks directory and the cwd
+	// don't share a prefix. Only newer versions of git (2.31.0 and later)
+	// support the `--path-format=absolute` flag to `git rev-parse`.
+	if filepath.IsAbs(hooksPath) {
+		return hooksPath, nil
+	}
+	return filepath.Join(g.rootDir, hooksPath), nil
 }
 
 // CurrentRevision returns the current revision.
