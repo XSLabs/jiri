@@ -144,11 +144,14 @@ func runEdit(jirix *jiri.X, args []string) error {
 		}
 	}
 	for _, p := range editFlags.packages {
-		s := strings.SplitN(p, "=", 2)
-		if len(s) == 1 {
+		// The package name may contain "=" characters; so we split the string from the rightmost "=".
+		separatorPos := strings.LastIndex(p, "=");
+		if separatorPos == -1 || separatorPos == 0 || separatorPos == len(p) - 1 {
 			return jirix.UsageErrorf("Please provide the -package flag in the form <package-name>=<version>")
 		} else {
-			packages[s[0]] = s[1]
+			packageName := p[:separatorPos]
+			version := p[separatorPos + 1:]
+			packages[packageName] = version
 		}
 	}
 
