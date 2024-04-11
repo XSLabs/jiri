@@ -509,7 +509,14 @@ func UnmarshalLockEntries(jsonData []byte) (ProjectLocks, PackageLocks, error) {
 				LocalPath:   entry["path"],
 			}
 			if v, ok := pkgLocks[pkgLock.Key()]; ok {
-				if v != pkgLock {
+				// HACK: allow the same package to be pinned to the same version
+				// at two different paths by only checking equality of the
+				// InstanceID instead of the entire structs.
+				//
+				// A better way to do this would be to include the `LocalPath`
+				// in the inputs to the PackageLock key, but that would require
+				// adding `path` fields to all existing lockfiles.
+				if v.InstanceID != pkgLock.InstanceID {
 					return nil, nil, fmt.Errorf("package %q has more than 1 version lock %q, %q", pkgName, v.InstanceID, pkgLock.InstanceID)
 				}
 			}
