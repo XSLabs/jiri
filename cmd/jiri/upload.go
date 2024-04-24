@@ -201,7 +201,7 @@ func runUpload(jirix *jiri.X, args []string) error {
 			}
 		}
 		if remoteBranch == "" { // Un-tracked branch
-			remoteBranch = "master"
+			remoteBranch = "main"
 			if r, ok := remoteProjects[project.Key()]; ok {
 				remoteBranch = r.RemoteBranch
 			} else {
