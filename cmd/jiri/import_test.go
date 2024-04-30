@@ -26,7 +26,7 @@ type importTestCase struct {
 
 func setDefaultImportFlags() {
 	flagImportName = "manifest"
-	flagImportRemoteBranch = "master"
+	flagImportRemoteBranch = "main"
 	flagImportRevision = ""
 	flagImportRoot = ""
 	flagImportOverwrite = false

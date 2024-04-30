@@ -122,7 +122,7 @@ func getCurrentCommit(repository string) (string, error) {
 	if u.Scheme != "http" && u.Scheme != "https" {
 		return "", fmt.Errorf("remote host scheme is not http(s): %s", repository)
 	}
-	u.Path = path.Join(u.Path, "+refs/heads/master")
+	u.Path = path.Join(u.Path, "+refs/heads/main")
 	q := u.Query()
 	q.Set("format", "json")
 	u.RawQuery = q.Encode()
@@ -155,7 +155,7 @@ func getCurrentCommit(repository string) (string, error) {
 	if err := json.NewDecoder(r).Decode(&result); err != nil {
 		return "", err
 	}
-	if v, ok := result["refs/heads/master"]; ok {
+	if v, ok := result["refs/heads/main"]; ok {
 		return v.Value, nil
 	} else {
 		return "", fmt.Errorf("cannot find current commit")

@@ -53,7 +53,7 @@ The manifest file specifies the relative location of each project or package
 within the jiri root, and also includes other metadata, such as its remote url,
 the remote branch or revision it should track, and more.
 
-The `jiri update` command syncs the master branch of all local projects to the
+The `jiri update` command syncs the main branch of all local projects to the
 revision and remote branch specified in the manifest for each project. Jiri
 will create the project locally if it does not exist, and if run with the `-gc`
 flag, jiri will "garbage collect" any projects that are not listed in the
@@ -298,30 +298,30 @@ One of the peculiarities of Gerrit is that it expects a changelist to be
 represented by a single commit.  This constrains the way developers may use git
 to work on their changes.  In particular, they must use the --amend flag with
 all but the first git commit operation and they need to use git rebase to sync
-their pending code change with the remote master.  See Android's [repo command
+their pending code change with the remote.  See Android's [repo command
 reference][android repo] or Go's [contributing instructions][go contrib] for
 examples of how intricate the workflow for resolving conflicts between the
-pending code change and the remote master is.
+pending code change and the remote is.
 
 The rest of this section describes common development operations using `jiri
 upload`.
 
 ### Using feature branches
 
-All development should take place on a non-master "feature" branch.  Once the
-code is reviewed and approved, it is merged into the remote master via the
+All development should take place on a non-main "feature" branch.  Once the
+code is reviewed and approved, it is merged into the remote main branch via the
 Gerrit code review system.  The change can then be merged into the local
 branches with `jiri update -rebase-all`.
 
 ### Creating a new CL
 
-1. Sync the master branch with the remote.
+1. Sync the main branch with the remote.
   ```
   jiri update
   ```
 2. Create a new feature branch for the CL.
   ```
-  git checkout -b <branch-name> --track origin/master
+  git checkout -b <branch-name> --track origin/main
   ```
 3. Make modifications to the project source code.
 4. Stage any changed files for commit.
@@ -335,7 +335,7 @@ branches with `jiri update -rebase-all`.
 
 ### Syncing a CL with the remote
 
-1. Sync the master branch with the remote.
+1. Sync the main branch with the remote.
   ```
   jiri update
   ```
@@ -343,11 +343,11 @@ branches with `jiri update -rebase-all`.
   ```
   git checkout <branch-name>
   ```
-3. Sync the feature branch with the master branch.
+3. Sync the feature branch with the main branch.
   ```
-  git rebase origin/master
+  git rebase origin/main
   ```
-4. If there are no conflicts between the master and the feature branch, the CL
+4. If there are no conflicts between the main branch and the feature branch, the CL
    has been successfully synced with the remote.
 5. If there are conflicts:
   1. Manually [resolve the conflicts][github resolve conflict].
@@ -416,10 +416,10 @@ by running `jiri help upload`.
   jiri upload
   ```
 2. Once a CL meets the conditions for being submitted, it can be merged into
-   the remote master branch by clicking the "Submit" button on the Gerrit web
+   the remote main branch by clicking the "Submit" button on the Gerrit web
    UI.
 3. Delete the local feature branch after the CL has been submitted to Gerrit.
-  1. Sync the master branch to the laster version of the remote.
+  1. Sync the main branch to the laster version of the remote.
     ```
     jiri update
     ```
@@ -438,7 +438,7 @@ for review according to the instructions above.
 
 Then, while still on the feature branch for A, create your feature branch for B.
 ```
-git checkout -b feature-B --track origin/master
+git checkout -b feature-B --track origin/main
 ```
 Then make your change and upload the CL for review according to the
 instructions above.
@@ -450,7 +450,7 @@ and upload a new patch set for feature B.
 ```
 jiri update # fetch update that includes feature A
 git checkout feature-B
-git rebase -i origin/master # if u see commit from A, delete it and then rebase
+git rebase -i origin/main # if u see commit from A, delete it and then rebase
 properly
 jiri upload # send new patch set for feature B
 ```
@@ -458,7 +458,7 @@ The CL for feature B can now be submitted.
 
 This process can be extended for more than 2 CLs.  You must keep two things in mind:
 * always create the dependent feature branch from the parent feature branch, and
-* after a parent feature has been submitted, rebase feature-B onto origin/master
+* after a parent feature has been submitted, rebase feature-B onto origin/main
 
 ## FAQ
 
@@ -486,11 +486,11 @@ see [Jiri local update][hacking doc]
 [go contrib]: https://golang.org/doc/contribute.html#Code_review "Go Contribution Guidelines - Code Review"
 [jiri-wiki]: https://en.wikipedia.org/wiki/Ji%C5%99%C3%AD "Jiří"
 [manifests]: #manifests "manifests"
-[jiri manifest]: https://fuchsia.googlesource.com/jiri/+/refs/heads/master/manifest "jiri manifest"
+[jiri manifest]: https://fuchsia.googlesource.com/jiri/+/refs/heads/main/manifest "jiri manifest"
 [manifest doc]:/manifest.md "Jiri manifest"
 [filesystem doc]:/filesystem.md "Jiri filesystem"
 [hacking doc]:/HACKING.md "Jiri local updates"
 [behaviour]:/behaviour.md
 [how do i]:/howdoi.md
 [vanadium]: https://v.io/
-[cipd]: https://chromium.googlesource.com/infra/luci/luci-go/+/master/cipd/
+[cipd]: https://chromium.googlesource.com/infra/luci/luci-go/+/main/cipd/

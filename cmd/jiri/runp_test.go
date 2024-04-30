@@ -50,7 +50,7 @@ func addProjects(t *testing.T, fake *jiritest.FakeJiriRoot) []*project.Project {
 			Name:         projectPath,
 			Path:         filepath.Join(fake.X.Root, projectPath),
 			Remote:       fake.Projects[projectPath],
-			RemoteBranch: "master",
+			RemoteBranch: "main",
 		}
 		if err := fake.AddProject(p); err != nil {
 			t.Fatalf("%v", err)

@@ -19,7 +19,7 @@ func TestGetCurrentCommit(t *testing.T) {
 		w.Header().Set("Content-Type", "application/json")
 		io.WriteString(w, `)]}'
 {
-  "refs/heads/master": {
+  "refs/heads/main": {
     "value": "68661f351339107f397749c9689334fe9893bcea"
   }
 }`)

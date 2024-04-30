@@ -356,7 +356,7 @@ func runPatch(jirix *jiri.X, args []string) error {
 		} else if patchRebaseBranch != "" {
 			remoteBranch = patchRebaseBranch
 		} else {
-			remoteBranch = "master"
+			remoteBranch = "main"
 		}
 	} else if project, perr := currentProject(jirix); perr == nil {
 		p = &project

@@ -145,12 +145,12 @@ func runEdit(jirix *jiri.X, args []string) error {
 	}
 	for _, p := range editFlags.packages {
 		// The package name may contain "=" characters; so we split the string from the rightmost "=".
-		separatorPos := strings.LastIndex(p, "=");
-		if separatorPos == -1 || separatorPos == 0 || separatorPos == len(p) - 1 {
+		separatorPos := strings.LastIndex(p, "=")
+		if separatorPos == -1 || separatorPos == 0 || separatorPos == len(p)-1 {
 			return jirix.UsageErrorf("Please provide the -package flag in the form <package-name>=<version>")
 		} else {
 			packageName := p[:separatorPos]
-			version := p[separatorPos + 1:]
+			version := p[separatorPos+1:]
 			packages[packageName] = version
 		}
 	}
@@ -346,7 +346,7 @@ func updateManifest(jirix *jiri.X, manifestPath string, projects, imports, packa
 			newRevision = rev
 		}
 		if newRevision == "" {
-			branch := "master"
+			branch := "main"
 			if p.RemoteBranch != "" {
 				branch = p.RemoteBranch
 			}
@@ -383,7 +383,7 @@ func updateManifest(jirix *jiri.X, manifestPath string, projects, imports, packa
 			newRevision = rev
 		}
 		if newRevision == "" {
-			branch := "master"
+			branch := "main"
 			if i.RemoteBranch != "" {
 				branch = i.RemoteBranch
 			}

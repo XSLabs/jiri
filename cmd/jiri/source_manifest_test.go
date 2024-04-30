@@ -96,11 +96,11 @@ func TestSourceManifest(t *testing.T) {
 		GitCheckout: &project.SourceManifest_GitCheckout{
 			RepoUrl:  fake.Projects["manifest"],
 			Revision: revMap["manifest"],
-			FetchRef: "refs/heads/master",
+			FetchRef: "refs/heads/main",
 		},
 	}
 	for i := 0; i < numProjects; i++ {
-		ref := "refs/heads/master"
+		ref := "refs/heads/main"
 		if i == 2 {
 			ref = "refs/heads/test-branch"
 		} else if i == 3 {

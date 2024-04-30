@@ -833,13 +833,13 @@ func (g *Git) DeleteBranch(branch string, opts ...DeleteBranchOpt) error {
 }
 
 // DirExistsOnBranch returns true if a directory with the given name
-// exists on the branch.  If branch is empty it defaults to "master".
+// exists on the branch.  If branch is empty it defaults to "main".
 func (g *Git) DirExistsOnBranch(dir, branch string) bool {
 	if dir == "." {
 		dir = ""
 	}
 	if branch == "" {
-		branch = "master"
+		branch = "main"
 	}
 	args := []string{"ls-tree", "-d", branch + ":" + dir}
 	return g.run(args...) == nil
@@ -1056,7 +1056,7 @@ func (g *Git) Init(path string, opts ...CloneOpt) error {
 		return err
 	}
 	if major >= 2 && minor >= 28 {
-		args = append(args, "--initial-branch=master")
+		args = append(args, "--initial-branch=main")
 	}
 	for _, opt := range opts {
 		switch typedOpt := opt.(type) {

@@ -78,7 +78,7 @@ The &lt;project> tags describe the projects to sync, and what state they should 
 
 * protocol (optional) - The protocol to use when cloning and syncing the repo. Currently "git" is the default and only supported protocol.
 
-* remotebranch (optional) - The remote branch that the project will sync to. Defaults to "master".  The "remotebranch" attribute is ignored if "revision" is specified.
+* remotebranch (optional) - The remote branch that the project will sync to. Defaults to "main".  The "remotebranch" attribute is ignored if "revision" is specified.
 
 * revision (optional) - The specific revision (usually a git SHA) that the project will sync to.  If "revision" is  specified then the "remotebranch" attribute is ignored.
 

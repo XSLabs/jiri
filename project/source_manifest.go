@@ -22,7 +22,7 @@ const (
 	SourceManifestVersion = int32(0)
 )
 
-// This was created using proto file: https://github.com/luci/recipes-py/blob/master/recipe_engine/source_manifest.proto.
+// This was created using proto file: https://github.com/luci/recipes-py/blob/main/recipe_engine/source_manifest.proto.
 type SourceManifest_GitCheckout struct {
 	// The canonicalized URL of the original repo that is considered the “source
 	// of truth” for the source code. Ex.
@@ -45,14 +45,14 @@ type SourceManifest_GitCheckout struct {
 
 	// The ref that the task used to resolve/fetch the revision of the source
 	// (if any). Ex.
-	//   refs/heads/master
+	//   refs/heads/main
 	//   refs/changes/04/511804/4
 	//
 	// This should always be a ref on the hosted repo (not any local alias
 	// like 'refs/remotes/...').
 	//
 	// This should always be an absolute ref (i.e. starts with 'refs/'). An
-	// example of a non-absolute ref would be 'master'.
+	// example of a non-absolute ref would be 'main'.
 	FetchRef string `json:"fetch_ref,omitempty"`
 }
 
@@ -127,7 +127,7 @@ func NewSourceManifest(jirix *jiri.X, projects Projects) (*SourceManifest, Multi
 			gc.Revision = rev
 		}
 		if proj.RemoteBranch == "" {
-			proj.RemoteBranch = "master"
+			proj.RemoteBranch = "main"
 		}
 		branchMap, err := scm.ListRemoteBranchesContainingRef(gc.Revision)
 		if err != nil {

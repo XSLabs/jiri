@@ -261,7 +261,7 @@ func (p Project) Key() ProjectKey {
 
 func (p *Project) fillDefaults() error {
 	if p.RemoteBranch == "" {
-		p.RemoteBranch = "master"
+		p.RemoteBranch = "main"
 	}
 	if p.Revision == "" {
 		p.Revision = "HEAD"
@@ -270,7 +270,7 @@ func (p *Project) fillDefaults() error {
 }
 
 func (p *Project) unfillDefaults() error {
-	if p.RemoteBranch == "master" {
+	if p.RemoteBranch == "main" {
 		p.RemoteBranch = ""
 	}
 	if p.Revision == "HEAD" {
@@ -649,7 +649,7 @@ func (p *Project) writeJiriRevisionFiles(jirix *jiri.X) error {
 		return err
 	}
 	file := filepath.Join(gitDir, "JIRI_HEAD")
-	head := "refs/remotes/origin/master"
+	head := "refs/remotes/origin/main"
 	if p.Revision != "" && p.Revision != "HEAD" {
 		head = p.Revision
 	} else if p.RemoteBranch != "" {
@@ -676,9 +676,10 @@ func (p *Project) setupDefaultPushTarget(jirix *jiri.X) error {
 		return nil
 	}
 	scm := gitutil.New(jirix, gitutil.RootDirOpt(p.Path))
-	if err := scm.Config("--get", "remote.origin.push"); err != nil {
-		// remote.origin.push does not exist.
-		if err := scm.Config("remote.origin.push", "HEAD:refs/for/master"); err != nil {
+	defaultPushRefSpec := "HEAD:refs/for/main"
+	pushRefSpec, err := scm.ConfigGetKey("remote.origin.push")
+	if err != nil || pushRefSpec != defaultPushRefSpec {
+		if err := scm.Config("remote.origin.push", defaultPushRefSpec); err != nil {
 			return fmt.Errorf("not able to set remote.origin.push for project %s(%s) due to error: %v", p.Name, p.Path, err)
 		}
 	}
@@ -688,7 +689,7 @@ func (p *Project) setupDefaultPushTarget(jirix *jiri.X) error {
 			return fmt.Errorf("not able to set push.default for project %s(%s) due to error: %v", p.Name, p.Path, err)
 		}
 	}
-	jirix.Logger.Debugf("set remote.origin.push to \"HEAD:refs/for/master\" for project %s(%s)", p.Name, p.Path)
+	jirix.Logger.Debugf("set remote.origin.push to \"HEAD:refs/for/main\" for project %s(%s)", p.Name, p.Path)
 	return nil
 }
 
@@ -703,7 +704,7 @@ func (p *Project) setupPushUrl(jirix *jiri.X) error {
 
 func (p *Project) IsOnJiriHead(jirix *jiri.X) (bool, error) {
 	scm := gitutil.New(jirix, gitutil.RootDirOpt(p.Path))
-	jiriHead := "refs/remotes/origin/master"
+	jiriHead := "refs/remotes/origin/main"
 	var err error
 	if p.Revision != "" && p.Revision != "HEAD" {
 		jiriHead = p.Revision
@@ -1590,7 +1591,7 @@ func WriteUpdateHistorySnapshot(jirix *jiri.X, hooks Hooks, pkgs Packages, local
 // CleanupProjects restores the given jiri projects back to their detached
 // heads, resets to the specified revision if there is one, and gets rid of
 // all the local changes. If "cleanupBranches" is true, it will also delete all
-// the non-master branches.
+// the non-main branches.
 func CleanupProjects(jirix *jiri.X, localProjects Projects, cleanupBranches bool) (e error) {
 	remoteProjects, _, _, err := LoadManifest(jirix)
 	if err != nil {
@@ -1655,7 +1656,7 @@ func gitIndexExcludeLocalProject(jirix *jiri.X, projects Projects) error {
 }
 
 // resetLocalProject checks out the detached_head, cleans up untracked files
-// and uncommitted changes, and optionally deletes all the branches except master.
+// and uncommitted changes, and optionally deletes all the branches except main.
 func resetLocalProject(jirix *jiri.X, local, remote Project, cleanupBranches bool) error {
 	scm := gitutil.New(jirix, gitutil.RootDirOpt(local.Path))
 	headRev, err := GetHeadRevision(remote)
@@ -2243,7 +2244,7 @@ func setRemoteHeadRevisions(jirix *jiri.X, remoteProjects Projects, localProject
 				local := localProjects[key]
 				remote := remoteProjects[key]
 				scm := gitutil.New(jirix, gitutil.RootDirOpt(local.Path))
-				b := "master"
+				b := "main"
 				if remote.RemoteBranch != "" {
 					b = remote.RemoteBranch
 				}

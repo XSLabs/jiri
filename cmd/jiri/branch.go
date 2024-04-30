@@ -52,7 +52,7 @@ var cmdBranch = &cmdline.Command{
 	Short:  "Show or delete branches",
 	Long: `
 Show all the projects having branch <branch> .If -d or -D is passed, <branch>
-is deleted. if <branch> is not passed, show all projects which have branches other than "master"`,
+is deleted. if <branch> is not passed, show all projects which have branches other than "main"`,
 	ArgsName: "<branch>",
 	ArgsLong: "<branch> is the name branch",
 }
@@ -63,7 +63,7 @@ func init() {
 	flags.BoolVar(&branchFlags.forceDeleteFlag, "D", false, "Force delete branch from project. Similar to running 'git branch -D <branch-name>'")
 	flags.BoolVar(&branchFlags.listFlag, "list", false, "Show only projects with current branch <branch>")
 	flags.BoolVar(&branchFlags.overrideProjectConfigFlag, "override-pc", false, "Overrrides project config's ignore and noupdate flag and deletes the branch.")
-	flags.BoolVar(&branchFlags.deleteMergedFlag, "delete-merged", false, "Delete merged branches. Merged branches are the tracked branches merged with their tracking remote or un-tracked branches merged with the branch specified in manifest(default master). If <branch> is provided, it will only delete branch <branch> if merged.")
+	flags.BoolVar(&branchFlags.deleteMergedFlag, "delete-merged", false, "Delete merged branches. Merged branches are the tracked branches merged with their tracking remote or un-tracked branches merged with the branch specified in manifest(default main). If <branch> is provided, it will only delete branch <branch> if merged.")
 	flags.BoolVar(&branchFlags.deleteMergedClsFlag, "delete-merged-cl", false, "Implies -delete-merged. It also parses commit messages for ChangeID and checks with gerrit if those changes have been merged and deletes those branches. It will ignore a branch if it differs with remote by more than 10 commits.")
 }
 
@@ -96,21 +96,21 @@ func displayProjects(jirix *jiri.X, branch string) error {
 		}
 		if branch == "" {
 			var branches []string
-			master := ""
+			main := ""
 			for _, b := range state.Branches {
 				name := b.Name
 				if state.CurrentBranch.Name == b.Name {
 					name = "*" + jirix.Color.Green("%s", b.Name)
 				}
-				if b.Name != "master" {
+				if b.Name != "main" {
 					branches = append(branches, name)
 				} else {
-					master = name
+					main = name
 				}
 			}
 			if len(branches) != 0 {
-				if master != "" {
-					branches = append(branches, master)
+				if main != "" {
+					branches = append(branches, main)
 				}
 				fmt.Printf("%s: %s(%s)\n", jirix.Color.Yellow("Project"), state.Project.Name, relativePath)
 				fmt.Printf("%s: %s\n\n", jirix.Color.Yellow("Branch(es)"), strings.Join(branches, ", "))
@@ -305,7 +305,7 @@ func deleteProjectMergedClsBranches(jirix *jiri.X, local project.Project, remote
 		if b.Tracking == nil {
 			rb := remote.RemoteBranch
 			if rb == "" {
-				rb = "master"
+				rb = "main"
 			}
 			trackingBranch = fmt.Sprintf("remotes/origin/%s", rb)
 		} else {
@@ -405,7 +405,7 @@ func deleteProjectMergedBranches(jirix *jiri.X, local project.Project, remote pr
 				mergedBranches = make(map[string]bool)
 				rb := remote.RemoteBranch
 				if rb == "" {
-					rb = "master"
+					rb = "main"
 				}
 				if mbs, err := scm.MergedBranches("remotes/origin/" + rb); err != nil {
 					retErr = append(retErr, fmt.Errorf("Not able to get merged un-tracked branches: %s\n", err))

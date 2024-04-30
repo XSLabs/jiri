@@ -16,7 +16,7 @@ var cmdSourceManifest = &cmdline.Command{
 	Short:  "Create a new source-manifest from current checkout",
 	Long: `
 This command captures the current project state in a source-manifest format.
-See https://github.com/luci/recipes-py/blob/master/recipe_engine/source_manifest.proto
+See https://github.com/luci/recipes-py/blob/main/recipe_engine/source_manifest.proto
 for its format.
 `,
 	ArgsName: "<source-manifest>",

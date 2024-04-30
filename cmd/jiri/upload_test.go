@@ -141,7 +141,7 @@ func TestUpload(t *testing.T) {
 	}
 	branch := "my-branch"
 	git := gitutil.New(fake.X, gitutil.UserNameOpt("John Doe"), gitutil.UserEmailOpt("john.doe@example.com"))
-	if err := git.CreateBranchWithUpstream(branch, "origin/master"); err != nil {
+	if err := git.CreateBranchWithUpstream(branch, "origin/main"); err != nil {
 		t.Fatal(err)
 	}
 	if err := git.CheckoutBranch(branch, localProjects[1].GitSubmodules, false); err != nil {
@@ -155,7 +155,7 @@ func TestUpload(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	expectedRef := "refs/for/master"
+	expectedRef := "refs/for/main"
 	assertUploadPushedFilesToRef(t, fake.X, gerritPath, expectedRef, files)
 
 	uploadRemoteBranchFlag = "new-branch"
@@ -187,7 +187,7 @@ func TestUploadRef(t *testing.T) {
 	}
 	branch := "my-branch"
 	git := gitutil.New(fake.X, gitutil.UserNameOpt("John Doe"), gitutil.UserEmailOpt("john.doe@example.com"))
-	if err := git.CreateBranchWithUpstream(branch, "origin/master"); err != nil {
+	if err := git.CreateBranchWithUpstream(branch, "origin/main"); err != nil {
 		t.Fatal(err)
 	}
 	if err := git.CheckoutBranch(branch, localProjects[1].GitSubmodules, false); err != nil {
@@ -201,7 +201,7 @@ func TestUploadRef(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	expectedRef := "refs/for/master"
+	expectedRef := "refs/for/main"
 	assertUploadPushedFilesToRef(t, fake.X, gerritPath, expectedRef, files[0:1])
 	assertUploadFilesNotPushedToRef(t, fake.X, gerritPath, expectedRef, files[1:])
 }
@@ -270,7 +270,7 @@ func TestUploadMultipart(t *testing.T) {
 			t.Fatal(err)
 		}
 		git := gitutil.New(fake.X, gitutil.UserNameOpt("John Doe"), gitutil.UserEmailOpt("john.doe@example.com"))
-		if err := git.CreateBranchWithUpstream(branch, "origin/master"); err != nil {
+		if err := git.CreateBranchWithUpstream(branch, "origin/main"); err != nil {
 			t.Fatal(err)
 		}
 		if err := git.CheckoutBranch(branch, localProjects[1].GitSubmodules, false); err != nil {
@@ -288,7 +288,7 @@ func TestUploadMultipart(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	expectedRef := "refs/for/master"
+	expectedRef := "refs/for/main"
 
 	assertUploadPushedFilesToRef(t, fake.X, gerritPath, expectedRef, []string{"file-10", "file-20"})
 
@@ -323,7 +323,7 @@ func TestUploadMultipartWithBranchFlagSimple(t *testing.T) {
 			t.Fatal(err)
 		}
 		git := gitutil.New(fake.X, gitutil.UserNameOpt("John Doe"), gitutil.UserEmailOpt("john.doe@example.com"))
-		if err := git.CreateBranchWithUpstream(branch, "origin/master"); err != nil {
+		if err := git.CreateBranchWithUpstream(branch, "origin/main"); err != nil {
 			t.Fatalf("%v", err)
 		}
 		if err := git.CheckoutBranch(branch, localProjects[i].GitSubmodules, false); err != nil {
@@ -344,7 +344,7 @@ func TestUploadMultipartWithBranchFlagSimple(t *testing.T) {
 	if err := runUpload(fake.X, []string{}); err != nil {
 		t.Fatal(err)
 	}
-	expectedRef := "refs/for/master"
+	expectedRef := "refs/for/main"
 	assertUploadPushedFilesToRef(t, fake.X, gerritPath, expectedRef, []string{"file-10", "file-20"})
 
 	uploadSetTopicFlag = true
@@ -352,7 +352,7 @@ func TestUploadMultipartWithBranchFlagSimple(t *testing.T) {
 		t.Fatal(err)
 	}
 	topic := fmt.Sprintf("%s-%s", os.Getenv("USER"), branch)
-	expectedRef = "refs/for/master%topic=" + topic
+	expectedRef = "refs/for/main%topic=" + topic
 
 	assertUploadPushedFilesToRef(t, fake.X, gerritPath, expectedRef, []string{"file-10", "file-20"})
 }
@@ -381,7 +381,7 @@ func TestUploadRebase(t *testing.T) {
 	if err := git.Config("user.name", "John Doe"); err != nil {
 		t.Fatal(err)
 	}
-	if err := git.CreateBranchWithUpstream(branch, "origin/master"); err != nil {
+	if err := git.CreateBranchWithUpstream(branch, "origin/main"); err != nil {
 		t.Fatal(err)
 	}
 	if err := git.CheckoutBranch(branch, localProjects[1].GitSubmodules, false); err != nil {
@@ -406,7 +406,7 @@ func TestUploadRebase(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	expectedRef := "refs/for/master"
+	expectedRef := "refs/for/main"
 	assertUploadPushedFilesToRef(t, fake.X, gerritPath, expectedRef, localFiles)
 	assertUploadPushedFilesToRef(t, fake.X, localProjects[1].Path, branch, remoteFiles)
 }
@@ -429,7 +429,7 @@ func TestUploadMultipleCommits(t *testing.T) {
 	}
 	branch := "my-branch"
 	git := gitutil.New(fake.X, gitutil.UserNameOpt("John Doe"), gitutil.UserEmailOpt("john.doe@example.com"))
-	if err := git.CreateBranchWithUpstream(branch, "origin/master"); err != nil {
+	if err := git.CreateBranchWithUpstream(branch, "origin/main"); err != nil {
 		t.Fatal(err)
 	}
 	if err := git.CheckoutBranch(branch, localProjects[1].GitSubmodules, false); err != nil {
@@ -445,7 +445,7 @@ func TestUploadMultipleCommits(t *testing.T) {
 	if err := runUpload(fake.X, []string{}); err != nil {
 		t.Fatal(err)
 	}
-	expectedRef := "refs/for/master"
+	expectedRef := "refs/for/main"
 	assertUploadPushedFilesToRef(t, fake.X, gerritPath, expectedRef, append(files1, files2...))
 }
 
@@ -477,7 +477,7 @@ func TestUploadUntrackedBranch(t *testing.T) {
 	if err := runUpload(fake.X, []string{}); err != nil {
 		t.Fatal(err)
 	}
-	expectedRef := "refs/for/master"
+	expectedRef := "refs/for/main"
 
 	assertUploadPushedFilesToRef(t, fake.X, gerritPath, expectedRef, files)
 
@@ -506,7 +506,7 @@ func TestGitOptions(t *testing.T) {
 	if err := os.Chdir(localProjects[1].Path); err != nil {
 		t.Errorf("failed to change current working directory due to error: %v", err)
 	}
-	// Create "refs/for/master" on remote
+	// Create "refs/for/main" on remote
 	files := []string{"file1"}
 	commitFiles(t, fake.X, files)
 	if err := runUpload(fake.X, []string{}); err != nil {
@@ -519,7 +519,7 @@ func TestGitOptions(t *testing.T) {
 	if err := runUpload(fake.X, []string{}); err != nil {
 		t.Errorf("upload failed due to error: %v", err)
 	}
-	expectedRef := "refs/for/master"
+	expectedRef := "refs/for/main"
 	gerritPath := fake.Projects[localProjects[1].Name]
 	assertUploadFilesNotPushedToRef(t, fake.X, gerritPath, expectedRef, files)
 }

@@ -41,11 +41,11 @@ func createCommits(t *testing.T, fake *jiritest.FakeJiriRoot, localProjects []pr
 		gitRemote := gitutil.New(fake.X, gitutil.RootDirOpt(fake.Projects[localProject.Name]))
 		writeFile(t, fake.X, fake.Projects[localProject.Name], "file1"+strconv.Itoa(i), "file1"+strconv.Itoa(i))
 		gitRemote.CreateAndCheckoutBranch("file-1")
-		gitRemote.CheckoutBranch("master", localProject.GitSubmodules, false)
+		gitRemote.CheckoutBranch("main", localProject.GitSubmodules, false)
 		file1CommitRev, _ := gitRemote.CurrentRevision()
 		file1CommitRevs = append(file1CommitRevs, file1CommitRev)
 		gitRemote.CreateAndCheckoutBranch("file-2")
-		gitRemote.CheckoutBranch("master", localProject.GitSubmodules, false)
+		gitRemote.CheckoutBranch("main", localProject.GitSubmodules, false)
 		writeFile(t, fake.X, fake.Projects[localProject.Name], "file2"+strconv.Itoa(i), "file2"+strconv.Itoa(i))
 		file2CommitRev, _ := gitRemote.CurrentRevision()
 		file2CommitRevs = append(file2CommitRevs, file2CommitRev)
@@ -270,8 +270,8 @@ func statusFlagsTest(t *testing.T) {
 	gitLocals[0].CheckoutBranch("HEAD~1", localProjects[0].GitSubmodules, false)
 	gitLocals[1].CheckoutBranch("file-2", localProjects[1].GitSubmodules, false)
 	gitLocals[3].CheckoutBranch("HEAD~2", localProjects[3].GitSubmodules, false)
-	gitLocals[4].CheckoutBranch("master", localProjects[4].GitSubmodules, false)
-	gitLocals[5].CheckoutBranch("master", localProjects[5].GitSubmodules, false)
+	gitLocals[4].CheckoutBranch("main", localProjects[4].GitSubmodules, false)
+	gitLocals[5].CheckoutBranch("main", localProjects[5].GitSubmodules, false)
 
 	newfile(t, localProjects[0].Path, "untracked1")
 	newfile(t, localProjects[0].Path, "untracked2")
@@ -305,7 +305,7 @@ func statusFlagsTest(t *testing.T) {
 	got := executeStatus(t, fake, "")
 	currentCommits := []string{file2CommitRevs[0], file1CommitRevs[1], latestCommitRevs[2], file1CommitRevs[3], latestCommitRevs[4], currentCommit5}
 	extraCommitLogs := [][]string{nil, nil, nil, nil, nil, extraCommits5}
-	currentBranch := []string{"", "file-2", "", "", "master", "master"}
+	currentBranch := []string{"", "file-2", "", "", "main", "main"}
 	changes := []string{"?? untracked1\n?? untracked2", "A  uncommitted.go", "A  uncommitted.go\n?? untracked1", "", "", ""}
 	want := expectedOutput(t, fake, localProjects, latestCommitRevs, currentCommits, changes, currentBranch, relativePaths, extraCommitLogs)
 	if !equal(got, want) {
@@ -338,18 +338,18 @@ func TestStatusFlags(t *testing.T) {
 	setDefaultStatusFlags()
 	statusFlags.changes = false
 	statusFlags.checkHead = false
-	statusFlags.branch = "master"
+	statusFlags.branch = "main"
 	statusFlagsTest(t)
 
 	setDefaultStatusFlags()
 	statusFlags.checkHead = false
-	statusFlags.branch = "master"
+	statusFlags.branch = "main"
 	statusFlags.commits = false
 	statusFlagsTest(t)
 
 	setDefaultStatusFlags()
 	statusFlags.changes = false
-	statusFlags.branch = "master"
+	statusFlags.branch = "main"
 	statusFlagsTest(t)
 
 	setDefaultStatusFlags()

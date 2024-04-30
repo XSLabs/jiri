@@ -108,7 +108,7 @@ func (op createOperation) checkoutProject(jirix *jiri.X, cache string) error {
 			}
 		}
 		// We must specify a refspec here in order for patch to be able to set
-		// upstream to 'origin/master'.
+		// upstream to 'origin/main'.
 		if err := scm.Config("remote.origin.fetch", "+refs/heads/*:refs/remotes/origin/*"); err != nil {
 			return err
 		}
@@ -131,7 +131,7 @@ func (op createOperation) checkoutProject(jirix *jiri.X, cache string) error {
 			// we must invoke a dissociate manually. This involves running a
 			// repack, as well as removing the alternatives file. See the
 			// implementation of the dissociate flag in
-			// https://github.com/git/git/blob/master/builtin/clone.c#L1399 for
+			// https://github.com/git/git/blob/main/builtin/clone.c#L1399 for
 			// more details.
 			opts := []gitutil.RepackOpt{gitutil.RepackAllOpt(true), gitutil.RemoveRedundantOpt(true)}
 			if err := gitutil.New(jirix).Repack(opts...); err != nil {
@@ -270,8 +270,8 @@ func (op deleteOperation) Run(jirix *jiri.X) error {
 		jirix.Logger.Warningf("Project %s(%s) won't be deleted due to it's local-config\n\n", op.project.Name, op.source)
 		return nil
 	}
-	// Never delete projects with non-master branches, uncommitted
-	// work, or untracked content.
+	// Never delete projects with non-main branches, uncommitted work, or
+	// untracked content.
 	scm := gitutil.New(jirix, gitutil.RootDirOpt(op.project.Path))
 	branches, _, err := scm.GetBranches()
 	if err != nil {

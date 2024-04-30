@@ -368,11 +368,11 @@ func TestParseRefString(t *testing.T) {
 func TestReference(t *testing.T) {
 	t.Parallel()
 	testOpts := CLOpts{
-		RemoteBranch: "master",
+		RemoteBranch: "main",
 		Labels:       []string{"Commit-Queue+1"},
 		Reviewers:    []string{"a@example.com", "b@example.com"},
 	}
-	gold := "refs/for/master%l=Commit-Queue+1,r=a@example.com,r=b@example.com"
+	gold := "refs/for/main%l=Commit-Queue+1,r=a@example.com,r=b@example.com"
 	ref := Reference(testOpts)
 	if gold != ref {
 		t.Errorf("expecting %q, got %q", gold, ref)

@@ -265,7 +265,7 @@ type Import struct {
 
 func (i *Import) fillDefaults() error {
 	if i.RemoteBranch == "" {
-		i.RemoteBranch = "master"
+		i.RemoteBranch = "main"
 	}
 	if i.Revision == "" {
 		i.Revision = "HEAD"
@@ -274,7 +274,7 @@ func (i *Import) fillDefaults() error {
 }
 
 func (i *Import) RemoveDefaults() {
-	if i.RemoteBranch == "master" {
+	if i.RemoteBranch == "main" {
 		i.RemoteBranch = ""
 	}
 	if i.Revision == "HEAD" {

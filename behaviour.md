@@ -45,7 +45,7 @@ Snaphot file captures current state of all the projects. It can be created using
 
 * Puts projects on `JIRI_HEAD`.
 * Removes un-tracked files.
-* if `-clean-all` flag is used, force deletes all the local branches, even **master**.
+* if `-clean-all` flag is used, force deletes all the local branches, even **main**.
 
 ### upload {#intended-project-upload}
 

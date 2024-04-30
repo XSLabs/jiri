@@ -85,7 +85,7 @@ func checkJiriRevFiles(t *testing.T, jirix *jiri.X, p project.Project) {
 	projectRevision := p.Revision
 	if projectRevision == "" {
 		if p.RemoteBranch == "" {
-			projectRevision = "origin/master"
+			projectRevision = "origin/main"
 		} else {
 			projectRevision = "origin/" + p.RemoteBranch
 		}
@@ -207,7 +207,7 @@ func TestLocalProjects(t *testing.T) {
 		}
 
 		// Initialize empty git repository.  The commit is necessary, otherwise
-		// "git rev-parse master" fails.
+		// "git rev-parse main" fails.
 		git := gitutil.New(jirix, gitutil.UserNameOpt("John Doe"), gitutil.UserEmailOpt("john.doe@example.com"), gitutil.RootDirOpt(path))
 		if err := git.Init(path); err != nil {
 			t.Fatal(err)
@@ -366,7 +366,7 @@ func TestUpdateUniverseWhenLocalTracksLocal(t *testing.T) {
 	}
 
 	gitLocal := gitutil.New(fake.X, gitutil.RootDirOpt(localProjects[1].Path))
-	gitLocal.CreateBranchWithUpstream("A", "origin/master")
+	gitLocal.CreateBranchWithUpstream("A", "origin/main")
 	gitLocal.CreateBranch("B")
 	gitLocal.SetUpstream("B", "A")
 	writeFile(t, fake.X, fake.Projects[localProjects[1].Name], "file1", "file1")
@@ -473,8 +473,8 @@ func TestUpdateUniverseWithCache(t *testing.T) {
 		checkJiriRevFiles(t, fake.X, p)
 	}
 
-	// Commit to master branch of a project 1.
-	writeReadme(t, fake.X, fake.Projects[localProjects[1].Name], "master commit")
+	// Commit to main branch of a project 1.
+	writeReadme(t, fake.X, fake.Projects[localProjects[1].Name], "main commit")
 
 	gitRemote := gitutil.New(fake.X, gitutil.RootDirOpt(localProjects[1].Remote))
 	remoteRev, err := gitRemote.CurrentRevision()
@@ -488,7 +488,7 @@ func TestUpdateUniverseWithCache(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	checkReadme(t, fake.X, localProjects[1], "master commit")
+	checkReadme(t, fake.X, localProjects[1], "main commit")
 	checkJiriRevFiles(t, fake.X, localProjects[1])
 
 	// Check that cache was updated
@@ -515,8 +515,8 @@ func TestProjectUpdateWhenNoUpdate(t *testing.T) {
 
 	lc := project.LocalConfig{NoUpdate: true}
 	project.WriteLocalConfig(fake.X, localProjects[1], lc)
-	// Commit to master branch of a project 1.
-	writeReadme(t, fake.X, fake.Projects[localProjects[1].Name], "master commit")
+	// Commit to main branch of a project 1.
+	writeReadme(t, fake.X, fake.Projects[localProjects[1].Name], "main commit")
 	gitRemote := gitutil.New(fake.X, gitutil.RootDirOpt(fake.Projects[localProjects[1].Name]))
 	remoteRev, _ := gitRemote.CurrentRevision()
 	if err := fake.UpdateUniverse(false); err != nil {
@@ -845,8 +845,8 @@ func TestProjectUpdateWhenIgnore(t *testing.T) {
 
 	lc := project.LocalConfig{Ignore: true}
 	project.WriteLocalConfig(fake.X, localProjects[1], lc)
-	// Commit to master branch of a project 1.
-	writeReadme(t, fake.X, fake.Projects[localProjects[1].Name], "master commit")
+	// Commit to main branch of a project 1.
+	writeReadme(t, fake.X, fake.Projects[localProjects[1].Name], "main commit")
 	gitRemote := gitutil.New(fake.X, gitutil.RootDirOpt(fake.Projects[localProjects[1].Name]))
 	remoteRev, _ := gitRemote.CurrentRevision()
 	if err := fake.UpdateUniverse(false); err != nil {
@@ -903,8 +903,8 @@ func TestProjectUpdateWhenNoRebase(t *testing.T) {
 
 	lc := project.LocalConfig{NoRebase: true}
 	project.WriteLocalConfig(fake.X, localProjects[1], lc)
-	// Commit to master branch of a project 1.
-	writeReadme(t, fake.X, fake.Projects[localProjects[1].Name], "master commit")
+	// Commit to main branch of a project 1.
+	writeReadme(t, fake.X, fake.Projects[localProjects[1].Name], "main commit")
 	gitRemote := gitutil.New(fake.X, gitutil.RootDirOpt(fake.Projects[localProjects[1].Name]))
 	remoteRev, _ := gitRemote.CurrentRevision()
 	if err := fake.UpdateUniverse(false); err != nil {
@@ -927,12 +927,12 @@ func TestBranchUpdateWhenNoRebase(t *testing.T) {
 		t.Fatal(err)
 	}
 	gitLocal := gitutil.New(fake.X, gitutil.RootDirOpt(localProjects[1].Path))
-	gitLocal.CheckoutBranch("master", localProjects[1].GitSubmodules, false)
+	gitLocal.CheckoutBranch("main", localProjects[1].GitSubmodules, false)
 
 	lc := project.LocalConfig{NoRebase: true}
 	project.WriteLocalConfig(fake.X, localProjects[1], lc)
-	// Commit to master branch of a project 1.
-	writeReadme(t, fake.X, fake.Projects[localProjects[1].Name], "master commit")
+	// Commit to main branch of a project 1.
+	writeReadme(t, fake.X, fake.Projects[localProjects[1].Name], "main commit")
 	gitRemote := gitutil.New(fake.X, gitutil.RootDirOpt(fake.Projects[localProjects[1].Name]))
 	remoteRev, _ := gitRemote.CurrentRevision()
 	if err := fake.UpdateUniverse(false); err != nil {
@@ -942,7 +942,7 @@ func TestBranchUpdateWhenNoRebase(t *testing.T) {
 	localRev, _ := gitLocal.CurrentRevision()
 
 	if remoteRev == localRev {
-		t.Fatal("local branch master should not be updated")
+		t.Fatal("local branch main should not be updated")
 	}
 }
 
@@ -1183,7 +1183,7 @@ func TestMoveNestedProjects(t *testing.T) {
 
 // TestUpdateUniverseWithUncommitted checks that uncommitted files are not droped
 // by UpdateUniverse(). This ensures that the "git reset --hard" mechanism used
-// for pointing the master branch to a fixed revision does not lose work in
+// for pointing the main branch to a fixed revision does not lose work in
 // progress.
 func TestUpdateUniverseWithUncommitted(t *testing.T) {
 	localProjects, fake, cleanup := setupUniverse(t)
@@ -1428,9 +1428,9 @@ func testUpdateUniverseDeletedProject(t *testing.T, testDirtyProjectDelete, test
 	if testDirtyProjectDelete {
 		writeUncommitedFile(t, fake.X, localProjects[4].Path, "extra", "")
 	} else if testProjectWithBranch {
-		// Create and checkout master.
+		// Create and checkout main.
 		git := gitutil.New(fake.X, gitutil.RootDirOpt(localProjects[4].Path))
-		if err := git.CreateAndCheckoutBranch("master"); err != nil {
+		if err := git.CreateAndCheckoutBranch("main"); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -1552,7 +1552,7 @@ func TestUpdateUniverseNewProjectSamePath(t *testing.T) {
 }
 
 // TestUpdateUniverseRemoteBranch checks that UpdateUniverse can pull from a
-// non-master remote branch.
+// non-main remote branch.
 func TestUpdateUniverseRemoteBranch(t *testing.T) {
 	localProjects, fake, cleanup := setupUniverse(t)
 	defer cleanup()
@@ -1560,15 +1560,15 @@ func TestUpdateUniverseRemoteBranch(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Commit to master branch of a project 1.
-	writeReadme(t, fake.X, fake.Projects[localProjects[1].Name], "master commit")
+	// Commit to main branch of a project 1.
+	writeReadme(t, fake.X, fake.Projects[localProjects[1].Name], "main commit")
 	// Create and checkout a new branch of project 1 and make a new commit.
 	git := gitutil.New(fake.X, gitutil.RootDirOpt(fake.Projects[localProjects[1].Name]))
-	if err := git.CreateAndCheckoutBranch("non-master"); err != nil {
+	if err := git.CreateAndCheckoutBranch("non-main"); err != nil {
 		t.Fatal(err)
 	}
-	writeReadme(t, fake.X, fake.Projects[localProjects[1].Name], "non-master commit")
-	// Point the manifest to the new non-master branch.
+	writeReadme(t, fake.X, fake.Projects[localProjects[1].Name], "non-main commit")
+	// Point the manifest to the new non-main branch.
 	m, err := fake.ReadRemoteManifest()
 	if err != nil {
 		t.Fatal(err)
@@ -1576,7 +1576,7 @@ func TestUpdateUniverseRemoteBranch(t *testing.T) {
 	projects := []project.Project{}
 	for _, p := range m.Projects {
 		if p.Name == localProjects[1].Name {
-			p.RemoteBranch = "non-master"
+			p.RemoteBranch = "non-main"
 		}
 		projects = append(projects, p)
 	}
@@ -1584,11 +1584,11 @@ func TestUpdateUniverseRemoteBranch(t *testing.T) {
 	if err := fake.WriteRemoteManifest(m); err != nil {
 		t.Fatal(err)
 	}
-	// Check that UpdateUniverse pulls the commit from the non-master branch.
+	// Check that UpdateUniverse pulls the commit from the non-main branch.
 	if err := fake.UpdateUniverse(false); err != nil {
 		t.Fatal(err)
 	}
-	checkReadme(t, fake.X, localProjects[1], "non-master commit")
+	checkReadme(t, fake.X, localProjects[1], "non-main commit")
 }
 
 func TestUpdatedUniverseEnabledSubmodules(t *testing.T) {
@@ -1636,7 +1636,7 @@ func TestUpdatedUniverseEnabledSubmodules(t *testing.T) {
 }
 
 // TestUpdateWhenRemoteChangesRebased checks that UpdateUniverse can pull from a
-// non-master remote branch if the local changes were rebased somewhere else(gerrit)
+// non-main remote branch if the local changes were rebased somewhere else(gerrit)
 // before being pushed to remote
 func TestUpdateWhenRemoteChangesRebased(t *testing.T) {
 	localProjects, fake, cleanup := setupUniverse(t)
@@ -1646,7 +1646,7 @@ func TestUpdateWhenRemoteChangesRebased(t *testing.T) {
 	}
 
 	gitRemote := gitutil.New(fake.X, gitutil.UserNameOpt("John Doe"), gitutil.UserEmailOpt("john.doe@example.com"), gitutil.RootDirOpt(fake.Projects[localProjects[1].Name]))
-	if err := gitRemote.CreateAndCheckoutBranch("non-master"); err != nil {
+	if err := gitRemote.CreateAndCheckoutBranch("non-main"); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1656,12 +1656,12 @@ func TestUpdateWhenRemoteChangesRebased(t *testing.T) {
 	}
 
 	// checkout branch in local repo
-	if err := gitLocal.CheckoutBranch("non-master", localProjects[1].GitSubmodules, false); err != nil {
+	if err := gitLocal.CheckoutBranch("non-main", localProjects[1].GitSubmodules, false); err != nil {
 		t.Fatal(err)
 	}
 
 	// Create commits in remote repo
-	writeReadme(t, fake.X, fake.Projects[localProjects[1].Name], "non-master commit")
+	writeReadme(t, fake.X, fake.Projects[localProjects[1].Name], "non-main commit")
 	writeFile(t, fake.X, fake.Projects[localProjects[1].Name], "file1", "file1")
 	file1CommitRev, _ := gitRemote.CurrentRevision()
 	writeFile(t, fake.X, fake.Projects[localProjects[1].Name], "file2", "file2")
@@ -1696,7 +1696,7 @@ func TestUpdateWhenConflictMerge(t *testing.T) {
 	}
 
 	gitRemote := gitutil.New(fake.X, gitutil.UserNameOpt("John Doe"), gitutil.UserEmailOpt("john.doe@example.com"), gitutil.RootDirOpt(fake.Projects[localProjects[1].Name]))
-	if err := gitRemote.CreateAndCheckoutBranch("non-master"); err != nil {
+	if err := gitRemote.CreateAndCheckoutBranch("non-main"); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1706,12 +1706,12 @@ func TestUpdateWhenConflictMerge(t *testing.T) {
 	}
 
 	// checkout branch in local repo
-	if err := gitLocal.CheckoutBranch("non-master", localProjects[1].GitSubmodules, false); err != nil {
+	if err := gitLocal.CheckoutBranch("non-main", localProjects[1].GitSubmodules, false); err != nil {
 		t.Fatal(err)
 	}
 
 	// Create commits in remote repo
-	writeReadme(t, fake.X, fake.Projects[localProjects[1].Name], "non-master commit")
+	writeReadme(t, fake.X, fake.Projects[localProjects[1].Name], "non-main commit")
 	writeFile(t, fake.X, fake.Projects[localProjects[1].Name], "file1", "file1")
 	file1CommitRev, _ := gitRemote.CurrentRevision()
 	writeFile(t, fake.X, fake.Projects[localProjects[1].Name], "file2", "file2")
@@ -1746,22 +1746,22 @@ func TestTagNotContainedInBranch(t *testing.T) {
 	}
 
 	gitRemote := gitutil.New(fake.X, gitutil.UserNameOpt("John Doe"), gitutil.UserEmailOpt("john.doe@example.com"), gitutil.RootDirOpt(fake.Projects[localProjects[1].Name]))
-	if err := gitRemote.CreateAndCheckoutBranch("non-master"); err != nil {
+	if err := gitRemote.CreateAndCheckoutBranch("non-main"); err != nil {
 		t.Fatal(err)
 	}
 
 	// Create commits in remote repo
-	writeReadme(t, fake.X, fake.Projects[localProjects[1].Name], "non-master commit")
+	writeReadme(t, fake.X, fake.Projects[localProjects[1].Name], "non-main commit")
 	writeFile(t, fake.X, fake.Projects[localProjects[1].Name], "file1", "file1")
 	file1CommitRev, _ := gitRemote.CurrentRevision()
 	if err := gitRemote.CreateLightweightTag("testtag"); err != nil {
 		t.Fatalf("Creating tag: %s", err)
 
 	}
-	if err := gitRemote.CheckoutBranch("master", localProjects[1].GitSubmodules, false); err != nil {
+	if err := gitRemote.CheckoutBranch("main", localProjects[1].GitSubmodules, false); err != nil {
 		t.Fatal(err)
 	}
-	if err := gitRemote.DeleteBranch("non-master", gitutil.ForceOpt(true)); err != nil {
+	if err := gitRemote.DeleteBranch("non-main", gitutil.ForceOpt(true)); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1832,7 +1832,7 @@ func testCheckoutSnapshot(t *testing.T, testURL bool) {
 
 		// Test case when local repo in on a branch
 		if i == 1 {
-			if err := gitLocal.CheckoutBranch("master", localProject.GitSubmodules, false); err != nil {
+			if err := gitLocal.CheckoutBranch("main", localProject.GitSubmodules, false); err != nil {
 				t.Fatal(err)
 			}
 		}
@@ -1895,26 +1895,26 @@ func testLocalBranchesAreUpdated(t *testing.T, shouldLocalBeOnABranch, rebaseAll
 	}
 
 	gitRemote := gitutil.New(fake.X, gitutil.UserNameOpt("John Doe"), gitutil.UserEmailOpt("john.doe@example.com"), gitutil.RootDirOpt(fake.Projects[localProjects[1].Name]))
-	if err := gitRemote.CreateAndCheckoutBranch("non-master"); err != nil {
+	if err := gitRemote.CreateAndCheckoutBranch("non-main"); err != nil {
 		t.Fatal(err)
 	}
 
-	// This will fetch non-master to local
+	// This will fetch non-main to local
 	if err := fake.UpdateUniverse(false); err != nil {
 		t.Fatal(err)
 	}
 
-	writeReadme(t, fake.X, fake.Projects[localProjects[1].Name], "non-master commit")
+	writeReadme(t, fake.X, fake.Projects[localProjects[1].Name], "non-main commit")
 
-	if err := gitRemote.CheckoutBranch("master", localProjects[1].GitSubmodules, false); err != nil {
+	if err := gitRemote.CheckoutBranch("main", localProjects[1].GitSubmodules, false); err != nil {
 		t.Fatal(err)
 	}
-	writeReadme(t, fake.X, fake.Projects[localProjects[1].Name], "master commit")
+	writeReadme(t, fake.X, fake.Projects[localProjects[1].Name], "main commit")
 
 	gitLocal := gitutil.New(fake.X, gitutil.UserNameOpt("John Doe"), gitutil.UserEmailOpt("john.doe@example.com"), gitutil.RootDirOpt(localProjects[1].Path))
 
-	// This will create a local branch non-master
-	if err := gitLocal.CheckoutBranch("non-master", localProjects[1].GitSubmodules, false); err != nil {
+	// This will create a local branch non-main
+	if err := gitLocal.CheckoutBranch("non-main", localProjects[1].GitSubmodules, false); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1946,8 +1946,8 @@ func testLocalBranchesAreUpdated(t *testing.T, shouldLocalBeOnABranch, rebaseAll
 	}
 
 	state := states[localProjects[1].Key()]
-	if shouldLocalBeOnABranch && state.CurrentBranch.Name != "non-master" {
-		t.Fatalf("local repo should be on branch(non-master) it is on %q", state.CurrentBranch.Name)
+	if shouldLocalBeOnABranch && state.CurrentBranch.Name != "non-main" {
+		t.Fatalf("local repo should be on branch(non-main) it is on %q", state.CurrentBranch.Name)
 	}
 
 	if rebaseAll {
@@ -2175,7 +2175,7 @@ func TestManifestToFromBytes(t *testing.T) {
 						Name:         "remoteimport1",
 						Remote:       "remote1",
 						Revision:     "HEAD",
-						RemoteBranch: "master",
+						RemoteBranch: "main",
 					},
 					{
 						Manifest:     "manifest2",
@@ -2200,7 +2200,7 @@ func TestManifestToFromBytes(t *testing.T) {
 						Name:          "project1",
 						Path:          "path1",
 						Remote:        "remote1",
-						RemoteBranch:  "master",
+						RemoteBranch:  "main",
 						Revision:      "HEAD",
 						GerritHost:    "https://test-review.googlesource.com",
 						GitHooks:      "path/to/githooks",
@@ -2273,7 +2273,7 @@ func TestProjectToFromFile(t *testing.T) {
 				Name:         "project1",
 				Path:         filepath.Join(jirix.Root, "path1"),
 				Remote:       "remote1",
-				RemoteBranch: "master",
+				RemoteBranch: "main",
 				Revision:     "HEAD",
 			},
 			`<project name="project1" path="path1" remote="remote1"/>

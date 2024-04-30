@@ -71,7 +71,7 @@ Usage:
 The jiri cl cleanup flags are:
  -f=false
    Ignore unmerged changes.
- -remote-branch=master
+ -remote-branch=main
    Name of the remote branch the CL pertains to, without the leading "origin/".
 
  -color=true
@@ -118,7 +118,7 @@ The jiri cl upload flags are:
    The type of presubmit tests to run. Valid values: none,all.
  -r=
    Comma-seperated list of emails or LDAPs to request review.
- -remote-branch=master
+ -remote-branch=main
    Name of the remote branch the CL pertains to, without the leading "origin/".
  -set-topic=true
    Set Gerrit CL topic.
@@ -171,7 +171,7 @@ Usage:
    jiri cl sync [flags]
 
 The jiri cl sync flags are:
- -remote-branch=master
+ -remote-branch=main
    Name of the remote branch the CL pertains to, without the leading "origin/".
 
  -color=true
@@ -213,7 +213,7 @@ The jiri import flags are:
    overwritten.
  -protocol=git
    The version control protocol used by the remote manifest project.
- -remote-branch=master
+ -remote-branch=main
    The branch of the remote manifest project to track, without the leading
    "origin/".
  -root=
@@ -278,7 +278,7 @@ The jiri project flags are:
 
 Jiri project clean - Restore jiri projects to their pristine state
 
-Restore jiri projects back to their master branches and get rid of all the local
+Restore jiri projects back to their main branches and get rid of all the local
 branches and changes.
 
 Usage:
@@ -288,7 +288,7 @@ Usage:
 
 The jiri project clean flags are:
  -branches=false
-   Delete all non-master branches.
+   Delete all non-main branches.
 
  -color=true
    Use color to format output.
@@ -334,7 +334,7 @@ The jiri project list flags are:
  -branches=false
    Show project branches.
  -nopristine=false
-   If true, omit pristine projects, i.e. projects with a clean master branch and
+   If true, omit pristine projects, i.e. projects with a clean main branch and
    no other branches.
 
  -color=true
@@ -355,7 +355,7 @@ Usage:
 The jiri project shell-prompt flags are:
  -check-dirty=true
    If false, don't check for uncommitted changes or untracked files. Setting
-   this option to false is dangerous: dirty master branches will not appear in
+   this option to false is dangerous: dirty main branches will not appear in
    the output.
  -show-name=false
    Show the name of the current repo.
@@ -623,7 +623,7 @@ the jiri root.
 Currently "git" is the default and only supported protocol.
 
 * remotebranch (optional) - The remote branch that the project will sync to.
-Defaults to "master".  The "remotebranch" attribute is ignored if "revision" is
+Defaults to "main".  The "remotebranch" attribute is ignored if "revision" is
 specified.
 
 * revision (optional) - The specific revision (usually a git SHA) that the
