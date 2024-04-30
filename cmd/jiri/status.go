@@ -73,7 +73,7 @@ func runStatus(jirix *jiri.X, args []string) error {
 	}
 	if statusFlags.deleted {
 		for key, localProject := range localProjects {
-			if _, remoteOk := remoteProjects[key]; !remoteOk {
+			if _, remoteOk := remoteProjects[key]; !remoteOk && !localProject.IsSubmodule {
 				relativePath, err := filepath.Rel(cDir, localProject.Path)
 				if err != nil {
 					return err
@@ -97,7 +97,7 @@ func runStatus(jirix *jiri.X, args []string) error {
 	for _, key := range keys {
 		localProject := localProjects[key]
 		remoteProject, foundRemote := remoteProjects[key]
-		if !foundRemote {
+		if !foundRemote && !localProject.IsSubmodule {
 			deletedProjects++
 			continue
 		}
