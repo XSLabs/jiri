@@ -284,17 +284,19 @@ type packageACL struct {
 	access bool
 }
 
-func checkPackageACL(jirix *jiri.X, cipdPath, jsonDir string) packageACL {
+func checkPackageACL(jirix *jiri.X, cipdPath, jsonDir string, c chan<- packageACL) {
 	// cipd should be already bootstrapped before this go routine.
 	// Silently return a false just in case if cipd is not found.
 	if cipdBinary == "" {
-		return packageACL{path: cipdPath, access: false}
+		c <- packageACL{path: cipdPath, access: false}
+		return
 	}
 
 	jsonFile, err := os.CreateTemp(jsonDir, "cipd*.json")
 	if err != nil {
 		jirix.Logger.Warningf("Error while creating temporary file for cipd")
-		return packageACL{path: cipdPath, access: false}
+		c <- packageACL{path: cipdPath, access: false}
+		return
 	}
 	jsonFileName := jsonFile.Name()
 	jsonFile.Close()
@@ -309,27 +311,32 @@ func checkPackageACL(jirix *jiri.X, cipdPath, jsonDir string) packageACL {
 	// Return false if cipd cannot be executed or output jsonfile contains false.
 	if err := command.Run(); err != nil {
 		jirix.Logger.Debugf("Error while executing cipd, err: %q, stderr: %q", err, stderrBuf.String())
-		return packageACL{path: cipdPath, access: false}
+		c <- packageACL{path: cipdPath, access: false}
+		return
 	}
 
 	jsonData, err := os.ReadFile(jsonFileName)
 	if err != nil {
-		return packageACL{path: cipdPath, access: false}
+		c <- packageACL{path: cipdPath, access: false}
+		return
 	}
 
 	var result struct {
 		Result bool `json:"result"`
 	}
 	if err := json.Unmarshal(jsonData, &result); err != nil {
-		return packageACL{path: cipdPath, access: false}
+		c <- packageACL{path: cipdPath, access: false}
+		return
 	}
 
 	if !result.Result {
-		return packageACL{path: cipdPath, access: false}
+		c <- packageACL{path: cipdPath, access: false}
+		return
 	}
 
 	// Package can be accessed.
-	return packageACL{path: cipdPath, access: true}
+	c <- packageACL{path: cipdPath, access: true}
+	return
 }
 
 // CheckPackageACL checks cipd's access to packages in map "pkgs". The package
@@ -349,11 +356,24 @@ func CheckPackageACL(jirix *jiri.X, pkgs map[string]bool) error {
 	}
 	defer os.RemoveAll(jsonDir)
 
+	// Create a sufficiently large channel such that a below
+	// serial execution would not block.
+	c := make(chan packageACL, len(pkgs))
 	for key := range pkgs {
-		acl := checkPackageACL(jirix, key, jsonDir)
-		pkgs[acl.path] = acl.access
+		if cipdOS == "mac" {
+			// On Mac, check package ACLs serially.
+			// See https://g-issues.fuchsia.dev/issues/42069083 for details.
+			checkPackageACL(jirix, key, jsonDir, c)
+		} else {
+			// Check package ACLs in parallel.
+			go checkPackageACL(jirix, key, jsonDir, c)
+		}
 	}
 
+	for i := 0; i < len(pkgs); i++ {
+		acl := <-c
+		pkgs[acl.path] = acl.access
+	}
 	return nil
 }
 
