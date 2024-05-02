@@ -35,6 +35,20 @@ The binary will be installed to `$HOME/go/bin/jiri` (or `$GOPATH/bin/jiri`, if
 you set `GOPATH`) and can be copied to any directory in your PATH, as long as it
 is writable (to support jiri bootstrapping and self-updates).
 
+## Uploading a change to the jiri repository
+
+To upload a change to Jiri itself, commit your changes locally
+and run:
+
+```
+git push origin HEAD:refs/for/main
+```
+
+The first time you run this command you will see instructions for
+installing and running a git commit-hook.
+
+Running the above command again will print out the URL for your Changelist.
+
 ## Jiri Behaviour
 [See this][behaviour]
 
