@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -1574,17 +1575,18 @@ func (g *Git) runInteractive(args ...string) error {
 }
 
 func (g *Git) runGit(stdout, stderr io.Writer, args ...string) error {
+	config := make(map[string]string)
 	if g.userName != "" {
-		args = append([]string{"-c", fmt.Sprintf("user.name=%s", g.userName)}, args...)
+		config["user.name"] = g.userName
 	}
 	if g.userEmail != "" {
-		args = append([]string{"-c", fmt.Sprintf("user.email=%s", g.userEmail)}, args...)
+		config["user.email"] = g.userEmail
 	}
 	if !g.jirix.EnableSubmodules {
-		args = append([]string{"-c", fmt.Sprintf("submodule.recurse=%t", false)}, args...)
+		config["submodule.recurse"] = "false"
 	}
 	if g.jirix.OffloadPackfiles {
-		args = append([]string{"-c", "fetch.uriprotocols=https"}, args...)
+		config["fetch.uriprotocols"] = "https"
 	}
 	var outbuf bytes.Buffer
 	var errbuf bytes.Buffer
@@ -1594,7 +1596,7 @@ func (g *Git) runGit(stdout, stderr io.Writer, args ...string) error {
 	command.Stdout = io.MultiWriter(stdout, &outbuf)
 	command.Stderr = io.MultiWriter(stderr, &errbuf)
 	env := g.jirix.Env()
-	env = envvar.MergeMaps(g.opts, env)
+	env = envvar.MergeMaps(g.opts, env, gitConfigEnvVars(config))
 	command.Env = envvar.MapToSlice(env)
 	dir := g.rootDir
 	if dir == "" {
@@ -1614,6 +1616,28 @@ func (g *Git) runGit(stdout, stderr io.Writer, args ...string) error {
 	}
 	g.jirix.Logger.Tracef("Finished: git %s (%s), \nstdout: %s\nstderr: %s\nexit code: %v\n", strings.Join(args, " "), dir, outbuf.String(), errbuf.String(), exitCode)
 	return err
+}
+
+// gitConfigEnvVars converts a git config key-value mapping into corresponding
+// environment variables to pass to git.
+//
+// See https://git-scm.com/docs/git-config#ENVIRONMENT
+func gitConfigEnvVars(config map[string]string) map[string]string {
+	var keys []string
+	for k := range config {
+		keys = append(keys, k)
+	}
+	// Sort to ensure determinism.
+	sort.Strings(keys)
+
+	env := map[string]string{
+		"GIT_CONFIG_COUNT": fmt.Sprintf("%d", len(keys)),
+	}
+	for i, k := range keys {
+		env[fmt.Sprintf("GIT_CONFIG_KEY_%d", i)] = k
+		env[fmt.Sprintf("GIT_CONFIG_VALUE_%d", i)] = config[k]
+	}
+	return env
 }
 
 // Committer encapsulates the process of create a commit.
