@@ -167,8 +167,13 @@ func makePathRel(basepath, targpath string) (string, error) {
 }
 
 func moduleDecl(p project.Project) string {
-	tmpl := "[submodule \"%s\"]\n\tpath = %s\n\turl = %s"
-	return fmt.Sprintf(tmpl, p.Path, p.Path, p.Remote)
+	lines := []string{fmt.Sprintf("[submodule \"%s\"]", p.Path)}
+	if p.Name != "" {
+		lines = append(lines, "name = "+p.Name)
+	}
+	lines = append(lines, "path = "+p.Path)
+	lines = append(lines, "url = "+p.Remote)
+	return strings.Join(lines, "\n\t")
 }
 
 func commandDecl(p project.Project) string {
