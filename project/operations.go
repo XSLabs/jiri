@@ -174,7 +174,7 @@ func (op createOperation) checkoutProject(jirix *jiri.X, cache string) error {
 		return fmtError(err)
 	}
 
-	if err := checkoutHeadRevision(jirix, op.project, false, false); err != nil {
+	if err := checkoutHeadRevision(jirix, op.project, false); err != nil {
 		return err
 	}
 
@@ -520,7 +520,7 @@ func (op updateOperation) Run(jirix *jiri.X) error {
 	if err := syncProjectMaster(jirix, op.project, op.state, op.rebaseTracked, op.rebaseUntracked, op.rebaseAll, op.rebaseSubmodules, op.snapshot); err != nil {
 		return err
 	}
-	// If we enabled submodules and current project is a superproject, we need to remove intial branches and foo branch.
+	// If we enabled submodules and current project is a superproject, we need to remove initial branches and foo branch.
 	if jirix.EnableSubmodules && op.project.GitSubmodules {
 		if err := removeSubmoduleBranches(jirix, op.project, SubmoduleLocalFlagBranch); err != nil {
 			return err
@@ -594,22 +594,22 @@ func (ops operations) Less(i, j int) bool {
 	}
 
 	opKindToPriority := func(kind string) int {
-		var priortity int
+		var priority int
 		switch kind {
 		case deleteOpKind:
-			priortity = 0
+			priority = 0
 		case changeRemoteOpKind:
-			priortity = 1
+			priority = 1
 		case moveOpKind:
-			priortity = 2
+			priority = 2
 		case updateOpKind:
-			priortity = 3
+			priority = 3
 		case createOpKind:
-			priortity = 4
+			priority = 4
 		case nullOpKind:
-			priortity = 5
+			priority = 5
 		}
-		return priortity
+		return priority
 	}
 
 	if ops[i].Kind() == moveOpKind {
@@ -736,7 +736,7 @@ func computeOp(jirix *jiri.X, local, remote *Project, state *ProjectState, rebas
 			source:      "",
 		}}
 	case local != nil && remote == nil:
-		// When submoduels are enabled, all submodules are removed from remote projects, so submodules from remote are nil.
+		// When submodules are enabled, all submodules are removed from remote projects, so submodules from remote are nil.
 		// We skip operations on submodules when we enabled submodules and rely on superproject updates.
 		if jirix.EnableSubmodules && local.IsSubmodule {
 			return nullOperation{commonOperation{
@@ -820,7 +820,7 @@ func computeOp(jirix *jiri.X, local, remote *Project, state *ProjectState, rebas
 				state:       *state,
 			}, rebaseTracked, rebaseUntracked, rebaseAll, rebaseSubmodules, snapshot}
 		case jirix.EnableSubmodules && local.GitSubmodules:
-			// Always update superproject when submoduels are enabled.
+			// Always update superproject when submodules are enabled.
 			return updateOperation{commonOperation{
 				destination: remote.Path,
 				project:     *remote,

@@ -72,7 +72,7 @@ func setProjectState(jirix *jiri.X, state *ProjectState, checkDirty bool, ch cha
 	if checkDirty {
 		state.HasUncommitted, err = scm.HasUncommittedChanges()
 		if err != nil {
-			ch <- fmt.Errorf("Cannot get uncommited changes for project %q: %v", state.Project.Name, err)
+			ch <- fmt.Errorf("Cannot get uncommitted changes for project %q: %v", state.Project.Name, err)
 			return
 		}
 		state.HasUntracked, err = scm.HasUntrackedFiles()

@@ -362,7 +362,7 @@ func (ld *loader) cloneManifestRepo(jirix *jiri.X, remote *Import, cacheDirPath 
 
 	p.Revision = remote.Revision
 	p.RemoteBranch = remote.RemoteBranch
-	if err := checkoutHeadRevision(jirix, p, false, false); err != nil {
+	if err := checkoutHeadRevision(jirix, p, false); err != nil {
 		return fmt.Errorf("Not able to checkout head for %s(%s): %v", p.Name, p.Path, err)
 	}
 	ld.localProjects[remote.ProjectKey()] = p

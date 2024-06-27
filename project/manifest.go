@@ -509,7 +509,7 @@ type Package struct {
 	XMLName   struct{}          `xml:"package"`
 
 	// ComputedAttributes stores computed attributes object
-	// which is easiler to perform matching and comparing.
+	// which is easier to perform matching and comparing.
 	ComputedAttributes attributes `xml:"-"`
 
 	// ManifestPath stores the absolute path of the manifest.
@@ -772,10 +772,7 @@ func (ld *loader) enforceLocks(jirix *jiri.X) error {
 		return err
 	}
 
-	if err := enforcePkgLocks(jirix); err != nil {
-		return err
-	}
-	return nil
+	return enforcePkgLocks(jirix)
 }
 
 // LoadManifestFile loads the manifest starting with the given file, resolving
@@ -826,7 +823,7 @@ func LoadUpdatedManifest(jirix *jiri.X, localProjects Projects, localManifest bo
 	return ld.Projects, ld.Hooks, ld.Packages, nil
 }
 
-// resovlePackageLocks resolves instance ids using versions described in given
+// resolvePackageLocks resolves instance ids using versions described in given
 // pkgs using cipd.
 func resolvePackageLocks(jirix *jiri.X, pkgs Packages) (PackageLocks, error) {
 	jirix.TimerPush("resolve instance id for cipd packages")
@@ -933,7 +930,7 @@ func FetchPackages(jirix *jiri.X, pkgs Packages, fetchTimeout uint) error {
 		}
 	}
 
-	// Write explict flags.
+	// Write explicit flags.
 	if err := WritePackageFlags(jirix, pkgs, pkgsWAccess); err != nil {
 		return err
 	}
@@ -1041,7 +1038,7 @@ func generateEnsureFile(jirix *jiri.X, pkgs Packages, ignoreCryptoCheck bool, ve
 	ensureFilePath := ensureFile.Name()
 
 	// Write header information
-	// TODO: add "verfy_platform" attribute to each package tag
+	// TODO: add "verify_platform" attribute to each package tag
 	// to avoid hardcoding platform names in Jiri
 	var ensureFileBuf bytes.Buffer
 	if !ignoreCryptoCheck {
@@ -1345,7 +1342,7 @@ func (f commitMsgFetcher) fetch(jirix *jiri.X, gerritHost, path string) ([]byte,
 				// Fetch commit-msg from fuchsia's gerrit server.
 				data, err = gerrit.FetchFile(jirix, fuchsiaGerritHost, "/tools/hooks/commit-msg")
 				if err != nil {
-					// This will only happen if configuration error occured on fuchsia gerrit server
+					// This will only happen if configuration error occurred on fuchsia gerrit server
 					return nil, fmt.Errorf("download commit-msg hook from host %q failed due to error %v", fuchsiaGerritHost, err)
 				}
 				jirix.Logger.Debugf("fallback to commit-msg from host %q for host %q due to access limitations", fuchsiaGerritHost, gerritHost)
