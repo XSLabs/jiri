@@ -188,7 +188,7 @@ func getStatus(jirix *jiri.X, local project.Project, remote project.Project, cur
 			return "", "", nil, err
 		}
 	}
-	if statusFlags.checkHead && remote.Name != "" {
+	if statusFlags.checkHead && (remote.Name != "" || local.IsSubmodule) {
 		// try getting JIRI_HEAD first
 		if r, err := scm.CurrentRevisionForRef("JIRI_HEAD"); err == nil {
 			headRev = r
