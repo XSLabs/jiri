@@ -259,7 +259,9 @@ func runProjectInfo(jirix *jiri.X, args []string) error {
 			fmt.Printf("  Path:     %s\n", i.Path)
 			fmt.Printf("  Remote:   %s\n", i.Remote)
 			fmt.Printf("  Revision: %s\n", i.Revision)
-			fmt.Printf("  GitSubmoduleOf: %s\n", i.GitSubmoduleOf)
+			if i.GitSubmoduleOf != "" {
+				fmt.Printf("  GitSubmoduleOf: %s\n", i.GitSubmoduleOf)
+			}
 			if useRemoteProjects {
 				fmt.Printf("  Manifest: %s\n", i.Manifest)
 			}
