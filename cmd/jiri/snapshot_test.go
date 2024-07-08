@@ -83,7 +83,13 @@ func TestSnapshot(t *testing.T) {
 	for i := 0; i < numProjects; i++ {
 		writeReadme(t, fake.X, fake.Projects[remoteProjectName(i)], "revision 1")
 	}
-	if err := project.UpdateUniverse(fake.X, true, false, false, false, false, true /*run-hooks*/, true /*run-packages*/, false /*rebase-subdmodules*/, project.DefaultHookTimeout, project.DefaultPackageTimeout, nil); err != nil {
+	if err := project.UpdateUniverse(fake.X, project.UpdateUniverseParams{
+		GC:                   true,
+		RunHooks:             true,
+		FetchPackages:        true,
+		RunHookTimeout:       project.DefaultHookTimeout,
+		FetchPackagesTimeout: project.DefaultPackageTimeout,
+	}); err != nil {
 		t.Fatalf("%v", err)
 	}
 

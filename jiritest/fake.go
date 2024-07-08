@@ -202,10 +202,13 @@ func (fake FakeJiriRoot) ReadRemoteManifest() (*project.Manifest, error) {
 // UpdateUniverse synchronizes the content of the Vanadium fake based
 // on the content of the remote manifest.
 func (fake FakeJiriRoot) UpdateUniverse(gc bool) error {
-	if err := project.UpdateUniverse(fake.X, gc, false, false, false, false, true /*run-hooks*/, true /*run-packages*/, false /*rebase-subdmodules*/, project.DefaultHookTimeout, project.DefaultPackageTimeout, nil); err != nil {
-		return err
-	}
-	return nil
+	return project.UpdateUniverse(fake.X, project.UpdateUniverseParams{
+		GC:                   gc,
+		RunHooks:             true,
+		FetchPackages:        true,
+		RunHookTimeout:       project.DefaultHookTimeout,
+		FetchPackagesTimeout: project.DefaultPackageTimeout,
+	})
 }
 
 // ReadJiriManifest reads the .jiri_manifest manifest.

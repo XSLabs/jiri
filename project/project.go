@@ -867,7 +867,15 @@ func CheckoutSnapshot(jirix *jiri.X, snapshot string, gc, runHooks, fetchPkgs bo
 	if err != nil {
 		return err
 	}
-	if err := updateProjects(jirix, localProjects, remoteProjects, hooks, pkgs, gc, runHookTimeout, fetchTimeout, false /*rebaseTracked*/, false /*rebaseUntracked*/, false /*rebaseAll*/, false /*rebaseSubmodules*/, true /*snapshot*/, runHooks, fetchPkgs, pkgsToSkip); err != nil {
+	params := UpdateUniverseParams{
+		GC:                   gc,
+		RunHookTimeout:       runHookTimeout,
+		FetchPackagesTimeout: fetchTimeout,
+		RunHooks:             runHooks,
+		FetchPackages:        fetchPkgs,
+		PackagesToSkip:       pkgsToSkip,
+	}
+	if err := updateProjects(jirix, localProjects, remoteProjects, hooks, pkgs, true /*snapshot*/, params); err != nil {
 		return err
 	}
 	return WriteUpdateHistorySnapshot(jirix, hooks, pkgs, false)
@@ -1458,11 +1466,25 @@ func GenerateJiriLockFile(jirix *jiri.X, manifestFiles []string, resolveConfig R
 	return writeLockFile(jirix, resolveConfig.LockFilePath(), projectLocks, pkgLocks)
 }
 
+type UpdateUniverseParams struct {
+	GC                   bool
+	LocalManifest        bool
+	RebaseTracked        bool
+	RebaseUntracked      bool
+	RebaseAll            bool
+	RunHooks             bool
+	FetchPackages        bool
+	RebaseSubmodules     bool
+	RunHookTimeout       uint
+	FetchPackagesTimeout uint
+	PackagesToSkip       []string
+}
+
 // UpdateUniverse updates all local projects and tools to match the remote
 // counterparts identified in the manifest. Optionally, the 'gc' flag can be
 // used to indicate that local projects that no longer exist remotely should be
 // removed.
-func UpdateUniverse(jirix *jiri.X, gc, localManifest, rebaseTracked, rebaseUntracked, rebaseAll, runHooks, fetchPkgs, rebaseSubmodules bool, runHookTimeout, fetchTimeout uint, pkgsToSkip []string) (e error) {
+func UpdateUniverse(jirix *jiri.X, params UpdateUniverseParams) (e error) {
 	jirix.Logger.Infof("Updating all projects")
 	updateFn := func(scanMode ScanMode) error {
 		jirix.TimerPush(fmt.Sprintf("update universe: %s", scanMode))
@@ -1483,7 +1505,7 @@ func UpdateUniverse(jirix *jiri.X, gc, localManifest, rebaseTracked, rebaseUntra
 		}
 
 		// Determine the set of remote projects and match them up with the locals.
-		remoteProjects, hooks, pkgs, err := LoadUpdatedManifest(jirix, localProjects, localManifest)
+		remoteProjects, hooks, pkgs, err := LoadUpdatedManifest(jirix, localProjects, params.LocalManifest)
 		MatchLocalWithRemote(localProjects, remoteProjects)
 
 		if err != nil {
@@ -1491,11 +1513,11 @@ func UpdateUniverse(jirix *jiri.X, gc, localManifest, rebaseTracked, rebaseUntra
 		}
 
 		// Actually update the projects.
-		return updateProjects(jirix, localProjects, remoteProjects, hooks, pkgs, gc, runHookTimeout, fetchTimeout, rebaseTracked, rebaseUntracked, rebaseAll, rebaseSubmodules, false /*snapshot*/, runHooks, fetchPkgs, pkgsToSkip)
+		return updateProjects(jirix, localProjects, remoteProjects, hooks, pkgs, false /*snapshot*/, params)
 	}
 
 	// Specifying gc should always force a full filesystem scan.
-	if gc {
+	if params.GC {
 		return updateFn(FullScan)
 	}
 
@@ -2562,17 +2584,17 @@ func FilterOptionalProjectsPackages(jirix *jiri.X, attrs string, projects Projec
 	return nil
 }
 
-func updateProjects(jirix *jiri.X, localProjects, remoteProjects Projects, hooks Hooks, pkgs Packages, gc bool, runHookTimeout, fetchTimeout uint, rebaseTracked, rebaseUntracked, rebaseAll, rebaseSubmodules, snapshot, shouldRunHooks, shouldFetchPkgs bool, pkgsToSkip []string) error {
+func updateProjects(jirix *jiri.X, localProjects, remoteProjects Projects, hooks Hooks, pkgs Packages, snapshot bool, params UpdateUniverseParams) error {
 	jirix.TimerPush("update projects")
 	defer jirix.TimerPop()
 
 	packageFetched := false
 	hookRun := false
 	defer func() {
-		if shouldFetchPkgs && !packageFetched {
+		if params.FetchPackages && !packageFetched {
 			jirix.Logger.Infof("Jiri packages are not fetched due to fatal errors when updating projects.")
 		}
-		if shouldRunHooks && !hookRun {
+		if params.RunHooks && !hookRun {
 			jirix.Logger.Infof("Jiri hooks are not run due to fatal errors when updating projects or packages")
 		}
 	}()
@@ -2581,7 +2603,7 @@ func updateProjects(jirix *jiri.X, localProjects, remoteProjects Projects, hooks
 	if err := FilterOptionalProjectsPackages(jirix, jirix.FetchingAttrs, remoteProjects, pkgs); err != nil {
 		return err
 	}
-	FilterPackagesByName(jirix, pkgs, pkgsToSkip)
+	FilterPackagesByName(jirix, pkgs, params.PackagesToSkip)
 
 	if err := updateCache(jirix, remoteProjects); err != nil {
 		return err
@@ -2602,7 +2624,7 @@ func updateProjects(jirix *jiri.X, localProjects, remoteProjects Projects, hooks
 		removeSubmodulesFromProjects(remoteProjects)
 	}
 
-	ops := computeOperations(jirix, localProjects, remoteProjects, states, rebaseTracked, rebaseUntracked, rebaseAll, rebaseSubmodules, snapshot)
+	ops := computeOperations(jirix, localProjects, remoteProjects, states, params.RebaseTracked, params.RebaseUntracked, params.RebaseAll, params.RebaseSubmodules, snapshot)
 
 	batchOps := append(operations(nil), ops...)
 	for len(batchOps) > 0 {
@@ -2616,7 +2638,7 @@ func updateProjects(jirix *jiri.X, localProjects, remoteProjects Projects, hooks
 			batch = append(batch, batchOps[0])
 			batchOps = batchOps[1:]
 		}
-		if err := runBatch(jirix, gc, batch); err != nil {
+		if err := runBatch(jirix, params.GC, batch); err != nil {
 			return err
 		}
 	}
@@ -2726,18 +2748,18 @@ func updateProjects(jirix *jiri.X, localProjects, remoteProjects Projects, hooks
 		jirix.Logger.Warningf("%s\n\nTo force an update to JIRI_HEAD, you may run 'jiri runp git checkout JIRI_HEAD'", msg)
 	}
 
-	if shouldFetchPkgs {
+	if params.FetchPackages {
 		packageFetched = true
 		if len(pkgs) > 0 {
-			if err := FetchPackages(jirix, pkgs, fetchTimeout); err != nil {
+			if err := FetchPackages(jirix, pkgs, params.FetchPackagesTimeout); err != nil {
 				return err
 			}
 		}
 	}
 
-	if shouldRunHooks {
+	if params.RunHooks {
 		hookRun = true
-		if err := RunHooks(jirix, hooks, runHookTimeout); err != nil {
+		if err := RunHooks(jirix, hooks, params.RunHookTimeout); err != nil {
 			return err
 		}
 	}
