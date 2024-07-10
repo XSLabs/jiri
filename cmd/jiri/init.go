@@ -35,25 +35,26 @@ does not exists, it will be created.
 }
 
 var (
-	cacheFlag             string
-	dissociateFlag        bool
-	sharedFlag            bool
-	showAnalyticsDataFlag bool
-	analyticsOptFlag      string
-	rewriteSsoToHttpsFlag string
-	ssoCookieFlag         string
-	keepGitHooks          string
-	enableLockfileFlag    string
-	lockfileNameFlag      string
-	prebuiltJSON          string
-	enableSubmodules      string
-	optionalAttrs         string
-	partialFlag           bool
-	partialSkipFlag       arrayFlag
-	offloadPackfilesFlag  bool
-	cipdParanoidFlag      string
-	cipdMaxThreads        int
-	excludeDirsFlag       arrayFlag
+	cacheFlag                       string
+	dissociateFlag                  bool
+	sharedFlag                      bool
+	showAnalyticsDataFlag           bool
+	analyticsOptFlag                string
+	rewriteSsoToHttpsFlag           string
+	ssoCookieFlag                   string
+	keepGitHooks                    string
+	enableLockfileFlag              string
+	lockfileNameFlag                string
+	prebuiltJSON                    string
+	enableSubmodules                string
+	forceDisableSubmodulesInfraOnly string
+	optionalAttrs                   string
+	partialFlag                     bool
+	partialSkipFlag                 arrayFlag
+	offloadPackfilesFlag            bool
+	cipdParanoidFlag                string
+	cipdMaxThreads                  int
+	excludeDirsFlag                 arrayFlag
 )
 
 const (
@@ -73,6 +74,8 @@ func init() {
 	cmdInit.Flags.StringVar(&lockfileNameFlag, "lockfile-name", "", "Set up filename of lockfile")
 	cmdInit.Flags.StringVar(&prebuiltJSON, "prebuilt-json", "", "Set up filename for prebuilt json file")
 	cmdInit.Flags.StringVar(&enableSubmodules, "enable-submodules", "", "Enable submodules structure")
+	// This flag will be used to forcibly roll out submodules to users while still allowing infra to opt out.
+	cmdInit.Flags.StringVar(&forceDisableSubmodulesInfraOnly, "force-disable-submodules-infra-only", "", "Force disable submodules.")
 	// Empty string is not used as default value for optionalAttrs as we
 	// use empty string to clear existing saved attributes.
 	cmdInit.Flags.StringVar(&optionalAttrs, "fetch-optional", optionalAttrsNotSet, "Set up attributes of optional projects and packages that should be fetched by jiri.")
@@ -178,6 +181,17 @@ func runInit(env *cmdline.Env, args []string) error {
 			return fmt.Errorf("'enable-submodules' flag should be true or false")
 		} else {
 			config.EnableSubmodules = enableSubmodules
+		}
+	}
+
+	// Override EnableSubmodules values with False if ForceDisableSubmodulesInfraOnly flag is True
+	if forceDisableSubmodulesInfraOnly != "" {
+		if val, err := strconv.ParseBool(forceDisableSubmodulesInfraOnly); err != nil {
+			return fmt.Errorf("'force-disable-submodules-infra-only' flag should be true or false")
+		} else {
+			if val {
+				config.ForceDisableSubmodulesInfraOnly = "true"
+			}
 		}
 	}
 
