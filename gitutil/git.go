@@ -1588,6 +1588,9 @@ func (g *Git) runGit(stdout, stderr io.Writer, args ...string) error {
 	if g.jirix.OffloadPackfiles {
 		config["fetch.uriprotocols"] = "https"
 	}
+	// Allow add local directories as submodules, for testing purposes.
+	config["protocol.file.allow"] = "always"
+
 	var outbuf bytes.Buffer
 	var errbuf bytes.Buffer
 	command := exec.Command("git", args...)
@@ -1596,7 +1599,7 @@ func (g *Git) runGit(stdout, stderr io.Writer, args ...string) error {
 	command.Stdout = io.MultiWriter(stdout, &outbuf)
 	command.Stderr = io.MultiWriter(stderr, &errbuf)
 	env := g.jirix.Env()
-	env = envvar.MergeMaps(g.opts, env, gitConfigEnvVars(config))
+	env = envvar.MergeMaps(g.opts, env, GitConfigEnvVars(config))
 	command.Env = envvar.MapToSlice(env)
 	dir := g.rootDir
 	if dir == "" {
@@ -1618,11 +1621,11 @@ func (g *Git) runGit(stdout, stderr io.Writer, args ...string) error {
 	return err
 }
 
-// gitConfigEnvVars converts a git config key-value mapping into corresponding
+// GitConfigEnvVars converts a git config key-value mapping into corresponding
 // environment variables to pass to git.
 //
 // See https://git-scm.com/docs/git-config#ENVIRONMENT
-func gitConfigEnvVars(config map[string]string) map[string]string {
+func GitConfigEnvVars(config map[string]string) map[string]string {
 	var keys []string
 	for k := range config {
 		keys = append(keys, k)
