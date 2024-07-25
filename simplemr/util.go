@@ -6,12 +6,12 @@ package simplemr
 
 type Identity struct{}
 
-func (i *Identity) Map(mr *MR, key string, val interface{}) error {
+func (i *Identity) Map(mr *MR, key string, val any) error {
 	mr.MapOut(key, val)
 	return nil
 }
 
-func (i *Identity) Reduce(mr *MR, key string, values []interface{}) error {
+func (i *Identity) Reduce(mr *MR, key string, values []any) error {
 	mr.ReduceOut(key, values...)
 	return nil
 }

@@ -22,7 +22,7 @@ func newChans(chanSize int) (chan *simplemr.Record, chan *simplemr.Record) {
 
 type termCount struct{}
 
-func (tc *termCount) Map(mr *simplemr.MR, key string, val interface{}) error {
+func (tc *termCount) Map(mr *simplemr.MR, key string, val any) error {
 	text, ok := val.(string)
 	if !ok {
 		return fmt.Errorf("%T is the wrong type", val)
@@ -33,7 +33,7 @@ func (tc *termCount) Map(mr *simplemr.MR, key string, val interface{}) error {
 	return nil
 }
 
-func (tc *termCount) Reduce(mr *simplemr.MR, key string, values []interface{}) error {
+func (tc *termCount) Reduce(mr *simplemr.MR, key string, values []any) error {
 	count := 0
 	for _, val := range values {
 		c, ok := val.(int)
@@ -74,8 +74,8 @@ func TestMR(t *testing.T) {
 	in, out := newChans(10)
 	tc := &termCount{}
 	genInput := func() {
-		in <- &simplemr.Record{"d1", []interface{}{d1, d2, d3}}
-		in <- &simplemr.Record{"d2", []interface{}{d1, d2, d3}}
+		in <- &simplemr.Record{"d1", []any{d1, d2, d3}}
+		in <- &simplemr.Record{"d2", []any{d1, d2, d3}}
 		close(in)
 	}
 	go genInput()
@@ -97,7 +97,7 @@ func TestMR(t *testing.T) {
 
 type slowReducer struct{}
 
-func (sr *slowReducer) Reduce(mr *simplemr.MR, key string, values []interface{}) error {
+func (sr *slowReducer) Reduce(mr *simplemr.MR, key string, values []any) error {
 	time.Sleep(time.Hour)
 	return nil
 }
@@ -113,7 +113,7 @@ func TestTimeout(t *testing.T) {
 	}
 	mrt = &simplemr.MR{Timeout: 100 * time.Millisecond}
 	in, out = newChans(1)
-	in <- &simplemr.Record{"key", []interface{}{"value"}}
+	in <- &simplemr.Record{"key", []any{"value"}}
 	close(in)
 	mrt.Run(in, out, identity, &slowReducer{})
 	if err := mrt.Error(); err == nil || !strings.Contains(err.Error(), "timed out reducers") {
@@ -125,13 +125,13 @@ type sleeper struct{}
 
 const sleepTime = time.Millisecond * 100
 
-func (sl *sleeper) Map(mr *simplemr.MR, key string, val interface{}) error {
+func (sl *sleeper) Map(mr *simplemr.MR, key string, val any) error {
 	time.Sleep(sleepTime)
 	mr.MapOut(key, val)
 	return nil
 }
 
-func (sl *sleeper) Reduce(mr *simplemr.MR, key string, values []interface{}) error {
+func (sl *sleeper) Reduce(mr *simplemr.MR, key string, values []any) error {
 	mr.ReduceOut(key, values...)
 	return nil
 }
@@ -142,7 +142,7 @@ func runMappers(t *testing.T, bufsize, numMappers int) time.Duration {
 	sl := &sleeper{}
 	go func() {
 		for i := 0; i < bufsize; i++ {
-			in <- &simplemr.Record{Key: fmt.Sprintf("%d", i), Values: []interface{}{i}}
+			in <- &simplemr.Record{Key: fmt.Sprintf("%d", i), Values: []any{i}}
 		}
 		close(in)
 	}()
@@ -176,14 +176,14 @@ func TestMultipleMappers(t *testing.T) {
 
 type adder struct{}
 
-func (a *adder) Map(mr *simplemr.MR, key string, val interface{}) error {
+func (a *adder) Map(mr *simplemr.MR, key string, val any) error {
 	i := val.(int)
 	i++
 	mr.MapOut(key, i)
 	return nil
 }
 
-func (a *adder) Reduce(mr *simplemr.MR, key string, values []interface{}) error {
+func (a *adder) Reduce(mr *simplemr.MR, key string, values []any) error {
 	mr.ReduceOut(key, values...)
 	return nil
 }
@@ -197,8 +197,8 @@ func TestChainedMR(t *testing.T) {
 	adder := &adder{}
 	go mrt1.Run(in, middle, adder, adder)
 	go mrt2.Run(middle, out, adder, adder)
-	in <- &simplemr.Record{"1", []interface{}{1}}
-	in <- &simplemr.Record{"2", []interface{}{2}}
+	in <- &simplemr.Record{"1", []any{1}}
+	in <- &simplemr.Record{"2", []any{2}}
 	close(in)
 	expect(t, out, "1", 3)
 	expect(t, out, "2", 4)
@@ -230,7 +230,7 @@ func cancelEg(mr *simplemr.MR) error {
 	return fmt.Errorf("timeout")
 }
 
-func (c *cancelMR) Map(mr *simplemr.MR, key string, val interface{}) error {
+func (c *cancelMR) Map(mr *simplemr.MR, key string, val any) error {
 	if c.cancelMapper {
 		return cancelEg(mr)
 	}
@@ -238,7 +238,7 @@ func (c *cancelMR) Map(mr *simplemr.MR, key string, val interface{}) error {
 	return nil
 }
 
-func (c *cancelMR) Reduce(mr *simplemr.MR, key string, values []interface{}) error {
+func (c *cancelMR) Reduce(mr *simplemr.MR, key string, values []any) error {
 	if !c.cancelMapper {
 		return cancelEg(mr)
 	}
@@ -251,8 +251,8 @@ func testCancel(t *testing.T, mapper bool) {
 	in, out := newChans(10)
 	cancel := &cancelMR{true}
 	genInput := func() {
-		in <- &simplemr.Record{"d1", []interface{}{d1, d2, d3}}
-		in <- &simplemr.Record{"d2", []interface{}{d1, d2, d3}}
+		in <- &simplemr.Record{"d1", []any{d1, d2, d3}}
+		in <- &simplemr.Record{"d2", []any{d1, d2, d3}}
 		close(in)
 	}
 	go genInput()

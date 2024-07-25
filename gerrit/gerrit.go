@@ -192,7 +192,7 @@ type Change struct {
 	Subject          string
 	Number           int `json:"_number"`
 	Owner            Owner
-	Labels           map[string]map[string]interface{}
+	Labels           map[string]map[string]any
 	Submitted        string
 
 	// Custom labels.

@@ -295,7 +295,7 @@ func runProjectInfo(jirix *jiri.X, args []string) error {
 	return nil
 }
 
-func writeJSONOutput(result interface{}) error {
+func writeJSONOutput(result any) error {
 	out, err := json.MarshalIndent(&result, "", "  ")
 	if err != nil {
 		return fmt.Errorf("failed to serialize JSON output: %s", err)

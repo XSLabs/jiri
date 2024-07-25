@@ -25,7 +25,7 @@ func (t *TimeTracker) Done() {
 	t.logger.LogTime(t.msg, duration)
 }
 
-func (l *Logger) TrackTime(format string, a ...interface{}) *TimeTracker {
+func (l *Logger) TrackTime(format string, a ...any) *TimeTracker {
 	return &TimeTracker{
 		logger:    l,
 		startTime: time.Now(),

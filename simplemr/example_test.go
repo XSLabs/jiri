@@ -15,8 +15,8 @@ func ExampleMR() {
 	mr := &simplemr.MR{}
 	identity := &simplemr.Identity{}
 	go mr.Run(in, out, identity, identity)
-	in <- &simplemr.Record{"1", []interface{}{"hello\n"}}
-	in <- &simplemr.Record{"2", []interface{}{"world\n"}}
+	in <- &simplemr.Record{"1", []any{"hello\n"}}
+	in <- &simplemr.Record{"2", []any{"world\n"}}
 	close(in)
 	k := <-out
 	fmt.Printf("%s: %s", k.Key, k.Values[0].(string))

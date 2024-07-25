@@ -27,29 +27,29 @@ var ErrMRCancelled = errors.New("MR cancelled")
 type Mapper interface {
 	// Map is called by the framework for every key, value pair read
 	// from the specified input.
-	Map(mr *MR, key string, value interface{}) error
+	Map(mr *MR, key string, value any) error
 }
 
 // Reducer is the interface that must be implemented by the reducer.
 type Reducer interface {
 	// Reduce is called by the framework for every key and associated
 	// values that are emitted by the Mappers.
-	Reduce(mr *MR, key string, values []interface{}) error
+	Reduce(mr *MR, key string, values []any) error
 }
 
 // Record represents all input and output data.
 type Record struct {
 	Key    string
-	Values []interface{}
+	Values []any
 }
 
 type store struct {
 	sync.Mutex
-	data map[string][]interface{}
+	data map[string][]any
 }
 
 func newStore() *store {
-	return &store{data: make(map[string][]interface{})}
+	return &store{data: make(map[string][]any)}
 }
 
 func (s *store) sortedKeys() []string {
@@ -63,13 +63,13 @@ func (s *store) sortedKeys() []string {
 	return keys
 }
 
-func (s *store) insert(k string, v ...interface{}) {
+func (s *store) insert(k string, v ...any) {
 	s.Lock()
 	defer s.Unlock()
 	s.data[k] = append(s.data[k], v...)
 }
 
-func (s *store) lookup(k string) []interface{} {
+func (s *store) lookup(k string) []any {
 	s.Lock()
 	defer s.Unlock()
 	return s.data[k]
@@ -106,13 +106,13 @@ func (mr *MR) Error() error {
 
 // MapOut outputs the key and associated values for subsequent
 // processing by a Reducer. It should only be called from a mapper.
-func (mr *MR) MapOut(key string, values ...interface{}) {
+func (mr *MR) MapOut(key string, values ...any) {
 	mr.data.insert(key, values...)
 }
 
 // ReduceOut outputs the key and associated values to the specified output
 // stream. It should only be called from a reducer.
-func (mr *MR) ReduceOut(key string, values ...interface{}) {
+func (mr *MR) ReduceOut(key string, values ...any) {
 	mr.output <- &Record{key, values}
 }
 

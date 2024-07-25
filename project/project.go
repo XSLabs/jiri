@@ -542,7 +542,7 @@ func UnmarshalLockEntries(jsonData []byte) (ProjectLocks, PackageLocks, error) {
 // MarshalLockEntries marshals project locks and package locks into
 // json format data.
 func MarshalLockEntries(projectLocks ProjectLocks, pkgLocks PackageLocks) ([]byte, error) {
-	entries := make([]interface{}, len(projectLocks)+len(pkgLocks))
+	entries := make([]any, len(projectLocks)+len(pkgLocks))
 	projEntries := make([]ProjectLock, len(projectLocks))
 	pkgEntries := make([]PackageLock, len(pkgLocks))
 

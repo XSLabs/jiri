@@ -130,7 +130,7 @@ func (l *Logger) DisableProgress() {
 	atomic.StoreUint32(&l.enableProgress, 0)
 }
 
-func (l *Logger) AddTaskMsg(format string, a ...interface{}) Task {
+func (l *Logger) AddTaskMsg(format string, a ...any) Task {
 	if !l.IsProgressEnabled() {
 		return Task{taskData: &TaskData{}, l: l}
 	}
@@ -206,7 +206,7 @@ func (l *Logger) clearProgress() {
 	l.progressLines = 0
 }
 
-func (l *Logger) log(prefix, format string, a ...interface{}) {
+func (l *Logger) log(prefix, format string, a ...any) {
 	l.lock.Lock()
 	stamp := time.Now().Format("15:04:05.000")
 	defer l.lock.Unlock()
@@ -214,14 +214,14 @@ func (l *Logger) log(prefix, format string, a ...interface{}) {
 	l.goLogger.Printf("[%s] %s%s", stamp, prefix, fmt.Sprintf(format, a...))
 }
 
-func (l *Logger) logToBufferOnly(prefix, format string, a ...interface{}) {
+func (l *Logger) logToBufferOnly(prefix, format string, a ...any) {
 	l.lock.Lock()
 	stamp := time.Now().Format("15:04:05.000")
 	defer l.lock.Unlock()
 	l.goBufferLogger.Printf("[%s] %s%s", stamp, prefix, fmt.Sprintf(format, a...))
 }
 
-func (l *Logger) Logf(loglevel LogLevel, format string, a ...interface{}) {
+func (l *Logger) Logf(loglevel LogLevel, format string, a ...any) {
 	switch loglevel {
 	case InfoLevel:
 		l.Infof(format, a...)
@@ -238,7 +238,7 @@ func (l *Logger) Logf(loglevel LogLevel, format string, a ...interface{}) {
 	}
 }
 
-func (l *Logger) Infof(format string, a ...interface{}) {
+func (l *Logger) Infof(format string, a ...any) {
 	if l.LoggerLevel >= InfoLevel {
 		l.log("", format, a...)
 	} else {
@@ -246,7 +246,7 @@ func (l *Logger) Infof(format string, a ...interface{}) {
 	}
 }
 
-func (l *Logger) Debugf(format string, a ...interface{}) {
+func (l *Logger) Debugf(format string, a ...any) {
 	if l.LoggerLevel >= DebugLevel {
 		l.log(l.color.Cyan("DEBUG: "), format, a...)
 	} else {
@@ -254,7 +254,7 @@ func (l *Logger) Debugf(format string, a ...interface{}) {
 	}
 }
 
-func (l *Logger) Tracef(format string, a ...interface{}) {
+func (l *Logger) Tracef(format string, a ...any) {
 	if l.LoggerLevel >= TraceLevel {
 		l.log(l.color.Blue("TRACE: "), format, a...)
 	} else {
@@ -262,7 +262,7 @@ func (l *Logger) Tracef(format string, a ...interface{}) {
 	}
 }
 
-func (l *Logger) Warningf(format string, a ...interface{}) {
+func (l *Logger) Warningf(format string, a ...any) {
 	if l.LoggerLevel >= WarningLevel {
 		l.log(l.color.Yellow("WARN: "), format, a...)
 	} else {
@@ -270,7 +270,7 @@ func (l *Logger) Warningf(format string, a ...interface{}) {
 	}
 }
 
-func (l *Logger) Errorf(format string, a ...interface{}) {
+func (l *Logger) Errorf(format string, a ...any) {
 	if l.LoggerLevel >= ErrorLevel {
 		l.lock.Lock()
 		defer l.lock.Unlock()

@@ -553,8 +553,8 @@ func parseVersions(file string) ([]PackageInstance, error) {
 	ver := ""
 	iid := ""
 	lineNo := 0
-	makeError := func(fmtStr string, args ...interface{}) error {
-		args = append([]interface{}{lineNo}, args...)
+	makeError := func(fmtStr string, args ...any) error {
+		args = append([]any{lineNo}, args...)
 		return fmt.Errorf("failed to parse versions file (line %d): "+fmtStr, args...)
 	}
 	output := make([]PackageInstance, 0)

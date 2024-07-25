@@ -61,7 +61,7 @@ func (e *Env) clone() *Env {
 // UsageErrorf prints the error message represented by the printf-style format
 // and args, followed by the output of the Usage function.  Returns ErrUsage to
 // make it easy to use from within the Runner.Run function.
-func (e *Env) UsageErrorf(format string, args ...interface{}) error {
+func (e *Env) UsageErrorf(format string, args ...any) error {
 	return usageErrorf(e, e.Usage, format, args...)
 }
 
@@ -95,7 +95,7 @@ func (e *Env) LookPathPrefix(prefix string, names map[string]bool) ([]string, er
 	return lookpath.LookPrefix(e.Vars, prefix, names)
 }
 
-func usageErrorf(env *Env, usage func(*Env, io.Writer), format string, args ...interface{}) error {
+func usageErrorf(env *Env, usage func(*Env, io.Writer), format string, args ...any) error {
 	fmt.Fprint(env.Stderr, "ERROR: ")
 	fmt.Fprintf(env.Stderr, format, args...)
 	fmt.Fprint(env.Stderr, "\n\n")

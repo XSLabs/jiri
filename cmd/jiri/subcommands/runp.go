@@ -152,7 +152,7 @@ type mapOutput struct {
 	err            error
 }
 
-func (r *runner) Map(mr *simplemr.MR, key string, val interface{}) error {
+func (r *runner) Map(mr *simplemr.MR, key string, val any) error {
 	mi := val.(*mapInput)
 	output := &mapOutput{
 		key: key,
@@ -257,7 +257,7 @@ func (r *runner) Map(mr *simplemr.MR, key string, val interface{}) error {
 	return nil
 }
 
-func (r *runner) Reduce(mr *simplemr.MR, key string, values []interface{}) error {
+func (r *runner) Reduce(mr *simplemr.MR, key string, values []any) error {
 	for _, v := range values {
 		mo := v.(*mapOutput)
 		if mo.err != nil {
@@ -415,7 +415,7 @@ func runRunp(jirix *jiri.X, args []string) error {
 	go func() { <-sigch; mr.Cancel() }()
 	go mr.Run(in, out, runner, runner)
 	for _, key := range keys {
-		in <- &simplemr.Record{key.String(), []interface{}{mapInputs[key]}}
+		in <- &simplemr.Record{key.String(), []any{mapInputs[key]}}
 	}
 	close(in)
 	<-out

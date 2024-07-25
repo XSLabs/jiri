@@ -116,7 +116,7 @@ func GitGetConfig(key string) (string, error) {
 type X struct {
 	*tool.Context
 	Root                            string
-	Usage                           func(format string, args ...interface{}) error
+	Usage                           func(format string, args ...any) error
 	config                          *Config
 	Cache                           string
 	CipdParanoidMode                bool
@@ -479,7 +479,7 @@ func (x *X) Clone(opts tool.ContextOpts) *X {
 // UsageErrorf prints the error message represented by the printf-style format
 // and args, followed by the usage output.  The implementation typically calls
 // cmdline.Env.UsageErrorf.
-func (x *X) UsageErrorf(format string, args ...interface{}) error {
+func (x *X) UsageErrorf(format string, args ...any) error {
 	if x.Usage != nil {
 		return x.Usage(format, args...)
 	}
