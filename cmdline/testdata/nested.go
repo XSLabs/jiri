@@ -11,7 +11,6 @@ var cmdNested = &cmdline.Command{
 	Name:     "nested",
 	Short:    "Short description of command nested",
 	Long:     "Long description of command nested.",
-	LookPath: true,
 	Children: []*cmdline.Command{cmdChild},
 }
 

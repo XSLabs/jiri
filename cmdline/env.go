@@ -11,7 +11,6 @@ import (
 	"strconv"
 
 	"go.fuchsia.dev/jiri/envvar"
-	"go.fuchsia.dev/jiri/lookpath"
 	"go.fuchsia.dev/jiri/textutil"
 	"go.fuchsia.dev/jiri/timing"
 )
@@ -77,22 +76,6 @@ func (e *Env) TimerPop() {
 	if e.Timer != nil {
 		e.Timer.Pop()
 	}
-}
-
-// LookPath returns the absolute path of the executable with the given name,
-// based on the directories in PATH.  Calls lookpath.Look.
-func (e *Env) LookPath(name string) (string, error) {
-	e.TimerPush("lookpath " + name)
-	defer e.TimerPop()
-	return lookpath.Look(e.Vars, name)
-}
-
-// LookPathPrefix returns the absolute paths of all executables with the given
-// name prefix, based on the directories in PATH.  Calls lookpath.LookPrefix.
-func (e *Env) LookPathPrefix(prefix string, names map[string]bool) ([]string, error) {
-	e.TimerPush("lookpathprefix " + prefix)
-	defer e.TimerPop()
-	return lookpath.LookPrefix(e.Vars, prefix, names)
 }
 
 func usageErrorf(env *Env, usage func(*Env, io.Writer), format string, args ...any) error {

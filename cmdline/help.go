@@ -125,18 +125,6 @@ func runHelp(w *textutil.WrapWriter, env *Env, args []string, path []*Command, c
 		help := helpRunner{path, config}.newCommand()
 		return runHelp(w, env, subArgs, append(path, help), config)
 	}
-	if cmd.LookPath {
-		// Look for a matching executable in PATH.
-		if subCmd, _ := env.LookPath(cmd.Name + "-" + subName); subCmd != "" {
-			runner := binaryRunner{subCmd, cmdPath}
-			envCopy := env.clone()
-			envCopy.Vars["CMDLINE_STYLE"] = config.style.String()
-			if len(subArgs) == 0 {
-				return runner.Run(envCopy, []string{"-help"})
-			}
-			return runner.Run(envCopy, append([]string{helpName}, subArgs...))
-		}
-	}
 	// Look for matching topic.
 	for _, topic := range cmd.Topics {
 		if topic.Name == subName {
@@ -225,46 +213,6 @@ func usageAll(w *textutil.WrapWriter, env *Env, path []*Command, config *helpCon
 		help := helpRunner{path, config}.newCommand()
 		usageAll(w, env, append(path, help), config, false)
 	}
-	if cmd.LookPath {
-		cmdPrefix := cmd.Name + "-"
-		subCmds, _ := env.LookPathPrefix(cmdPrefix, cmd.subNames(cmdPrefix))
-		for _, subCmd := range subCmds {
-			runner := binaryRunner{subCmd, cmdPath}
-			var buffer bytes.Buffer
-			envCopy := env.clone()
-			envCopy.Stdout = &buffer
-			envCopy.Stderr = &buffer
-			envCopy.Vars["CMDLINE_FIRST_CALL"] = "false"
-			envCopy.Vars["CMDLINE_STYLE"] = config.style.String()
-			if err := runner.Run(envCopy, []string{helpName, "..."}); err == nil {
-				// The external child supports "help".
-				if config.style == styleGoDoc {
-					// The textutil package will discard any leading empty lines
-					// produced by the child process output, so we need to
-					// output it here.
-					fmt.Fprintln(w)
-				}
-				fmt.Fprint(w, buffer.String())
-				continue
-			}
-			buffer.Reset()
-			if err := runner.Run(envCopy, []string{"-help"}); err == nil {
-				// The external child supports "-help".
-				if config.style == styleGoDoc {
-					// The textutil package will discard any leading empty lines
-					// produced by the child process output, so we need to
-					// output it here.
-					fmt.Fprintln(w)
-				}
-				fmt.Fprint(w, buffer.String())
-				continue
-			}
-			// The external child does not support "help" or "-help".
-			lineBreak(w, config.style)
-			subName := strings.TrimPrefix(filepath.Base(subCmd), cmdPrefix)
-			fmt.Fprintln(w, godocHeader(cmdPath+" "+subName, missingDescription))
-		}
-	}
 	for _, topic := range cmd.Topics {
 		lineBreak(w, config.style)
 		w.ForceVerbatim(true)
@@ -310,9 +258,6 @@ func usage(w *textutil.WrapWriter, env *Env, path []*Command, config *helpConfig
 	}
 	var extChildren []string
 	cmdPrefix := cmd.Name + "-"
-	if cmd.LookPath {
-		extChildren, _ = env.LookPathPrefix(cmdPrefix, cmd.subNames(cmdPrefix))
-	}
 	hasSubcommands := len(cmd.Children) > 0 || len(extChildren) > 0
 	if hasSubcommands {
 		fmt.Fprintln(w, cmdPathF, "<command>")

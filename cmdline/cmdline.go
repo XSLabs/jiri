@@ -92,15 +92,6 @@ type Command struct {
 	// Children of the command.
 	Children []*Command
 
-	// LookPath indicates whether to look for external subcommands in the
-	// directories specified by the PATH environment variable.  The compiled-in
-	// children always take precedence; the check for external children only
-	// occurs if none of the compiled-in children match.
-	//
-	// All global flags and flags set on ancestor commands are passed through to
-	// the external child.
-	LookPath bool
-
 	// Runner that runs the command.
 	// Use RunnerFunc to adapt regular functions into Runners.
 	//
@@ -415,13 +406,6 @@ func (cmd *Command) parse(path []*Command, env *Env, args []string, setFlags map
 		if helpName == subName {
 			env.CommandName = subName
 			return runHelp.newCommand().parse(path, env, subArgs, setFlags)
-		}
-	}
-	if cmd.LookPath {
-		// Look for a matching executable in PATH.
-		if subCmd, _ := env.LookPath(cmd.Name + "-" + subName); subCmd != "" {
-			extArgs := append(flagsAsArgs(setFlags), subArgs...)
-			return binaryRunner{subCmd, cmdPath}, extArgs, nil
 		}
 	}
 	// No matching subcommands, check various error cases.
