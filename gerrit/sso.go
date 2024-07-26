@@ -258,7 +258,7 @@ func FetchFileSSO(jirix *jiri.X, gerritHost, path string) ([]byte, error) {
 		}
 	}
 
-	// Succesfully fetched the target file
+	// Successfully fetched the target file
 	switch cookieType {
 	case SiteSSO, MasterSSO:
 		jirix.Logger.Debugf("fetched %s:%s using sso cookies", gerritHost, path)

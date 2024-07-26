@@ -267,7 +267,7 @@ func (op deleteOperation) Kind() string {
 
 func (op deleteOperation) Run(jirix *jiri.X) error {
 	if op.project.LocalConfig.Ignore {
-		jirix.Logger.Warningf("Project %s(%s) won't be deleted due to it's local-config\n\n", op.project.Name, op.source)
+		jirix.Logger.Warningf("Project %s(%s) won't be deleted due to its local-config\n\n", op.project.Name, op.source)
 		return nil
 	}
 	// Never delete projects with non-main branches, uncommitted work, or
@@ -382,7 +382,7 @@ func (op moveOperation) Kind() string {
 
 func (op moveOperation) Run(jirix *jiri.X) error {
 	if op.project.LocalConfig.Ignore {
-		jirix.Logger.Warningf("Project %s(%s) won't be moved or updated  due to it's local-config\n\n", op.project.Name, op.source)
+		jirix.Logger.Warningf("Project %s(%s) won't be moved or updated  due to its local-config\n\n", op.project.Name, op.source)
 		return nil
 	}
 	// If it was nested project it might have been moved with its parent project
@@ -442,7 +442,7 @@ func (op changeRemoteOperation) Kind() string {
 
 func (op changeRemoteOperation) Run(jirix *jiri.X) error {
 	if op.project.LocalConfig.Ignore || op.project.LocalConfig.NoUpdate {
-		jirix.Logger.Warningf("Project %s(%s) won't be updated due to it's local-config. It has a changed remote\n\n", op.project.Name, op.project.Path)
+		jirix.Logger.Warningf("Project %s(%s) won't be updated due to its local-config. It has a changed remote\n\n", op.project.Name, op.project.Path)
 		return nil
 	}
 	git := gitutil.New(jirix, gitutil.RootDirOpt(op.project.Path))

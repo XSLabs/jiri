@@ -1011,7 +1011,7 @@ func TestHookLoadError(t *testing.T) {
 	defer cleanup()
 	err := fake.AddHook(project.Hook{Name: "hook1",
 		Action:      "action",
-		ProjectName: "non-existant"})
+		ProjectName: "non-existent"})
 
 	if err != nil {
 		t.Fatal(err)
@@ -2558,7 +2558,7 @@ func TestOptionalProjectsAndPackages(t *testing.T) {
 	fake, cleanup := jiritest.NewFakeJiriRoot(t)
 	defer cleanup()
 
-	// Set up projects and packages with explict attributes
+	// Set up projects and packages with explicit attributes
 	numProjects := 3
 	numOptionalProjects := 2
 	localProjects := []project.Project{}

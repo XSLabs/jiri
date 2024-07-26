@@ -628,7 +628,7 @@ func (g *Git) SetUpstream(branch, upstream string) error {
 	return g.run("branch", "-u", upstream, branch)
 }
 
-// LsRemote lists referneces in a remote repository.
+// LsRemote lists references in a remote repository.
 func (g *Git) LsRemote(args ...string) (string, error) {
 	a := []string{"ls-remote"}
 	a = append(a, args...)
@@ -1074,7 +1074,7 @@ func (g *Git) Init(path string, opts ...CloneOpt) error {
 // IsFileCommitted tests whether the given file has been committed to
 // the repository.
 func (g *Git) IsFileCommitted(file string) bool {
-	// Check if file is still in staging enviroment.
+	// Check if file is still in staging environment.
 	if out, _ := g.runOutput("status", "--porcelain", file); len(out) > 0 {
 		return false
 	}

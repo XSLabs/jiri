@@ -95,7 +95,7 @@ The jiri cl upload flags are:
  -autosubmit=false
    Automatically submit the changelist when feasible.
  -cc=
-   Comma-seperated list of emails or LDAPs to cc.
+   Comma-separated list of emails or LDAPs to cc.
  -check-uncommitted=true
    Check that no uncommitted changes exist.
  -clean-multipart-metadata=false
@@ -117,7 +117,7 @@ The jiri cl upload flags are:
  -presubmit=all
    The type of presubmit tests to run. Valid values: none,all.
  -r=
-   Comma-seperated list of emails or LDAPs to request review.
+   Comma-separated list of emails or LDAPs to request review.
  -remote-branch=main
    Name of the remote branch the CL pertains to, without the leading "origin/".
  -set-topic=true
@@ -231,7 +231,7 @@ change can be identified either using change ID, in which case the latest
 patchset will be used, or the the full reference.
 
 A new branch will be created to apply the patch to. The default name of this
-branch is "change/<changeset>/<patchset>", but this can be overriden using the
+branch is "change/<changeset>/<patchset>", but this can be overridden using the
 -branch flag. The command will fail if the branch already exists. The -delete
 flag will delete the branch if already exists. Use the -force flag to force
 deleting the branch even if it contains unmerged changes).
@@ -610,7 +610,7 @@ the "name" attribute on the <project>.  Otherwise, jiri will clone the manifest
 repository on every update.
 
 The <project> tags describe the projects to sync, and what state they should
-sync to, accoring to the following attributes:
+sync to, according to the following attributes:
 
 * name (required) - The name of the project.
 

@@ -176,7 +176,7 @@ func verifyModules(golden, tests []byte) error {
 			testSubmoduleName := testLine[len("submodule "):strings.LastIndex(testLine, "\"")]
 			goldenSubmoduleName := goldenLine[len("submodule "):strings.LastIndex(testLine, "\"")]
 			if testSubmoduleName != goldenSubmoduleName {
-				return fmt.Errorf("submodule name mismatch, expection %q, got %q", goldenSubmoduleName, testSubmoduleName)
+				return fmt.Errorf("submodule name mismatch, expecting %q, got %q", goldenSubmoduleName, testSubmoduleName)
 			}
 			continue
 		}

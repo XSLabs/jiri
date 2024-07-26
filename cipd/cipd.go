@@ -164,7 +164,7 @@ func Bootstrap(jirix *jiri.X, binaryPath string) (string, error) {
 }
 
 // FuchsiaPlatform returns a Platform struct which can be used in
-// determing the correct path for prebuilt packages. It replace
+// determining the correct path for prebuilt packages. It replace
 // the os and arch names from cipd format to a format used by
 // Fuchsia developers.
 func FuchsiaPlatform(plat Platform) Platform {
@@ -392,7 +392,7 @@ func CheckLoggedIn(jirix *jiri.X) (bool, error) {
 	command.Stderr = &stderrBuf
 	if err := command.Run(); err != nil {
 		stdErrMsg := strings.TrimSpace(stderrBuf.String())
-		jirix.Logger.Debugf("Error happend while executing cipd, err: %q, stderr: %q", err, stdErrMsg)
+		jirix.Logger.Debugf("Error happened while executing cipd, err: %q, stderr: %q", err, stdErrMsg)
 		if err, ok := err.(*exec.ExitError); ok && err.ExitCode() == exitCodeNoValidToken {
 			return false, nil
 		}

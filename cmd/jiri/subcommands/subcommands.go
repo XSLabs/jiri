@@ -170,7 +170,7 @@ match the "name" attribute on the <project>.  Otherwise, jiri will clone the
 manifest repository on every update.
 
 The <project> tags describe the projects to sync, and what state they should
-sync to, accoring to the following attributes:
+sync to, according to the following attributes:
 
 * name (required) - The name of the project.
 

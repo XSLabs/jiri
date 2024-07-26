@@ -148,7 +148,7 @@ func patchProject(jirix *jiri.X, local project.Project, ref, branch, remote stri
 		branchBase = branch
 	}
 
-	// Perform rebases prior to checking out the new branch to avoid unnecesary
+	// Perform rebases prior to checking out the new branch to avoid unnecessary
 	// file writes.
 	if patchFlags.rebase {
 		if patchFlags.rebaseRevision != "" {

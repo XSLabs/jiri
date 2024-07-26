@@ -81,7 +81,7 @@ func init() {
 	flags.BoolVar(&resolveFlag.enablePackageLock, "enable-package-lock", true, "Enable resolving packages in lockfile")
 	flags.BoolVar(&resolveFlag.enableProjectLock, "enable-project-lock", false, "Enable resolving projects in lockfile")
 	flags.BoolVar(&resolveFlag.allowFloatingRefs, "allow-floating-refs", false, "Allow packages to be pinned to floating refs such as \"latest\"")
-	flags.StringVar(&resolveFlag.hostnameAllowList, "allow-hosts", "", "List of hostnames that can be used in the url of a repository, seperated by comma. It will not be enforced if it is left empty.")
+	flags.StringVar(&resolveFlag.hostnameAllowList, "allow-hosts", "", "List of hostnames that can be used in the url of a repository, separated by comma. It will not be enforced if it is left empty.")
 	flags.BoolVar(&resolveFlag.fullResolve, "full-resolve", false, "Resolve all project and packages, not just those are changed.")
 }
 

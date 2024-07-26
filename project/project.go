@@ -85,7 +85,7 @@ type Project struct {
 	// IsSubmodule indicates that the project is checked out as a submodule.
 	IsSubmodule bool `xml:"issubmodule,attr,omitempty"`
 
-	// Attributes is a list of attributes for a project seperated by comma.
+	// Attributes is a list of attributes for a project separated by comma.
 	// The project will not be fetched by default when attributes are present.
 	Attributes string `xml:"attributes,attr,omitempty"`
 
@@ -1630,7 +1630,7 @@ func CleanupProjects(jirix *jiri.X, localProjects Projects, cleanupBranches bool
 			defer wg.Done()
 
 			if local.LocalConfig.Ignore || local.LocalConfig.NoUpdate {
-				jirix.Logger.Warningf("Project %s(%s) won't be updated due to it's local-config\n\n", local.Name, local.Path)
+				jirix.Logger.Warningf("Project %s(%s) won't be updated due to its local-config\n\n", local.Name, local.Path)
 				return
 			}
 			remote, ok := remoteProjects[local.Key()]
@@ -2006,7 +2006,7 @@ func syncProjectMaster(jirix *jiri.X, project Project, state ProjectState, rebas
 		relativePath = project.Path
 	}
 	if project.LocalConfig.Ignore || project.LocalConfig.NoUpdate {
-		jirix.Logger.Warningf("Project %s(%s) won't be updated due to it's local-config\n\n", project.Name, relativePath)
+		jirix.Logger.Warningf("Project %s(%s) won't be updated due to its local-config\n\n", project.Name, relativePath)
 		return nil
 	}
 
@@ -2081,7 +2081,7 @@ func syncProjectMaster(jirix *jiri.X, project Project, state ProjectState, rebas
 			return nil
 		}
 		if project.LocalConfig.NoRebase {
-			jirix.Logger.Warningf("For project %s(%s), not merging your local branches due to it's local-config\n\n", project.Name, relativePath)
+			jirix.Logger.Warningf("For project %s(%s), not merging your local branches due to its local-config\n\n", project.Name, relativePath)
 			return nil
 		}
 		if err := scm.Merge(tracking.Name, gitutil.FfOnlyOpt(true)); err != nil {
@@ -2142,7 +2142,7 @@ func syncProjectMaster(jirix *jiri.X, project Project, state ProjectState, rebas
 				continue
 			}
 			if project.LocalConfig.NoRebase {
-				jirix.Logger.Warningf("For project %s(%s), not rebasing your local branches due to it's local-config\n\n", project.Name, relativePath)
+				jirix.Logger.Warningf("For project %s(%s), not rebasing your local branches due to its local-config\n\n", project.Name, relativePath)
 				break
 			}
 			// When rebasing with submodules, we need to rebase superproject first before updating submodules, set gitModules as false.
@@ -2187,7 +2187,7 @@ func syncProjectMaster(jirix *jiri.X, project Project, state ProjectState, rebas
 			}
 			if rebaseUntracked {
 				if project.LocalConfig.NoRebase {
-					jirix.Logger.Warningf("For project %s(%s), not rebasing your local branches due to it's local-config\n\n", project.Name, relativePath)
+					jirix.Logger.Warningf("For project %s(%s), not rebasing your local branches due to its local-config\n\n", project.Name, relativePath)
 					break
 				}
 
@@ -2280,7 +2280,7 @@ func setRemoteHeadRevisions(jirix *jiri.X, remoteProjects Projects, localProject
 
 	for key, local := range localProjects {
 		remote, ok := remoteProjects[key]
-		// Don't update when project has pinned revision or it's remote has changed
+		// Don't update when project has pinned revision or its remote has changed
 		if !ok || remote.Revision != "HEAD" || local.Remote != remote.Remote {
 			continue
 		}

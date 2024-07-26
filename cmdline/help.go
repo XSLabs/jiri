@@ -38,7 +38,7 @@ func makeHelpRunner(path []*Command, env *Env) helpRunner {
 }
 
 // helpConfig holds configuration data for help.  The style and width may be
-// overriden by flags if the command returned by newCommand is parsed.
+// overridden by flags if the command returned by newCommand is parsed.
 type helpConfig struct {
 	style     style
 	width     int

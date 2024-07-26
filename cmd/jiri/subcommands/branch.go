@@ -62,7 +62,7 @@ func init() {
 	flags.BoolVar(&branchFlags.deleteFlag, "d", false, "Delete branch from project. Similar to running 'git branch -d <branch-name>'")
 	flags.BoolVar(&branchFlags.forceDeleteFlag, "D", false, "Force delete branch from project. Similar to running 'git branch -D <branch-name>'")
 	flags.BoolVar(&branchFlags.listFlag, "list", false, "Show only projects with current branch <branch>")
-	flags.BoolVar(&branchFlags.overrideProjectConfigFlag, "override-pc", false, "Overrrides project config's ignore and noupdate flag and deletes the branch.")
+	flags.BoolVar(&branchFlags.overrideProjectConfigFlag, "override-pc", false, "Overrides project config's ignore and noupdate flag and deletes the branch.")
 	flags.BoolVar(&branchFlags.deleteMergedFlag, "delete-merged", false, "Delete merged branches. Merged branches are the tracked branches merged with their tracking remote or un-tracked branches merged with the branch specified in manifest(default main). If <branch> is provided, it will only delete branch <branch> if merged.")
 	flags.BoolVar(&branchFlags.deleteMergedClsFlag, "delete-merged-cl", false, "Implies -delete-merged. It also parses commit messages for ChangeID and checks with gerrit if those changes have been merged and deletes those branches. It will ignore a branch if it differs with remote by more than 10 commits.")
 }
@@ -191,7 +191,7 @@ func deleteMergedBranches(jirix *jiri.X, branchToDelete string, deleteMergedCls 
 			relativePath = state.Project.Path
 		}
 		if !branchFlags.overrideProjectConfigFlag && (state.Project.LocalConfig.Ignore || state.Project.LocalConfig.NoUpdate) {
-			jirix.Logger.Warningf(" Not processing project %s(%s) due to it's local-config. Use '-overrride-pc' flag\n\n", state.Project.Name, state.Project.Path)
+			jirix.Logger.Warningf(" Not processing project %s(%s) due to its local-config. Use '-override-pc' flag\n\n", state.Project.Name, state.Project.Path)
 			return
 		}
 		if !ok {
@@ -290,12 +290,12 @@ func deleteProjectMergedClsBranches(jirix *jiri.X, local project.Project, remote
 				retErr = append(retErr, fmt.Errorf("Not deleting current branch %q as can't get changes: %s\n", b.Name, err))
 				continue
 			}
-			uncommited, err := scm.HasUncommittedChanges()
+			uncommitted, err := scm.HasUncommittedChanges()
 			if err != nil {
 				retErr = append(retErr, fmt.Errorf("Not deleting current branch %q as can't get changes: %s\n", b.Name, err))
 				continue
 			}
-			if untracked || uncommited {
+			if untracked || uncommitted {
 				jirix.Logger.Debugf("Not deleting current branch %q for project %s(%s) as it has changes\n\n", b.Name, local.Name, relativePath)
 				continue
 			}
@@ -428,12 +428,12 @@ func deleteProjectMergedBranches(jirix *jiri.X, local project.Project, remote pr
 				retErr = append(retErr, fmt.Errorf("Not deleting current branch %q as can't get changes: %s\n", b.Name, err))
 				continue
 			}
-			uncommited, err := scm.HasUncommittedChanges()
+			uncommitted, err := scm.HasUncommittedChanges()
 			if err != nil {
 				retErr = append(retErr, fmt.Errorf("Not deleting current branch %q as can't get changes: %s\n", b.Name, err))
 				continue
 			}
-			if untracked || uncommited {
+			if untracked || uncommitted {
 				jirix.Logger.Debugf("Not deleting current branch %q for project %s(%s) as it has changes\n\n", b.Name, local.Name, relativePath)
 				continue
 			}
@@ -502,7 +502,7 @@ func deleteBranches(jirix *jiri.X, branchToDelete string) error {
 					return err
 				}
 				if !branchFlags.overrideProjectConfigFlag && (localProject.LocalConfig.Ignore || localProject.LocalConfig.NoUpdate) {
-					jirix.Logger.Warningf("Project %s(%s): branch %q won't be deleted due to it's local-config. Use '-overrride-pc' flag\n\n", localProject.Name, localProject.Path, branchToDelete)
+					jirix.Logger.Warningf("Project %s(%s): branch %q won't be deleted due to its local-config. Use '-override-pc' flag\n\n", localProject.Name, localProject.Path, branchToDelete)
 					break
 				}
 				fmt.Printf("Project %s(%s): ", localProject.Name, relativePath)

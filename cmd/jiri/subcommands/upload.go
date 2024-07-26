@@ -190,7 +190,7 @@ func runUpload(jirix *jiri.X, args []string) error {
 			if changes, err := gitutil.New(jirix, gitutil.RootDirOpt(project.Path)).HasUncommittedChanges(); err != nil {
 				return err
 			} else if changes {
-				return fmt.Errorf("Project %s(%s) has uncommited changes, please commit them or stash them. Cannot rebase before pushing.", project.Name, relativePath)
+				return fmt.Errorf("Project %s(%s) has uncommitted changes, please commit them or stash them. Cannot rebase before pushing.", project.Name, relativePath)
 			}
 		}
 		remoteBranch := uploadFlags.remoteBranch

@@ -250,7 +250,7 @@ func TestRunP(t *testing.T) {
 		t.Errorf("got %v, want %v", got, want)
 	}
 
-	// All projects since --projects takes precendence over branches.
+	// All projects since --projects takes precedence over branches.
 	setDefaultRunpFlags()
 	runpFlags.projectKeys = ".*"
 	runpFlags.showNamePrefix = true

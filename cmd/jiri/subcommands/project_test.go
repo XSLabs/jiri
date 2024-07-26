@@ -19,7 +19,7 @@ func TestProjectIgnoresByAttribute(t *testing.T) {
 	fake, cleanup := jiritest.NewFakeJiriRoot(t)
 	defer cleanup()
 
-	// Set up projects and packages with explict attributes
+	// Set up projects and packages with explicit attributes
 	numProjects := 3
 	numOptionalProjects := 2
 	localProjects := []project.Project{}

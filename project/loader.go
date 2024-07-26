@@ -370,7 +370,7 @@ func (ld *loader) cloneManifestRepo(jirix *jiri.X, remote *Import, cacheDirPath 
 }
 
 // loadLockFile will recursively load lockfiles from dir to its parent directories until it
-// reaches $JIRI_ROOT. It will only report errors on lockfiles such as unknown format or confliting data.
+// reaches $JIRI_ROOT. It will only report errors on lockfiles such as unknown format or conflating data.
 // All I/O related errors will be ignored.
 func (ld *loader) loadLockFile(jirix *jiri.X, repoPath, dir, lockFileName, ref string) error {
 	lockfile := filepath.Join(dir, lockFileName)
@@ -408,7 +408,7 @@ func (ld *loader) loadLockFile(jirix *jiri.X, repoPath, dir, lockFileName, ref s
 		}
 		temp, err := os.ReadFile(lockfile)
 		if err != nil {
-			// Supress I/O errors as it is OK if a lockfile cannot be accessed.
+			// Suppress I/O errors as it is OK if a lockfile cannot be accessed.
 			return nil
 		}
 		data = temp
