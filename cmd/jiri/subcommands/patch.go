@@ -19,33 +19,33 @@ import (
 	"go.fuchsia.dev/jiri/project"
 )
 
-var (
-	patchRebaseFlag     bool
-	patchRebaseRevision string
-	patchRebaseBranch   string
-	patchTopicFlag      bool
-	patchBranchFlag     string
-	patchDeleteFlag     bool
-	patchHostFlag       string
-	patchForceFlag      bool
-	cherryPickFlag      bool
-	detachedHeadFlag    bool
-	patchProjectFlag    string
-	rebaseFailures      uint32
-)
+var patchFlags struct {
+	rebase         bool
+	rebaseRevision string
+	rebaseBranch   string
+	topic          bool
+	branch         string
+	delete         bool
+	host           string
+	force          bool
+	cherryPick     bool
+	detachedHead   bool
+	project        string
+	rebaseFailures uint32
+}
 
 func init() {
-	cmdPatch.Flags.StringVar(&patchBranchFlag, "branch", "", "Name of the branch the patch will be applied to")
-	cmdPatch.Flags.BoolVar(&patchDeleteFlag, "delete", false, "Delete the existing branch if already exists")
-	cmdPatch.Flags.BoolVar(&patchForceFlag, "force", false, "Use force when deleting the existing branch")
-	cmdPatch.Flags.BoolVar(&patchRebaseFlag, "rebase", false, "Rebase the change after downloading")
-	cmdPatch.Flags.StringVar(&patchRebaseRevision, "rebase-revision", "", "Rebase the change to a specific revision after downloading")
-	cmdPatch.Flags.StringVar(&patchRebaseBranch, "rebase-branch", "", "The branch to rebase the change onto")
-	cmdPatch.Flags.StringVar(&patchHostFlag, "host", "", `Gerrit host to use. Defaults to gerrit host specified in manifest.`)
-	cmdPatch.Flags.StringVar(&patchProjectFlag, "project", "", `Project to apply patch to. This cannot be passed with topic flag.`)
-	cmdPatch.Flags.BoolVar(&patchTopicFlag, "topic", false, `Patch whole topic.`)
-	cmdPatch.Flags.BoolVar(&cherryPickFlag, "cherry-pick", false, `Cherry-pick patches instead of checking out.`)
-	cmdPatch.Flags.BoolVar(&detachedHeadFlag, "no-branch", false, `Don't create the branch for the patch.`)
+	cmdPatch.Flags.StringVar(&patchFlags.branch, "branch", "", "Name of the branch the patch will be applied to")
+	cmdPatch.Flags.BoolVar(&patchFlags.delete, "delete", false, "Delete the existing branch if already exists")
+	cmdPatch.Flags.BoolVar(&patchFlags.force, "force", false, "Use force when deleting the existing branch")
+	cmdPatch.Flags.BoolVar(&patchFlags.rebase, "rebase", false, "Rebase the change after downloading")
+	cmdPatch.Flags.StringVar(&patchFlags.rebaseRevision, "rebase-revision", "", "Rebase the change to a specific revision after downloading")
+	cmdPatch.Flags.StringVar(&patchFlags.rebaseBranch, "rebase-branch", "", "The branch to rebase the change onto")
+	cmdPatch.Flags.StringVar(&patchFlags.host, "host", "", `Gerrit host to use. Defaults to gerrit host specified in manifest.`)
+	cmdPatch.Flags.StringVar(&patchFlags.project, "project", "", `Project to apply patch to. This cannot be passed with topic flag.`)
+	cmdPatch.Flags.BoolVar(&patchFlags.topic, "topic", false, `Patch whole topic.`)
+	cmdPatch.Flags.BoolVar(&patchFlags.cherryPick, "cherry-pick", false, `Cherry-pick patches instead of checking out.`)
+	cmdPatch.Flags.BoolVar(&patchFlags.detachedHead, "no-branch", false, `Don't create the branch for the patch.`)
 }
 
 // Use special address codes for errors that are addressable by the user. The
@@ -84,7 +84,7 @@ change "B" is created on top of "A" and both have same topic.
 // patchProject checks out the given change.
 func patchProject(jirix *jiri.X, local project.Project, ref, branch, remote string) (bool, error) {
 	scm := gitutil.New(jirix, gitutil.RootDirOpt(local.Path))
-	if !detachedHeadFlag {
+	if !patchFlags.detachedHead {
 		if branch == "" {
 			cl, ps, err := gerrit.ParseRefString(ref)
 			if err != nil {
@@ -98,7 +98,7 @@ func patchProject(jirix *jiri.X, local project.Project, ref, branch, remote stri
 			return false, err
 		}
 		if branchExists {
-			if patchDeleteFlag {
+			if patchFlags.delete {
 				_, currentBranch, err := scm.GetBranches()
 				if err != nil {
 					return false, err
@@ -108,7 +108,7 @@ func patchProject(jirix *jiri.X, local project.Project, ref, branch, remote stri
 						return false, err
 					}
 				}
-				if err := scm.DeleteBranch(branch, gitutil.ForceOpt(patchForceFlag)); err != nil {
+				if err := scm.DeleteBranch(branch, gitutil.ForceOpt(patchFlags.force)); err != nil {
 					jirix.Logger.Errorf("Cannot delete branch %q: %s", branch, err)
 					jirix.IncrementFailures()
 					return false, nil
@@ -127,7 +127,7 @@ func patchProject(jirix *jiri.X, local project.Project, ref, branch, remote stri
 	}
 	branchBase := "FETCH_HEAD"
 	lastRef := ""
-	if cherryPickFlag {
+	if patchFlags.cherryPick {
 		if state, err := project.GetProjectState(jirix, local, false); err != nil {
 			return false, err
 		} else {
@@ -138,7 +138,7 @@ func patchProject(jirix *jiri.X, local project.Project, ref, branch, remote stri
 		}
 		branchBase = "HEAD"
 	}
-	if !detachedHeadFlag {
+	if !patchFlags.detachedHead {
 		if err := scm.CreateBranchFromRef(branch, branchBase); err != nil {
 			return false, err
 		}
@@ -150,9 +150,9 @@ func patchProject(jirix *jiri.X, local project.Project, ref, branch, remote stri
 
 	// Perform rebases prior to checking out the new branch to avoid unnecesary
 	// file writes.
-	if patchRebaseFlag {
-		if patchRebaseRevision != "" {
-			if err := rebaseProjectWRevision(jirix, local, branchBase, patchRebaseRevision); err != nil {
+	if patchFlags.rebase {
+		if patchFlags.rebaseRevision != "" {
+			if err := rebaseProjectWRevision(jirix, local, branchBase, patchFlags.rebaseRevision); err != nil {
 				return false, err
 			}
 		} else {
@@ -164,7 +164,7 @@ func patchProject(jirix *jiri.X, local project.Project, ref, branch, remote stri
 		// The cherry pick stanza below relies on the ref being present at
 		// FETCH_HEAD. This will not be true after a rebase, as the rebase
 		// functions perform fetches of their own.
-		if cherryPickFlag {
+		if patchFlags.cherryPick {
 			if err := scm.FetchRefspec("origin", ref, jirix.EnableSubmodules); err != nil {
 				return false, err
 			}
@@ -174,7 +174,7 @@ func patchProject(jirix *jiri.X, local project.Project, ref, branch, remote stri
 	if err := scm.CheckoutBranch(branchBase, (local.GitSubmodules && jirix.EnableSubmodules), false); err != nil {
 		return false, err
 	}
-	if cherryPickFlag {
+	if patchFlags.cherryPick {
 		if err := scm.CherryPick("FETCH_HEAD"); err != nil {
 			jirix.Logger.Errorf("Error: %s\n", err)
 			jirix.IncrementFailures()
@@ -225,7 +225,7 @@ func rebaseProject(jirix *jiri.X, project project.Project, branch, remoteBranch 
 		}
 		jirix.Logger.Errorf("Cannot rebase the change: %s", err)
 		jirix.IncrementFailures()
-		atomic.AddUint32(&rebaseFailures, 1)
+		atomic.AddUint32(&patchFlags.rebaseFailures, 1)
 		return nil
 	}
 	jirix.Logger.Infof("Project rebased\n")
@@ -257,7 +257,7 @@ func rebaseProjectWRevision(jirix *jiri.X, project project.Project, branch, revi
 		}
 		jirix.Logger.Errorf("Cannot rebase the change: %s", err)
 		jirix.IncrementFailures()
-		atomic.AddUint32(&rebaseFailures, 1)
+		atomic.AddUint32(&patchFlags.rebaseFailures, 1)
 		return nil
 	}
 	jirix.Logger.Infof("Project rebased\n")
@@ -303,11 +303,11 @@ func runPatch(jirix *jiri.X, args []string) error {
 	}
 	arg := args[0]
 
-	if patchProjectFlag != "" && patchTopicFlag {
+	if patchFlags.project != "" && patchFlags.topic {
 		return jirix.UsageErrorf("-topic and -project flags cannot be used together")
 	}
 
-	if patchRebaseRevision != "" && (!patchRebaseFlag || patchProjectFlag == "") {
+	if patchFlags.rebaseRevision != "" && (!patchFlags.rebase || patchFlags.project == "") {
 		return jirix.UsageErrorf("-rebase-revision should only be used with -rebase and -project flag")
 	}
 
@@ -316,10 +316,10 @@ func runPatch(jirix *jiri.X, args []string) error {
 	var err error
 	changeRef := ""
 	remoteBranch := ""
-	if !patchTopicFlag {
+	if !patchFlags.topic {
 		cl, ps, err = gerrit.ParseRefString(arg)
 		if err != nil {
-			if patchProjectFlag != "" {
+			if patchFlags.project != "" {
 				return fmt.Errorf("Please pass change ref with -project flag (refs/changes/<ps>/<cl>/<patch-set>)")
 			}
 			cl, err = strconv.Atoi(arg)
@@ -332,8 +332,8 @@ func runPatch(jirix *jiri.X, args []string) error {
 	}
 
 	var p *project.Project
-	host := patchHostFlag
-	if patchProjectFlag != "" {
+	host := patchFlags.host
+	if patchFlags.project != "" {
 		projects, err := project.LocalProjects(jirix, project.FastScan)
 		if err != nil {
 			return err
@@ -345,16 +345,16 @@ func runPatch(jirix *jiri.X, args []string) error {
 				return fmt.Errorf("invalid Gerrit host %q: %s", host, err)
 			}
 		}
-		p = findProject(jirix, patchProjectFlag, projects, host, hostUrl, changeRef)
+		p = findProject(jirix, patchFlags.project, projects, host, hostUrl, changeRef)
 		if p == nil {
-			jirix.Logger.Errorf("Cannot find project for %q", patchProjectFlag)
+			jirix.Logger.Errorf("Cannot find project for %q", patchFlags.project)
 			return noSuchProjectErr
 		}
 		// TODO: TO-592 - remove this hardcode
-		if patchRebaseBranch == "" && p.RemoteBranch != "" {
+		if patchFlags.rebaseBranch == "" && p.RemoteBranch != "" {
 			remoteBranch = p.RemoteBranch
-		} else if patchRebaseBranch != "" {
-			remoteBranch = patchRebaseBranch
+		} else if patchFlags.rebaseBranch != "" {
+			remoteBranch = patchFlags.rebaseBranch
 		} else {
 			remoteBranch = "main"
 		}
@@ -367,7 +367,7 @@ func runPatch(jirix *jiri.X, args []string) error {
 			host = p.GerritHost
 		}
 	}
-	if !patchTopicFlag && p != nil {
+	if !patchFlags.topic && p != nil {
 		if remoteBranch == "" || changeRef == "" {
 			hostUrl, err := url.Parse(host)
 			if err != nil {
@@ -382,7 +382,7 @@ func runPatch(jirix *jiri.X, args []string) error {
 			remoteBranch = change.Branch
 			changeRef = change.Reference()
 		}
-		branch := patchBranchFlag
+		branch := patchFlags.branch
 		if ps != -1 {
 			if _, err = patchProject(jirix, *p, arg, branch, remoteBranch); err != nil {
 				return err
@@ -403,8 +403,8 @@ func runPatch(jirix *jiri.X, args []string) error {
 		g := gerrit.New(jirix, hostUrl)
 
 		var changes gerrit.CLList
-		branch := patchBranchFlag
-		if patchTopicFlag {
+		branch := patchFlags.branch
+		if patchFlags.topic {
 			temp, err := g.ListOpenChangesByTopic(arg)
 			if err != nil {
 				return err
@@ -435,7 +435,7 @@ func runPatch(jirix *jiri.X, args []string) error {
 				}
 
 				// stacked CLs, get the top one
-				if cherryPickFlag {
+				if patchFlags.cherryPick {
 					return fmt.Errorf("Multiple CLs for projects %q. We do not support this with cherry-pick flag", p)
 				}
 				var relatedChanges *gerrit.RelatedChanges
@@ -513,7 +513,7 @@ func runPatch(jirix *jiri.X, args []string) error {
 	}
 	// In the case where jiri is called programatically by a recipe,
 	// we want to make it clear to the recipe if all failures were rebase errors.
-	if rebaseFailures != 0 && rebaseFailures == jirix.Failures() {
+	if patchFlags.rebaseFailures != 0 && patchFlags.rebaseFailures == jirix.Failures() {
 		return rebaseFailedErr
 	} else if jirix.Failures() != 0 {
 		return fmt.Errorf("Patch failed")

@@ -34,58 +34,58 @@ does not exists, it will be created.
 `,
 }
 
-var (
-	cacheFlag                       string
-	dissociateFlag                  bool
-	sharedFlag                      bool
-	showAnalyticsDataFlag           bool
-	analyticsOptFlag                string
-	rewriteSsoToHttpsFlag           string
-	ssoCookieFlag                   string
+var initFlags struct {
+	cache                           string
+	dissociate                      bool
+	shared                          bool
+	showAnalyticsData               bool
+	analyticsOpt                    string
+	rewriteSsoToHttps               string
+	ssoCookie                       string
 	keepGitHooks                    string
-	enableLockfileFlag              string
-	lockfileNameFlag                string
+	enableLockfile                  string
+	lockfileName                    string
 	prebuiltJSON                    string
 	enableSubmodules                string
 	forceDisableSubmodulesInfraOnly string
 	optionalAttrs                   string
-	partialFlag                     bool
-	partialSkipFlag                 arrayFlag
-	offloadPackfilesFlag            bool
-	cipdParanoidFlag                string
+	partial                         bool
+	partialSkip                     arrayFlag
+	offloadPackfiles                bool
+	cipdParanoid                    string
 	cipdMaxThreads                  int
-	excludeDirsFlag                 arrayFlag
-)
+	excludeDirs                     arrayFlag
+}
 
 const (
 	optionalAttrsNotSet = "[ATTRIBUTES_NOT_SET]"
 )
 
 func init() {
-	cmdInit.Flags.StringVar(&cacheFlag, "cache", "", "Jiri cache directory.")
-	cmdInit.Flags.BoolVar(&sharedFlag, "shared", false, "[DEPRECATED] All caches are shared.")
-	cmdInit.Flags.BoolVar(&dissociateFlag, "dissociate", false, "Dissociate the git cache after a clone or fetch.")
-	cmdInit.Flags.BoolVar(&showAnalyticsDataFlag, "show-analytics-data", false, "Show analytics data that jiri collect when you opt-in and exits.")
-	cmdInit.Flags.StringVar(&analyticsOptFlag, "analytics-opt", "", "Opt in/out of analytics collection. Takes true/false")
-	cmdInit.Flags.StringVar(&rewriteSsoToHttpsFlag, "rewrite-sso-to-https", "", "Rewrites sso fetches, clones, etc to https. Takes true/false.")
-	cmdInit.Flags.StringVar(&ssoCookieFlag, "sso-cookie-path", "", "Path to master SSO cookie file.")
-	cmdInit.Flags.StringVar(&keepGitHooks, "keep-git-hooks", "", "Whether to keep current git hooks in '.git/hooks' when doing 'jiri update'. Takes true/false.")
-	cmdInit.Flags.StringVar(&enableLockfileFlag, "enable-lockfile", "", "Enable lockfile enforcement")
-	cmdInit.Flags.StringVar(&lockfileNameFlag, "lockfile-name", "", "Set up filename of lockfile")
-	cmdInit.Flags.StringVar(&prebuiltJSON, "prebuilt-json", "", "Set up filename for prebuilt json file")
-	cmdInit.Flags.StringVar(&enableSubmodules, "enable-submodules", "", "Enable submodules structure")
-	// This flag will be used to forcibly roll out submodules to users while still allowing infra to opt out.
-	cmdInit.Flags.StringVar(&forceDisableSubmodulesInfraOnly, "force-disable-submodules-infra-only", "", "Force disable submodules.")
+	cmdInit.Flags.StringVar(&initFlags.cache, "cache", "", "Jiri cache directory.")
+	cmdInit.Flags.BoolVar(&initFlags.shared, "shared", false, "[DEPRECATED] All caches are shared.")
+	cmdInit.Flags.BoolVar(&initFlags.dissociate, "dissociate", false, "Dissociate the git cache after a clone or fetch.")
+	cmdInit.Flags.BoolVar(&initFlags.showAnalyticsData, "show-analytics-data", false, "Show analytics data that jiri collect when you opt-in and exits.")
+	cmdInit.Flags.StringVar(&initFlags.analyticsOpt, "analytics-opt", "", "Opt in/out of analytics collection. Takes true/false")
+	cmdInit.Flags.StringVar(&initFlags.rewriteSsoToHttps, "rewrite-sso-to-https", "", "Rewrites sso fetches, clones, etc to https. Takes true/false.")
+	cmdInit.Flags.StringVar(&initFlags.ssoCookie, "sso-cookie-path", "", "Path to master SSO cookie file.")
+	cmdInit.Flags.StringVar(&initFlags.keepGitHooks, "keep-git-hooks", "", "Whether to keep current git hooks in '.git/hooks' when doing 'jiri update'. Takes true/false.")
+	cmdInit.Flags.StringVar(&initFlags.enableLockfile, "enable-lockfile", "", "Enable lockfile enforcement")
+	cmdInit.Flags.StringVar(&initFlags.lockfileName, "lockfile-name", "", "Set up filename of lockfile")
+	cmdInit.Flags.StringVar(&initFlags.prebuiltJSON, "prebuilt-json", "", "Set up filename for prebuilt json file")
+	cmdInit.Flags.StringVar(&initFlags.enableSubmodules, "enable-submodules", "", "Enable submodules structure")
+	// This initFlags. will be used to forcibly roll out submodules to users while still allowing infra to opt out.
+	cmdInit.Flags.StringVar(&initFlags.forceDisableSubmodulesInfraOnly, "force-disable-submodules-infra-only", "", "Force disable submodules.")
 	// Empty string is not used as default value for optionalAttrs as we
 	// use empty string to clear existing saved attributes.
-	cmdInit.Flags.StringVar(&optionalAttrs, "fetch-optional", optionalAttrsNotSet, "Set up attributes of optional projects and packages that should be fetched by jiri.")
-	cmdInit.Flags.BoolVar(&partialFlag, "partial", false, "Whether to use a partial checkout.")
-	cmdInit.Flags.Var(&partialSkipFlag, "skip-partial", "Skip using partial checkouts for these remotes.")
-	cmdInit.Flags.BoolVar(&offloadPackfilesFlag, "offload-packfiles", true, "Whether to use a CDN for packfiles if available.")
-	cmdInit.Flags.StringVar(&cipdParanoidFlag, "cipd-paranoid-mode", "", "Whether to use paranoid mode in cipd.")
+	cmdInit.Flags.StringVar(&initFlags.optionalAttrs, "fetch-optional", optionalAttrsNotSet, "Set up attributes of optional projects and packages that should be fetched by jiri.")
+	cmdInit.Flags.BoolVar(&initFlags.partial, "partial", false, "Whether to use a partial checkout.")
+	cmdInit.Flags.Var(&initFlags.partialSkip, "skip-partial", "Skip using partial checkouts for these remotes.")
+	cmdInit.Flags.BoolVar(&initFlags.offloadPackfiles, "offload-packfiles", true, "Whether to use a CDN for packfiles if available.")
+	cmdInit.Flags.StringVar(&initFlags.cipdParanoid, "cipd-paranoid-mode", "", "Whether to use paranoid mode in cipd.")
 	// Default (0) causes CIPD to use as many threads as there are CPUs.
-	cmdInit.Flags.IntVar(&cipdMaxThreads, "cipd-max-threads", 0, "Number of threads to use for unpacking CIPD packages. If zero, uses all CPUs.")
-	cmdInit.Flags.Var(&excludeDirsFlag, "exclude-dirs", "Directories to skip when searching for local projects (Default: out).")
+	cmdInit.Flags.IntVar(&initFlags.cipdMaxThreads, "cipd-max-threads", 0, "Number of threads to use for unpacking CIPD packages. If zero, uses all CPUs.")
+	cmdInit.Flags.Var(&initFlags.excludeDirs, "exclude-dirs", "Directories to skip when searching for local projects (Default: out).")
 }
 
 func runInit(env *cmdline.Env, args []string) error {
@@ -93,7 +93,7 @@ func runInit(env *cmdline.Env, args []string) error {
 		return fmt.Errorf("wrong number of arguments")
 	}
 
-	if showAnalyticsDataFlag {
+	if initFlags.showAnalyticsData {
 		fmt.Printf("%s\n", analytics_util.CollectedData)
 		return nil
 	}
@@ -130,8 +130,8 @@ func runInit(env *cmdline.Env, args []string) error {
 		}
 	}
 
-	if cacheFlag != "" {
-		cache, err := filepath.Abs(cacheFlag)
+	if initFlags.cache != "" {
+		cache, err := filepath.Abs(initFlags.cache)
 		if err != nil {
 			return err
 		}
@@ -153,17 +153,17 @@ func runInit(env *cmdline.Env, args []string) error {
 		return err
 	}
 
-	if cacheFlag != "" {
-		config.CachePath = cacheFlag
+	if initFlags.cache != "" {
+		config.CachePath = initFlags.cache
 	}
 
-	if dissociateFlag {
+	if initFlags.dissociate {
 		config.Dissociate = true
 	}
 
-	if keepGitHooks != "" {
-		if val, err := strconv.ParseBool(keepGitHooks); err != nil {
-			return fmt.Errorf("'keep-git-hooks' flag should be true or false")
+	if initFlags.keepGitHooks != "" {
+		if val, err := strconv.ParseBool(initFlags.keepGitHooks); err != nil {
+			return fmt.Errorf("'keep-git-hooks' initFlags. should be true or false")
 		} else {
 			config.KeepGitHooks = val
 		}
@@ -176,18 +176,18 @@ func runInit(env *cmdline.Env, args []string) error {
 		config.EnableSubmodules = gitConfigSubm
 	}
 
-	if enableSubmodules != "" {
-		if _, err := strconv.ParseBool(enableSubmodules); err != nil {
-			return fmt.Errorf("'enable-submodules' flag should be true or false")
+	if initFlags.enableSubmodules != "" {
+		if _, err := strconv.ParseBool(initFlags.enableSubmodules); err != nil {
+			return fmt.Errorf("'enable-submodules' initFlags. should be true or false")
 		} else {
-			config.EnableSubmodules = enableSubmodules
+			config.EnableSubmodules = initFlags.enableSubmodules
 		}
 	}
 
-	// Override EnableSubmodules values with False if ForceDisableSubmodulesInfraOnly flag is True
-	if forceDisableSubmodulesInfraOnly != "" {
-		if val, err := strconv.ParseBool(forceDisableSubmodulesInfraOnly); err != nil {
-			return fmt.Errorf("'force-disable-submodules-infra-only' flag should be true or false")
+	// Override EnableSubmodules values with False if ForceDisableSubmodulesInfraOnly initFlags. is True
+	if initFlags.forceDisableSubmodulesInfraOnly != "" {
+		if val, err := strconv.ParseBool(initFlags.forceDisableSubmodulesInfraOnly); err != nil {
+			return fmt.Errorf("'force-disable-submodules-infra-only' initFlags. should be true or false")
 		} else {
 			if val {
 				config.ForceDisableSubmodulesInfraOnly = "true"
@@ -195,61 +195,61 @@ func runInit(env *cmdline.Env, args []string) error {
 		}
 	}
 
-	if rewriteSsoToHttpsFlag != "" {
-		if val, err := strconv.ParseBool(rewriteSsoToHttpsFlag); err != nil {
-			return fmt.Errorf("'rewrite-sso-to-https' flag should be true or false")
+	if initFlags.rewriteSsoToHttps != "" {
+		if val, err := strconv.ParseBool(initFlags.rewriteSsoToHttps); err != nil {
+			return fmt.Errorf("'rewrite-sso-to-https' initFlags. should be true or false")
 		} else {
 			config.RewriteSsoToHttps = val
 		}
 	}
 
-	if optionalAttrs != optionalAttrsNotSet {
-		config.FetchingAttrs = optionalAttrs
+	if initFlags.optionalAttrs != optionalAttrsNotSet {
+		config.FetchingAttrs = initFlags.optionalAttrs
 	}
 
-	if partialFlag {
-		config.Partial = partialFlag
+	if initFlags.partial {
+		config.Partial = initFlags.partial
 	}
 
-	for _, r := range partialSkipFlag {
+	for _, r := range initFlags.partialSkip {
 		config.PartialSkip = append(config.PartialSkip, r)
 	}
 
-	if offloadPackfilesFlag {
-		config.OffloadPackfiles = offloadPackfilesFlag
+	if initFlags.offloadPackfiles {
+		config.OffloadPackfiles = initFlags.offloadPackfiles
 	}
 
-	if ssoCookieFlag != "" {
-		config.SsoCookiePath = ssoCookieFlag
+	if initFlags.ssoCookie != "" {
+		config.SsoCookiePath = initFlags.ssoCookie
 	}
 
-	if lockfileNameFlag != "" {
-		config.LockfileName = lockfileNameFlag
+	if initFlags.lockfileName != "" {
+		config.LockfileName = initFlags.lockfileName
 	}
 
-	if prebuiltJSON != "" {
-		config.PrebuiltJSON = prebuiltJSON
+	if initFlags.prebuiltJSON != "" {
+		config.PrebuiltJSON = initFlags.prebuiltJSON
 	}
 
-	if enableLockfileFlag != "" {
-		if _, err := strconv.ParseBool(enableLockfileFlag); err != nil {
-			return fmt.Errorf("'enable-lockfile' flag should be true or false")
+	if initFlags.enableLockfile != "" {
+		if _, err := strconv.ParseBool(initFlags.enableLockfile); err != nil {
+			return fmt.Errorf("'enable-lockfile' initFlags. should be true or false")
 		}
-		config.LockfileEnabled = enableLockfileFlag
+		config.LockfileEnabled = initFlags.enableLockfile
 	}
 
-	if cipdParanoidFlag != "" {
-		if _, err := strconv.ParseBool(cipdParanoidFlag); err != nil {
-			return fmt.Errorf("'cipd-paranoid-mode' flag should be true or false")
+	if initFlags.cipdParanoid != "" {
+		if _, err := strconv.ParseBool(initFlags.cipdParanoid); err != nil {
+			return fmt.Errorf("'cipd-paranoid-mode' initFlags. should be true or false")
 		}
-		config.CipdParanoidMode = cipdParanoidFlag
+		config.CipdParanoidMode = initFlags.cipdParanoid
 	}
 
-	config.CipdMaxThreads = cipdMaxThreads
+	config.CipdMaxThreads = initFlags.cipdMaxThreads
 
-	if analyticsOptFlag != "" {
-		if val, err := strconv.ParseBool(analyticsOptFlag); err != nil {
-			return fmt.Errorf("'analytics-opt' flag should be true or false")
+	if initFlags.analyticsOpt != "" {
+		if val, err := strconv.ParseBool(initFlags.analyticsOpt); err != nil {
+			return fmt.Errorf("'analytics-opt' initFlags. should be true or false")
 		} else {
 			if val {
 				config.AnalyticsOptIn = "yes"
@@ -272,11 +272,11 @@ func runInit(env *cmdline.Env, args []string) error {
 		}
 	}
 
-	if len(excludeDirsFlag) != 0 {
+	if len(initFlags.excludeDirs) != 0 {
 		config.ExcludeDirs = []string{}
 	}
 
-	for _, r := range excludeDirsFlag {
+	for _, r := range initFlags.excludeDirs {
 		config.ExcludeDirs = append(config.ExcludeDirs, r)
 	}
 

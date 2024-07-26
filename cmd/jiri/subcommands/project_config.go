@@ -22,16 +22,16 @@ Prints/Manages local project config. This command should be run from inside a
 project. It will print config if no flags are provided otherwise set it.`,
 }
 
-var (
-	configIgnoreFlag   string
-	configNoUpdateFlag string
-	configNoRebaseFlag string
-)
+var projectConfigFlags struct {
+	ignore   string
+	noUpdate string
+	noRebase string
+}
 
 func init() {
-	cmdProjectConfig.Flags.StringVar(&configIgnoreFlag, "ignore", "", `This can be true or false. If set to true project would be completely ignored while updating`)
-	cmdProjectConfig.Flags.StringVar(&configNoUpdateFlag, "no-update", "", `This can be true or false. If set to true project won't be updated`)
-	cmdProjectConfig.Flags.StringVar(&configNoRebaseFlag, "no-rebase", "", `This can be true or false. If set to true local branch won't be rebased or merged.`)
+	cmdProjectConfig.Flags.StringVar(&projectConfigFlags.ignore, "ignore", "", `This can be true or false. If set to true project would be completely ignored while updating`)
+	cmdProjectConfig.Flags.StringVar(&projectConfigFlags.noUpdate, "no-update", "", `This can be true or false. If set to true project won't be updated`)
+	cmdProjectConfig.Flags.StringVar(&projectConfigFlags.noRebase, "no-rebase", "", `This can be true or false. If set to true local branch won't be rebased or merged.`)
 }
 
 func runProjectConfig(jirix *jiri.X, args []string) error {
@@ -39,18 +39,18 @@ func runProjectConfig(jirix *jiri.X, args []string) error {
 	if err != nil {
 		return err
 	}
-	if configIgnoreFlag == "" && configNoUpdateFlag == "" && configNoRebaseFlag == "" {
+	if projectConfigFlags.ignore == "" && projectConfigFlags.noUpdate == "" && projectConfigFlags.noRebase == "" {
 		displayConfig(p.LocalConfig)
 		return nil
 	}
 	lc := p.LocalConfig
-	if err := setBoolVar(configIgnoreFlag, &lc.Ignore, "ignore"); err != nil {
+	if err := setBoolVar(projectConfigFlags.ignore, &lc.Ignore, "ignore"); err != nil {
 		return err
 	}
-	if err := setBoolVar(configNoUpdateFlag, &lc.NoUpdate, "no-update"); err != nil {
+	if err := setBoolVar(projectConfigFlags.noUpdate, &lc.NoUpdate, "no-update"); err != nil {
 		return err
 	}
-	if err := setBoolVar(configNoRebaseFlag, &lc.NoRebase, "no-rebase"); err != nil {
+	if err := setBoolVar(projectConfigFlags.noRebase, &lc.NoRebase, "no-rebase"); err != nil {
 		return err
 	}
 	return project.WriteLocalConfig(jirix, p, lc)

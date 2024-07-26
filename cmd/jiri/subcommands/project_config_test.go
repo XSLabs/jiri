@@ -14,9 +14,9 @@ import (
 )
 
 func setDefaultConfigFlags() {
-	configIgnoreFlag = ""
-	configNoUpdateFlag = ""
-	configNoRebaseFlag = ""
+	projectConfigFlags.ignore = ""
+	projectConfigFlags.noUpdate = ""
+	projectConfigFlags.noRebase = ""
 }
 
 func testConfig(t *testing.T, fake *jiritest.FakeJiriRoot, localProjects []project.Project) {
@@ -34,8 +34,8 @@ func testConfig(t *testing.T, fake *jiritest.FakeJiriRoot, localProjects []proje
 	newConfig := p.LocalConfig
 
 	expectedOutput := oldConfig.Ignore
-	if configIgnoreFlag != "" {
-		if expectedOutput, err = strconv.ParseBool(configIgnoreFlag); err != nil {
+	if projectConfigFlags.ignore != "" {
+		if expectedOutput, err = strconv.ParseBool(projectConfigFlags.ignore); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -44,8 +44,8 @@ func testConfig(t *testing.T, fake *jiritest.FakeJiriRoot, localProjects []proje
 	}
 
 	expectedOutput = oldConfig.NoUpdate
-	if configNoUpdateFlag != "" {
-		if expectedOutput, err = strconv.ParseBool(configNoUpdateFlag); err != nil {
+	if projectConfigFlags.noUpdate != "" {
+		if expectedOutput, err = strconv.ParseBool(projectConfigFlags.noUpdate); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -54,8 +54,8 @@ func testConfig(t *testing.T, fake *jiritest.FakeJiriRoot, localProjects []proje
 	}
 
 	expectedOutput = oldConfig.NoRebase
-	if configNoRebaseFlag != "" {
-		if expectedOutput, err = strconv.ParseBool(configNoRebaseFlag); err != nil {
+	if projectConfigFlags.noRebase != "" {
+		if expectedOutput, err = strconv.ParseBool(projectConfigFlags.noRebase); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -84,30 +84,30 @@ func TestConfig(t *testing.T) {
 	}
 
 	setDefaultConfigFlags()
-	configIgnoreFlag = "true"
+	projectConfigFlags.ignore = "true"
 	testConfig(t, fake, localProjects)
 
 	setDefaultConfigFlags()
-	configNoUpdateFlag = "true"
-	configNoRebaseFlag = "true"
+	projectConfigFlags.noUpdate = "true"
+	projectConfigFlags.noRebase = "true"
 	testConfig(t, fake, localProjects)
 
 	setDefaultConfigFlags()
 	testConfig(t, fake, localProjects)
 
 	setDefaultConfigFlags()
-	configNoRebaseFlag = "false"
-	configIgnoreFlag = "true"
+	projectConfigFlags.noRebase = "false"
+	projectConfigFlags.ignore = "true"
 	testConfig(t, fake, localProjects)
 
 	setDefaultConfigFlags()
-	configNoRebaseFlag = "false"
-	configNoUpdateFlag = "false"
+	projectConfigFlags.noRebase = "false"
+	projectConfigFlags.noUpdate = "false"
 	testConfig(t, fake, localProjects)
 
 	setDefaultConfigFlags()
-	configNoRebaseFlag = "false"
-	configNoUpdateFlag = "false"
-	configIgnoreFlag = "false"
+	projectConfigFlags.noRebase = "false"
+	projectConfigFlags.noUpdate = "false"
+	projectConfigFlags.ignore = "false"
 	testConfig(t, fake, localProjects)
 }

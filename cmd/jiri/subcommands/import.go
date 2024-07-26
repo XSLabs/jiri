@@ -15,29 +15,31 @@ import (
 	"go.fuchsia.dev/jiri/project"
 )
 
-var (
+var importFlags struct {
 	// Flags for configuring project attributes for remote imports.
-	flagImportName, flagImportRemoteBranch, flagImportRoot string
+	name         string
+	remoteBranch string
+	root         string
 	// Flags for controlling the behavior of the command.
-	flagImportOverwrite  bool
-	flagImportOut        string
-	flagImportDelete     bool
-	flagImportRevision   string
-	flagImportList       bool
-	flagImportJsonOutput string
-)
+	overwrite  bool
+	out        string
+	delete     bool
+	revision   string
+	list       bool
+	jsonOutput string
+}
 
 func init() {
-	cmdImport.Flags.StringVar(&flagImportName, "name", "manifest", `The name of the remote manifest project.`)
-	cmdImport.Flags.StringVar(&flagImportRemoteBranch, "remote-branch", "main", `The branch of the remote manifest project to track, without the leading "origin/".`)
-	cmdImport.Flags.StringVar(&flagImportRevision, "revision", "", `Revision to check out for the remote.`)
-	cmdImport.Flags.StringVar(&flagImportRoot, "root", "", `Root to store the manifest project locally.`)
+	cmdImport.Flags.StringVar(&importFlags.name, "name", "manifest", `The name of the remote manifest project.`)
+	cmdImport.Flags.StringVar(&importFlags.remoteBranch, "remote-branch", "main", `The branch of the remote manifest project to track, without the leading "origin/".`)
+	cmdImport.Flags.StringVar(&importFlags.revision, "revision", "", `Revision to check out for the remote.`)
+	cmdImport.Flags.StringVar(&importFlags.root, "root", "", `Root to store the manifest project locally.`)
 
-	cmdImport.Flags.BoolVar(&flagImportOverwrite, "overwrite", false, `Write a new .jiri_manifest file with the given specification.  If it already exists, the existing content will be ignored and the file will be overwritten.`)
-	cmdImport.Flags.StringVar(&flagImportOut, "out", "", `The output file.  Uses <root>/.jiri_manifest if unspecified.  Uses stdout if set to "-".`)
-	cmdImport.Flags.BoolVar(&flagImportDelete, "delete", false, `Delete existing import. Import is matched using <manifest>, <remote> and name. <remote> is optional.`)
-	cmdImport.Flags.BoolVar(&flagImportList, "list", false, `List all the imports from .jiri_manifest. This flag doesn't accept any arguments. -json-out flag can be used to specify json output file.`)
-	cmdImport.Flags.StringVar(&flagImportJsonOutput, "json-output", "", `Json output file from -list flag.`)
+	cmdImport.Flags.BoolVar(&importFlags.overwrite, "overwrite", false, `Write a new .jiri_manifest file with the given specification.  If it already exists, the existing content will be ignored and the file will be overwritten.`)
+	cmdImport.Flags.StringVar(&importFlags.out, "out", "", `The output file.  Uses <root>/.jiri_manifest if unspecified.  Uses stdout if set to "-".`)
+	cmdImport.Flags.BoolVar(&importFlags.delete, "delete", false, `Delete existing import. Import is matched using <manifest>, <remote> and name. <remote> is optional.`)
+	cmdImport.Flags.BoolVar(&importFlags.list, "list", false, `List all the imports from .jiri_manifest. This flag doesn't accept any arguments. -json-out flag can be used to specify json output file.`)
+	cmdImport.Flags.StringVar(&importFlags.jsonOutput, "json-output", "", `Json output file from -list flag.`)
 }
 
 var cmdImport = &cmdline.Command{
@@ -104,22 +106,22 @@ func getListObject(imports []project.Import) []Import {
 }
 
 func runImport(jirix *jiri.X, args []string) error {
-	if flagImportDelete && flagImportOverwrite {
+	if importFlags.delete && importFlags.overwrite {
 		return jirix.UsageErrorf("cannot use -delete and -overwrite together")
 	}
-	if flagImportList && flagImportOverwrite {
+	if importFlags.list && importFlags.overwrite {
 		return jirix.UsageErrorf("cannot use -list and -overwrite together")
 	}
-	if flagImportDelete && flagImportList {
+	if importFlags.delete && importFlags.list {
 		return jirix.UsageErrorf("cannot use -delete and -list together")
 	}
 
-	if flagImportList && len(args) != 0 {
+	if importFlags.list && len(args) != 0 {
 		return jirix.UsageErrorf("wrong number of arguments with list flag: %v", len(args))
 	}
-	if flagImportDelete && len(args) != 1 && len(args) != 2 {
+	if importFlags.delete && len(args) != 1 && len(args) != 2 {
 		return jirix.UsageErrorf("wrong number of arguments with delete flag")
-	} else if !flagImportDelete && !flagImportList && len(args) != 2 {
+	} else if !importFlags.delete && !importFlags.list && len(args) != 2 {
 		return jirix.UsageErrorf("wrong number of arguments")
 	}
 
@@ -129,7 +131,7 @@ func runImport(jirix *jiri.X, args []string) error {
 	if err != nil {
 		return err
 	}
-	if !flagImportOverwrite && manifestExists {
+	if !importFlags.overwrite && manifestExists {
 		m, err := project.ManifestFromFile(jirix, jirix.JiriManifestFile())
 		if err != nil {
 			return err
@@ -140,9 +142,9 @@ func runImport(jirix *jiri.X, args []string) error {
 		manifest = &project.Manifest{}
 	}
 
-	if flagImportList {
+	if importFlags.list {
 		imports := getListObject(manifest.Imports)
-		if flagImportJsonOutput == "" {
+		if importFlags.jsonOutput == "" {
 			for _, i := range imports {
 				fmt.Printf("* import\t%s\n", i.Name)
 				fmt.Printf("  Manifest:\t%s\n", i.Manifest)
@@ -157,15 +159,15 @@ func runImport(jirix *jiri.X, args []string) error {
 			if err != nil {
 				return fmt.Errorf("failed to serialize JSON output: %s\n", err)
 			}
-			return os.WriteFile(flagImportJsonOutput, out, 0644)
+			return os.WriteFile(importFlags.jsonOutput, out, 0644)
 		}
 	}
 
-	if flagImportDelete {
+	if importFlags.delete {
 		var tempImports []project.Import
 		deletedImports := make(map[string]project.Import)
 		for _, imp := range manifest.Imports {
-			if imp.Manifest == args[0] && imp.Name == flagImportName {
+			if imp.Manifest == args[0] && imp.Name == importFlags.name {
 				match := true
 				if len(args) == 2 {
 					match = false
@@ -196,7 +198,7 @@ func runImport(jirix *jiri.X, args []string) error {
 		manifest.Imports = tempImports
 	} else {
 		for _, imp := range manifest.Imports {
-			if imp.Manifest == args[0] && imp.Remote == args[1] && imp.Name == flagImportName {
+			if imp.Manifest == args[0] && imp.Remote == args[1] && imp.Name == importFlags.name {
 				//Already exists, skip
 				jirix.Logger.Debugf("Skip import. Duplicate entry")
 				return nil
@@ -206,16 +208,16 @@ func runImport(jirix *jiri.X, args []string) error {
 		// errors will be reported when "jiri update" is run.
 		manifest.Imports = append(manifest.Imports, project.Import{
 			Manifest:     args[0],
-			Name:         flagImportName,
+			Name:         importFlags.name,
 			Remote:       args[1],
-			RemoteBranch: flagImportRemoteBranch,
-			Revision:     flagImportRevision,
-			Root:         flagImportRoot,
+			RemoteBranch: importFlags.remoteBranch,
+			Revision:     importFlags.revision,
+			Root:         importFlags.root,
 		})
 	}
 
 	// Write output to stdout or file.
-	outFile := flagImportOut
+	outFile := importFlags.out
 	if outFile == "" {
 		outFile = jirix.JiriManifestFile()
 	}

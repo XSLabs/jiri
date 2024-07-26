@@ -68,8 +68,8 @@ func TestProjectIgnoresByAttribute(t *testing.T) {
 	}
 	defer os.Remove(file.Name())
 
-	jsonOutputFlag = file.Name()
-	useRemoteProjects = true
+	projectFlags.jsonOutput = file.Name()
+	projectFlags.useRemoteProjects = true
 
 	err = runProject(fake.X, []string{})
 	if err != nil {
@@ -103,7 +103,7 @@ func TestProjectIgnoresByAttribute(t *testing.T) {
 	}
 	defer os.Remove(file2.Name())
 
-	jsonOutputFlag = file2.Name()
+	projectFlags.jsonOutput = file2.Name()
 
 	err = runProject(fake.X, []string{})
 	if err != nil {

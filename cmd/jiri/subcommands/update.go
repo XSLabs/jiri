@@ -15,24 +15,24 @@ import (
 	"go.fuchsia.dev/jiri/retry"
 )
 
-var (
-	gcFlag               bool
-	localManifestFlag    bool
-	attemptsFlag         uint
-	autoupdateFlag       bool
-	forceAutoupdateFlag  bool
-	rebaseUntrackedFlag  bool
-	hookTimeoutFlag      uint
-	fetchPkgsTimeoutFlag uint
-	rebaseAllFlag        bool
-	rebaseCurrentFlag    bool
-	rebaseSubmodulesFlag bool
-	rebaseTrackedFlag    bool
-	runHooksFlag         bool
-	fetchPkgsFlag        bool
-	overrideOptionalFlag bool
-	packagesToSkipFlag   arrayFlag
-)
+var updateFlags struct {
+	gc               bool
+	localManifest    bool
+	attempts         uint
+	autoupdate       bool
+	forceAutoupdate  bool
+	rebaseUntracked  bool
+	hookTimeout      uint
+	fetchPkgsTimeout uint
+	rebaseAll        bool
+	rebaseCurrent    bool
+	rebaseSubmodules bool
+	rebaseTracked    bool
+	runHooks         bool
+	fetchPkgs        bool
+	overrideOptional bool
+	packagesToSkip   arrayFlag
+}
 
 const (
 	MIN_EXECUTION_TIMING_THRESHOLD time.Duration = time.Duration(30) * time.Minute        // 30 min
@@ -40,22 +40,22 @@ const (
 )
 
 func init() {
-	cmdUpdate.Flags.BoolVar(&gcFlag, "gc", true, "Garbage collect obsolete repositories.")
-	cmdUpdate.Flags.BoolVar(&localManifestFlag, "local-manifest", false, "Use local manifest")
-	cmdUpdate.Flags.UintVar(&attemptsFlag, "attempts", 3, "Number of attempts before failing.")
-	cmdUpdate.Flags.BoolVar(&autoupdateFlag, "autoupdate", true, "Automatically update to the new version.")
-	cmdUpdate.Flags.BoolVar(&forceAutoupdateFlag, "force-autoupdate", false, "Always update to the current version.")
-	cmdUpdate.Flags.BoolVar(&rebaseUntrackedFlag, "rebase-untracked", false, "Rebase untracked branches onto HEAD.")
-	cmdUpdate.Flags.UintVar(&hookTimeoutFlag, "hook-timeout", project.DefaultHookTimeout, "Timeout in minutes for running the hooks operation.")
-	cmdUpdate.Flags.UintVar(&fetchPkgsTimeoutFlag, "fetch-packages-timeout", project.DefaultPackageTimeout, "Timeout in minutes for fetching prebuilt packages using cipd.")
-	cmdUpdate.Flags.BoolVar(&rebaseAllFlag, "rebase-all", false, "Rebase all tracked branches. Also rebase all untracked branches if -rebase-untracked is passed")
-	cmdUpdate.Flags.BoolVar(&rebaseCurrentFlag, "rebase-current", false, "Deprecated. Implies -rebase-tracked. Would be removed in future.")
-	cmdUpdate.Flags.BoolVar(&rebaseSubmodulesFlag, "rebase-submodules", false, "Rebase current tracked branches for submodules.")
-	cmdUpdate.Flags.BoolVar(&rebaseTrackedFlag, "rebase-tracked", false, "Rebase current tracked branches instead of fast-forwarding them.")
-	cmdUpdate.Flags.BoolVar(&runHooksFlag, "run-hooks", true, "Run hooks after updating sources.")
-	cmdUpdate.Flags.BoolVar(&fetchPkgsFlag, "fetch-packages", true, "Use cipd to fetch packages.")
-	cmdUpdate.Flags.BoolVar(&overrideOptionalFlag, "override-optional", false, "Override existing optional attributes in the snapshot file with current jiri settings")
-	cmdUpdate.Flags.Var(&packagesToSkipFlag, "package-to-skip", "Skip fetching this package. Repeatable.")
+	cmdUpdate.Flags.BoolVar(&updateFlags.gc, "gc", true, "Garbage collect obsolete repositories.")
+	cmdUpdate.Flags.BoolVar(&updateFlags.localManifest, "local-manifest", false, "Use local manifest")
+	cmdUpdate.Flags.UintVar(&updateFlags.attempts, "attempts", 3, "Number of attempts before failing.")
+	cmdUpdate.Flags.BoolVar(&updateFlags.autoupdate, "autoupdate", true, "Automatically update to the new version.")
+	cmdUpdate.Flags.BoolVar(&updateFlags.forceAutoupdate, "force-autoupdate", false, "Always update to the current version.")
+	cmdUpdate.Flags.BoolVar(&updateFlags.rebaseUntracked, "rebase-untracked", false, "Rebase untracked branches onto HEAD.")
+	cmdUpdate.Flags.UintVar(&updateFlags.hookTimeout, "hook-timeout", project.DefaultHookTimeout, "Timeout in minutes for running the hooks operation.")
+	cmdUpdate.Flags.UintVar(&updateFlags.fetchPkgsTimeout, "fetch-packages-timeout", project.DefaultPackageTimeout, "Timeout in minutes for fetching prebuilt packages using cipd.")
+	cmdUpdate.Flags.BoolVar(&updateFlags.rebaseAll, "rebase-all", false, "Rebase all tracked branches. Also rebase all untracked branches if -rebase-untracked is passed")
+	cmdUpdate.Flags.BoolVar(&updateFlags.rebaseCurrent, "rebase-current", false, "Deprecated. Implies -rebase-tracked. Would be removed in future.")
+	cmdUpdate.Flags.BoolVar(&updateFlags.rebaseSubmodules, "rebase-submodules", false, "Rebase current tracked branches for submodules.")
+	cmdUpdate.Flags.BoolVar(&updateFlags.rebaseTracked, "rebase-tracked", false, "Rebase current tracked branches instead of fast-forwarding them.")
+	cmdUpdate.Flags.BoolVar(&updateFlags.runHooks, "run-hooks", true, "Run hooks after updating sources.")
+	cmdUpdate.Flags.BoolVar(&updateFlags.fetchPkgs, "fetch-packages", true, "Use cipd to fetch packages.")
+	cmdUpdate.Flags.BoolVar(&updateFlags.overrideOptional, "override-optional", false, "Override existing optional attributes in the snapshot file with current jiri settings")
+	cmdUpdate.Flags.Var(&updateFlags.packagesToSkip, "package-to-skip", "Skip fetching this package. Repeatable.")
 }
 
 // cmdUpdate represents the "jiri update" command.
@@ -79,27 +79,27 @@ func runUpdate(jirix *jiri.X, args []string) error {
 		return jirix.UsageErrorf("unexpected number of arguments")
 	}
 
-	if attemptsFlag < 1 {
+	if updateFlags.attempts < 1 {
 		return jirix.UsageErrorf("Number of attempts should be >= 1")
 	}
-	jirix.Attempts = attemptsFlag
+	jirix.Attempts = updateFlags.attempts
 
-	if autoupdateFlag {
+	if updateFlags.autoupdate {
 		// Try to update Jiri itself.
 		if err := retry.Function(jirix, func() error {
-			return jiri.UpdateAndExecute(forceAutoupdateFlag)
+			return jiri.UpdateAndExecute(updateFlags.forceAutoupdate)
 		}, fmt.Sprintf("download jiri binary"), retry.AttemptsOpt(jirix.Attempts)); err != nil {
 			fmt.Printf("warning: automatic update failed: %v\n", err)
 		}
 	}
-	if rebaseCurrentFlag {
-		jirix.Logger.Warningf("Flag -rebase-current has been deprecated, please use -rebase-tracked.\n\n")
-		rebaseTrackedFlag = true
+	if updateFlags.rebaseCurrent {
+		jirix.Logger.Warningf("updateFlags. -rebase-current has been deprecated, please use -rebase-tracked.\n\n")
+		updateFlags.rebaseTracked = true
 	}
 
 	if len(args) > 0 {
-		jirix.OverrideOptional = overrideOptionalFlag
-		if err := project.CheckoutSnapshot(jirix, args[0], gcFlag, runHooksFlag, fetchPkgsFlag, hookTimeoutFlag, fetchPkgsTimeoutFlag, packagesToSkipFlag); err != nil {
+		jirix.OverrideOptional = updateFlags.overrideOptional
+		if err := project.CheckoutSnapshot(jirix, args[0], updateFlags.gc, updateFlags.runHooks, updateFlags.fetchPkgs, updateFlags.hookTimeout, updateFlags.fetchPkgsTimeout, updateFlags.packagesToSkip); err != nil {
 			return err
 		}
 	} else {
@@ -113,19 +113,19 @@ func runUpdate(jirix *jiri.X, args []string) error {
 		}
 
 		err := project.UpdateUniverse(jirix, project.UpdateUniverseParams{
-			GC:                   gcFlag,
-			LocalManifest:        localManifestFlag,
-			RebaseTracked:        rebaseTrackedFlag,
-			RebaseUntracked:      rebaseUntrackedFlag,
-			RebaseAll:            rebaseAllFlag,
-			RunHooks:             runHooksFlag,
-			FetchPackages:        fetchPkgsFlag,
-			RebaseSubmodules:     rebaseSubmodulesFlag,
-			RunHookTimeout:       hookTimeoutFlag,
-			FetchPackagesTimeout: fetchPkgsTimeoutFlag,
-			PackagesToSkip:       packagesToSkipFlag,
+			GC:                   updateFlags.gc,
+			LocalManifest:        updateFlags.localManifest,
+			RebaseTracked:        updateFlags.rebaseTracked,
+			RebaseUntracked:      updateFlags.rebaseUntracked,
+			RebaseAll:            updateFlags.rebaseAll,
+			RunHooks:             updateFlags.runHooks,
+			FetchPackages:        updateFlags.fetchPkgs,
+			RebaseSubmodules:     updateFlags.rebaseSubmodules,
+			RunHookTimeout:       updateFlags.hookTimeout,
+			FetchPackagesTimeout: updateFlags.fetchPkgsTimeout,
+			PackagesToSkip:       updateFlags.packagesToSkip,
 		})
-		if err2 := project.WriteUpdateHistorySnapshot(jirix, nil, nil, localManifestFlag); err2 != nil {
+		if err2 := project.WriteUpdateHistorySnapshot(jirix, nil, nil, updateFlags.localManifest); err2 != nil {
 			if err != nil {
 				return fmt.Errorf("while updating: %s, while writing history: %s", err, err2)
 			}

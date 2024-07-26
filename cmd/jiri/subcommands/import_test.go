@@ -25,15 +25,15 @@ type importTestCase struct {
 }
 
 func setDefaultImportFlags() {
-	flagImportName = "manifest"
-	flagImportRemoteBranch = "main"
-	flagImportRevision = ""
-	flagImportRoot = ""
-	flagImportOverwrite = false
-	flagImportOut = ""
-	flagImportDelete = false
-	flagImportList = false
-	flagImportJsonOutput = ""
+	importFlags.name = "manifest"
+	importFlags.remoteBranch = "main"
+	importFlags.revision = ""
+	importFlags.root = ""
+	importFlags.overwrite = false
+	importFlags.out = ""
+	importFlags.delete = false
+	importFlags.list = false
+	importFlags.jsonOutput = ""
 }
 
 func TestImport(t *testing.T) {
@@ -52,9 +52,9 @@ func TestImport(t *testing.T) {
 		// Remote imports, default append behavior
 		{
 			SetFlags: func() {
-				flagImportName = "name"
-				flagImportRemoteBranch = "remotebranch"
-				flagImportRoot = "root"
+				importFlags.name = "name"
+				importFlags.remoteBranch = "remotebranch"
+				importFlags.root = "root"
 			},
 			Args: []string{"foo", "https://github.com/new.git"},
 			Want: `<manifest>
@@ -75,7 +75,7 @@ func TestImport(t *testing.T) {
 		},
 		{
 			SetFlags: func() {
-				flagImportOut = "file"
+				importFlags.out = "file"
 			},
 			Args:     []string{"foo", "https://github.com/new.git"},
 			Filename: `file`,
@@ -88,7 +88,7 @@ func TestImport(t *testing.T) {
 		},
 		{
 			SetFlags: func() {
-				flagImportOut = "-"
+				importFlags.out = "-"
 			},
 			Args: []string{"foo", "https://github.com/new.git"},
 			Stdout: `<manifest>
@@ -100,8 +100,8 @@ func TestImport(t *testing.T) {
 		},
 		{
 			SetFlags: func() {
-				flagImportList = true
-				flagImportJsonOutput = "file"
+				importFlags.list = true
+				importFlags.jsonOutput = "file"
 			},
 			Exist: `<manifest>
   <imports>
@@ -123,7 +123,7 @@ func TestImport(t *testing.T) {
 		},
 		{
 			SetFlags: func() {
-				flagImportList = true
+				importFlags.list = true
 			},
 			Exist: `<manifest>
   <imports>
@@ -165,7 +165,7 @@ func TestImport(t *testing.T) {
 		// Remote imports, explicit overwrite behavior
 		{
 			SetFlags: func() {
-				flagImportOverwrite = true
+				importFlags.overwrite = true
 			},
 			Args: []string{"foo", "https://github.com/new.git"},
 			Want: `<manifest>
@@ -177,8 +177,8 @@ func TestImport(t *testing.T) {
 		},
 		{
 			SetFlags: func() {
-				flagImportOverwrite = true
-				flagImportOut = "file"
+				importFlags.overwrite = true
+				importFlags.out = "file"
 			},
 			Args:     []string{"foo", "https://github.com/new.git"},
 			Filename: `file`,
@@ -191,8 +191,8 @@ func TestImport(t *testing.T) {
 		},
 		{
 			SetFlags: func() {
-				flagImportOverwrite = true
-				flagImportOut = "-"
+				importFlags.overwrite = true
+				importFlags.out = "-"
 			},
 			Args: []string{"foo", "https://github.com/new.git"},
 			Stdout: `<manifest>
@@ -204,7 +204,7 @@ func TestImport(t *testing.T) {
 		},
 		{
 			SetFlags: func() {
-				flagImportOverwrite = true
+				importFlags.overwrite = true
 			},
 			Args: []string{"foo", "https://github.com/new.git"},
 			Exist: `<manifest>
@@ -223,14 +223,14 @@ func TestImport(t *testing.T) {
 		// test delete flag
 		{
 			SetFlags: func() {
-				flagImportDelete = true
+				importFlags.delete = true
 			},
 			Stderr:  `wrong number of arguments`,
 			runOnce: true,
 		},
 		{
 			SetFlags: func() {
-				flagImportDelete = true
+				importFlags.delete = true
 			},
 			Args:    []string{"a", "b", "c"},
 			Stderr:  `wrong number of arguments`,
@@ -238,8 +238,8 @@ func TestImport(t *testing.T) {
 		},
 		{
 			SetFlags: func() {
-				flagImportDelete = true
-				flagImportOverwrite = true
+				importFlags.delete = true
+				importFlags.overwrite = true
 			},
 			Args:    []string{"a", "b"},
 			Stderr:  `cannot use -delete and -overwrite together`,
@@ -247,7 +247,7 @@ func TestImport(t *testing.T) {
 		},
 		{
 			SetFlags: func() {
-				flagImportDelete = true
+				importFlags.delete = true
 			},
 			Args:    []string{"foo"},
 			runOnce: true,
@@ -269,7 +269,7 @@ func TestImport(t *testing.T) {
 		},
 		{
 			SetFlags: func() {
-				flagImportDelete = true
+				importFlags.delete = true
 			},
 			Args:    []string{"foo"},
 			runOnce: true,
@@ -285,7 +285,7 @@ func TestImport(t *testing.T) {
 		},
 		{
 			SetFlags: func() {
-				flagImportDelete = true
+				importFlags.delete = true
 			},
 			Args:    []string{"foo"},
 			runOnce: true,
@@ -306,7 +306,7 @@ func TestImport(t *testing.T) {
 		},
 		{
 			SetFlags: func() {
-				flagImportDelete = true
+				importFlags.delete = true
 			},
 			Args:    []string{"foo", "https://github2.com/orig.git"},
 			runOnce: true,

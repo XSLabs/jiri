@@ -17,20 +17,20 @@ import (
 	"go.fuchsia.dev/jiri/project"
 )
 
-var (
-	uploadCcsFlag          string
-	uploadPresubmitFlag    string
-	uploadReviewersFlag    string
-	uploadTopicFlag        string
-	uploadVerifyFlag       bool
-	uploadRebaseFlag       bool
-	uploadSetTopicFlag     bool
-	uploadMultipartFlag    bool
-	uploadBranchFlag       string
-	uploadRemoteBranchFlag string
-	uploadLabelsFlag       string
-	uploadGitOptions       string
-)
+var uploadFlags struct {
+	ccs          string
+	presubmit    string
+	reviewers    string
+	topic        string
+	verify       bool
+	rebase       bool
+	setTopic     bool
+	multipart    bool
+	branch       string
+	remoteBranch string
+	labels       string
+	gitOptions   string
+}
 
 type uploadError string
 
@@ -53,20 +53,20 @@ default. This cannot be used with -multipart flag.
 }
 
 func init() {
-	cmdUpload.Flags.StringVar(&uploadCcsFlag, "cc", "", `Comma-separated list of emails or LDAPs to cc.`)
-	cmdUpload.Flags.StringVar(&uploadPresubmitFlag, "presubmit", string(gerrit.PresubmitTestTypeAll),
+	cmdUpload.Flags.StringVar(&uploadFlags.ccs, "cc", "", `Comma-separated list of emails or LDAPs to cc.`)
+	cmdUpload.Flags.StringVar(&uploadFlags.presubmit, "presubmit", string(gerrit.PresubmitTestTypeAll),
 		fmt.Sprintf("The type of presubmit tests to run. Valid values: %s.", strings.Join(gerrit.PresubmitTestTypes(), ",")))
-	cmdUpload.Flags.StringVar(&uploadReviewersFlag, "r", "", `Comma-separated list of emails or LDAPs to request review.`)
-	cmdUpload.Flags.StringVar(&uploadLabelsFlag, "l", "", `Comma-separated list of review labels.`)
-	cmdUpload.Flags.StringVar(&uploadTopicFlag, "topic", "", `CL topic. Default is <username>-<branchname>. If this flag is set, upload will ignore -set-topic and will set a topic.`)
-	cmdUpload.Flags.BoolVar(&uploadSetTopicFlag, "set-topic", false, `Set topic. This flag would be ignored if -topic passed.`)
-	cmdUpload.Flags.BoolVar(&uploadVerifyFlag, "verify", true, `Run pre-push git hooks.`)
-	cmdUpload.Flags.BoolVar(&uploadRebaseFlag, "rebase", false, `Run rebase before pushing.`)
-	cmdUpload.Flags.BoolVar(&uploadMultipartFlag, "multipart", false, `Send multipart CL.  Use -set-topic or -topic flag if you want to set a topic.`)
-	cmdUpload.Flags.StringVar(&uploadBranchFlag, "branch", "", `Used when multipart flag is true and this command is executed from root folder`)
-	cmdUpload.Flags.StringVar(&uploadRemoteBranchFlag, "remoteBranch", "", `Remote branch to upload change to. If this is not specified and branch is untracked,
+	cmdUpload.Flags.StringVar(&uploadFlags.reviewers, "r", "", `Comma-separated list of emails or LDAPs to request review.`)
+	cmdUpload.Flags.StringVar(&uploadFlags.labels, "l", "", `Comma-separated list of review labels.`)
+	cmdUpload.Flags.StringVar(&uploadFlags.topic, "topic", "", `CL topic. Default is <username>-<branchname>. If this flag is set, upload will ignore -set-topic and will set a topic.`)
+	cmdUpload.Flags.BoolVar(&uploadFlags.setTopic, "set-topic", false, `Set topic. This flag would be ignored if -topic passed.`)
+	cmdUpload.Flags.BoolVar(&uploadFlags.verify, "verify", true, `Run pre-push git hooks.`)
+	cmdUpload.Flags.BoolVar(&uploadFlags.rebase, "rebase", false, `Run rebase before pushing.`)
+	cmdUpload.Flags.BoolVar(&uploadFlags.multipart, "multipart", false, `Send multipart CL.  Use -set-topic or -topic flag if you want to set a topic.`)
+	cmdUpload.Flags.StringVar(&uploadFlags.branch, "branch", "", `Used when multipart flag is true and this command is executed from root folder`)
+	cmdUpload.Flags.StringVar(&uploadFlags.remoteBranch, "remoteBranch", "", `Remote branch to upload change to. If this is not specified and branch is untracked,
 change would be uploaded to branch in project manifest`)
-	cmdUpload.Flags.StringVar(&uploadGitOptions, "git-options", "", `Passthrough git options`)
+	cmdUpload.Flags.StringVar(&uploadFlags.gitOptions, "git-options", "", `Passthrough git options`)
 }
 
 // runUpload is a wrapper that pushes the changes to gerrit for review.
@@ -77,7 +77,7 @@ func runUpload(jirix *jiri.X, args []string) error {
 	} else if len(args) > 1 {
 		return jirix.UsageErrorf("wrong number of arguments")
 	}
-	if uploadMultipartFlag && refToUpload != "HEAD" {
+	if uploadFlags.multipart && refToUpload != "HEAD" {
 		return jirix.UsageErrorf("can only use HEAD as <ref> when using -multipart flag.")
 	}
 	dir, err := os.Getwd()
@@ -102,29 +102,29 @@ func runUpload(jirix *jiri.X, args []string) error {
 		break
 	}
 
-	setTopic := uploadSetTopicFlag
+	setTopic := uploadFlags.setTopic
 
 	// Always set topic when either topic is passed.
-	if uploadTopicFlag != "" {
+	if uploadFlags.topic != "" {
 		setTopic = true
 	}
 
 	currentBranch := ""
 	if p == nil {
-		if !uploadMultipartFlag {
+		if !uploadFlags.multipart {
 			return fmt.Errorf("directory %q is not contained in a project", dir)
-		} else if uploadBranchFlag == "" {
+		} else if uploadFlags.branch == "" {
 			return fmt.Errorf("Please run with -branch flag")
 		} else {
-			currentBranch = uploadBranchFlag
+			currentBranch = uploadFlags.branch
 		}
 	} else {
 		scm := gitutil.New(jirix, gitutil.RootDirOpt(p.Path))
 		if !scm.IsOnBranch() {
-			if uploadMultipartFlag {
+			if uploadFlags.multipart {
 				return fmt.Errorf("Current project is not on any branch. Multipart uploads require project to be on a branch.")
 			}
-			if uploadTopicFlag == "" && setTopic {
+			if uploadFlags.topic == "" && setTopic {
 				return fmt.Errorf("Current project is not on any branch. Either provide a topic or set flag \"-set-topic\" to false.")
 			}
 		} else {
@@ -137,7 +137,7 @@ func runUpload(jirix *jiri.X, args []string) error {
 	var projectsToProcess []project.Project
 	topic := ""
 	if setTopic {
-		if topic = uploadTopicFlag; topic == "" {
+		if topic = uploadFlags.topic; topic == "" {
 			topic = fmt.Sprintf("%s-%s", os.Getenv("USER"), currentBranch) // use <username>-<branchname> as the default
 		}
 	}
@@ -145,7 +145,7 @@ func runUpload(jirix *jiri.X, args []string) error {
 	if err != nil {
 		return err
 	}
-	if uploadMultipartFlag {
+	if uploadFlags.multipart {
 		for _, project := range localProjects {
 			scm := gitutil.New(jirix, gitutil.RootDirOpt(project.Path))
 			if scm.IsOnBranch() {
@@ -186,14 +186,14 @@ func runUpload(jirix *jiri.X, args []string) error {
 			// Just use the full path if an error occurred.
 			relativePath = project.Path
 		}
-		if uploadRebaseFlag {
+		if uploadFlags.rebase {
 			if changes, err := gitutil.New(jirix, gitutil.RootDirOpt(project.Path)).HasUncommittedChanges(); err != nil {
 				return err
 			} else if changes {
 				return fmt.Errorf("Project %s(%s) has uncommited changes, please commit them or stash them. Cannot rebase before pushing.", project.Name, relativePath)
 			}
 		}
-		remoteBranch := uploadRemoteBranchFlag
+		remoteBranch := uploadFlags.remoteBranch
 		if remoteBranch == "" && currentBranch != "" {
 			remoteBranch, err = scm.RemoteBranchName()
 			if err != nil {
@@ -210,14 +210,14 @@ func runUpload(jirix *jiri.X, args []string) error {
 		}
 
 		opts := gerrit.CLOpts{
-			Ccs:          parseEmails(uploadCcsFlag),
-			GitOptions:   uploadGitOptions,
-			Presubmit:    gerrit.PresubmitTestType(uploadPresubmitFlag),
+			Ccs:          parseEmails(uploadFlags.ccs),
+			GitOptions:   uploadFlags.gitOptions,
+			Presubmit:    gerrit.PresubmitTestType(uploadFlags.presubmit),
 			RemoteBranch: remoteBranch,
 			Remote:       "origin",
-			Reviewers:    parseEmails(uploadReviewersFlag),
-			Labels:       parseLabels(uploadLabelsFlag),
-			Verify:       uploadVerifyFlag,
+			Reviewers:    parseEmails(uploadFlags.reviewers),
+			Labels:       parseLabels(uploadFlags.labels),
+			Verify:       uploadFlags.verify,
 			Topic:        topic,
 			RefToUpload:  refToUpload,
 		}
@@ -229,7 +229,7 @@ func runUpload(jirix *jiri.X, args []string) error {
 	}
 
 	// Rebase all projects before pushing
-	if uploadRebaseFlag {
+	if uploadFlags.rebase {
 		for _, gerritPushOption := range gerritPushOptions {
 			scm := gitutil.New(jirix, gitutil.RootDirOpt(gerritPushOption.Project.Path))
 			if err := scm.Fetch("origin", jirix.EnableSubmodules); err != nil {

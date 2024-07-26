@@ -10,13 +10,12 @@ import (
 	"go.fuchsia.dev/jiri/project"
 )
 
-var (
-	submoduleFlag  bool
-	cipdEnsureFlag bool
-)
+var snapshotFlags struct {
+	cipdEnsure bool
+}
 
 func init() {
-	cmdSnapshot.Flags.BoolVar(&cipdEnsureFlag, "cipd", false, "Generate a cipd.ensure (packages only) snapshot.")
+	cmdSnapshot.Flags.BoolVar(&snapshotFlags.cipdEnsure, "cipd", false, "Generate a cipd.ensure (packages only) snapshot.")
 }
 
 var cmdSnapshot = &cmdline.Command{
@@ -35,5 +34,5 @@ func runSnapshot(jirix *jiri.X, args []string) error {
 	if len(args) != 1 {
 		return jirix.UsageErrorf("unexpected number of arguments")
 	}
-	return project.CreateSnapshot(jirix, args[0], nil, nil, true, cipdEnsureFlag)
+	return project.CreateSnapshot(jirix, args[0], nil, nil, true, snapshotFlags.cipdEnsure)
 }

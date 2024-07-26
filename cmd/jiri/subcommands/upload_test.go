@@ -110,17 +110,17 @@ func assertUploadFilesNotPushedToRef(t *testing.T, jirix *jiri.X, gerritPath, pu
 }
 
 func resetFlags() {
-	uploadCcsFlag = ""
-	uploadGitOptions = ""
-	uploadPresubmitFlag = string(gerrit.PresubmitTestTypeAll)
-	uploadReviewersFlag = ""
-	uploadTopicFlag = ""
-	uploadVerifyFlag = true
-	uploadRebaseFlag = false
-	uploadMultipartFlag = false
-	uploadBranchFlag = ""
-	uploadRemoteBranchFlag = ""
-	uploadSetTopicFlag = false
+	uploadFlags.ccs = ""
+	uploadFlags.gitOptions = ""
+	uploadFlags.presubmit = string(gerrit.PresubmitTestTypeAll)
+	uploadFlags.reviewers = ""
+	uploadFlags.topic = ""
+	uploadFlags.verify = true
+	uploadFlags.rebase = false
+	uploadFlags.multipart = false
+	uploadFlags.branch = ""
+	uploadFlags.remoteBranch = ""
+	uploadFlags.setTopic = false
 }
 
 func TestUpload(t *testing.T) {
@@ -158,13 +158,13 @@ func TestUpload(t *testing.T) {
 	expectedRef := "refs/for/main"
 	assertUploadPushedFilesToRef(t, fake.X, gerritPath, expectedRef, files)
 
-	uploadRemoteBranchFlag = "new-branch"
-	uploadSetTopicFlag = true
+	uploadFlags.remoteBranch = "new-branch"
+	uploadFlags.setTopic = true
 	if err := runUpload(fake.X, []string{}); err != nil {
 		t.Fatal(err)
 	}
 	topic := fmt.Sprintf("%s-%s", os.Getenv("USER"), branch)
-	expectedRef = fmt.Sprintf("refs/for/%s%%topic=%s", uploadRemoteBranchFlag, topic)
+	expectedRef = fmt.Sprintf("refs/for/%s%%topic=%s", uploadFlags.remoteBranch, topic)
 
 	assertUploadPushedFilesToRef(t, fake.X, gerritPath, expectedRef, files)
 }
@@ -223,7 +223,7 @@ func TestUploadFromDetachedHead(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	uploadSetTopicFlag = true
+	uploadFlags.setTopic = true
 	expectedErr := "Current project is not on any branch. Either provide a topic or set flag \"-set-topic\" to false."
 	if err := runUpload(fake.X, []string{}); err == nil {
 		t.Fatalf("expected error: %s", expectedErr)
@@ -232,7 +232,7 @@ func TestUploadFromDetachedHead(t *testing.T) {
 	}
 
 	resetFlags()
-	uploadMultipartFlag = true
+	uploadFlags.multipart = true
 	expectedErr = "Current project is not on any branch. Multipart uploads require project to be on a branch."
 	if err := runUpload(fake.X, []string{}); err == nil {
 		t.Fatalf("expected a error: %s", expectedErr)
@@ -245,7 +245,7 @@ func TestUploadFromDetachedHead(t *testing.T) {
 	}
 
 	resetFlags()
-	uploadTopicFlag = "topic"
+	uploadFlags.topic = "topic"
 	if err := runUpload(fake.X, []string{}); err != nil {
 		t.Fatal(err)
 	}
@@ -283,7 +283,7 @@ func TestUploadMultipart(t *testing.T) {
 	}
 
 	gerritPath := fake.Projects[localProjects[0].Name]
-	uploadMultipartFlag = true
+	uploadFlags.multipart = true
 	if err := runUpload(fake.X, []string{}); err != nil {
 		t.Fatal(err)
 	}
@@ -292,14 +292,14 @@ func TestUploadMultipart(t *testing.T) {
 
 	assertUploadPushedFilesToRef(t, fake.X, gerritPath, expectedRef, []string{"file-10", "file-20"})
 
-	uploadRemoteBranchFlag = "new-branch"
+	uploadFlags.remoteBranch = "new-branch"
 
-	uploadSetTopicFlag = true
+	uploadFlags.setTopic = true
 	if err := runUpload(fake.X, []string{}); err != nil {
 		t.Fatal(err)
 	}
 	topic := fmt.Sprintf("%s-%s", os.Getenv("USER"), branch)
-	expectedRef = fmt.Sprintf("refs/for/%s%%topic=%s", uploadRemoteBranchFlag, topic)
+	expectedRef = fmt.Sprintf("refs/for/%s%%topic=%s", uploadFlags.remoteBranch, topic)
 
 	assertUploadPushedFilesToRef(t, fake.X, gerritPath, expectedRef, []string{"file-10", "file-20"})
 }
@@ -339,15 +339,15 @@ func TestUploadMultipartWithBranchFlagSimple(t *testing.T) {
 	}
 
 	gerritPath := fake.Projects[localProjects[0].Name]
-	uploadMultipartFlag = true
-	uploadBranchFlag = branch
+	uploadFlags.multipart = true
+	uploadFlags.branch = branch
 	if err := runUpload(fake.X, []string{}); err != nil {
 		t.Fatal(err)
 	}
 	expectedRef := "refs/for/main"
 	assertUploadPushedFilesToRef(t, fake.X, gerritPath, expectedRef, []string{"file-10", "file-20"})
 
-	uploadSetTopicFlag = true
+	uploadFlags.setTopic = true
 	if err := runUpload(fake.X, []string{}); err != nil {
 		t.Fatal(err)
 	}
@@ -401,7 +401,7 @@ func TestUploadRebase(t *testing.T) {
 	}
 
 	gerritPath := fake.Projects[localProjects[1].Name]
-	uploadRebaseFlag = true
+	uploadFlags.rebase = true
 	if err := runUpload(fake.X, []string{}); err != nil {
 		t.Fatal(err)
 	}
@@ -481,11 +481,11 @@ func TestUploadUntrackedBranch(t *testing.T) {
 
 	assertUploadPushedFilesToRef(t, fake.X, gerritPath, expectedRef, files)
 
-	uploadRemoteBranchFlag = "new-branch"
+	uploadFlags.remoteBranch = "new-branch"
 	if err := runUpload(fake.X, []string{}); err != nil {
 		t.Fatal(err)
 	}
-	expectedRef = fmt.Sprintf("refs/for/%s", uploadRemoteBranchFlag)
+	expectedRef = fmt.Sprintf("refs/for/%s", uploadFlags.remoteBranch)
 
 	assertUploadPushedFilesToRef(t, fake.X, gerritPath, expectedRef, files)
 }
@@ -513,7 +513,7 @@ func TestGitOptions(t *testing.T) {
 		t.Errorf("upload failed due to error: %v", err)
 	}
 	// Test passing through "--dry-run" git option
-	uploadGitOptions = "--dry-run"
+	uploadFlags.gitOptions = "--dry-run"
 	files = []string{"file2"}
 	commitFiles(t, fake.X, files)
 	if err := runUpload(fake.X, []string{}); err != nil {

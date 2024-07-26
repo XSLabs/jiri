@@ -18,6 +18,11 @@ import (
 	"go.fuchsia.dev/jiri/project"
 )
 
+var packageFlags struct {
+	jsonOutput string
+	regexp     bool
+}
+
 // cmd represents the "jiri project" command.
 var cmdPackage = &cmdline.Command{
 	Runner: jiri.RunnerFunc(runPackageInfo),
@@ -41,8 +46,8 @@ type packageInfoOutput struct {
 }
 
 func init() {
-	cmdPackage.Flags.StringVar(&jsonOutputFlag, "json-output", "", "Path to write operation results to.")
-	cmdPackage.Flags.BoolVar(&regexpFlag, "regexp", false, "Use argument as regular expression.")
+	cmdPackage.Flags.StringVar(&packageFlags.jsonOutput, "json-output", "", "Path to write operation results to.")
+	cmdPackage.Flags.BoolVar(&packageFlags.regexp, "regexp", false, "Use argument as regular expression.")
 }
 
 // runPackageInfo provides structured info on packages.
@@ -51,7 +56,7 @@ func runPackageInfo(jirix *jiri.X, args []string) error {
 
 	regexps := make([]*regexp.Regexp, 0)
 	for _, arg := range args {
-		if !regexpFlag {
+		if !packageFlags.regexp {
 			arg = "^" + regexp.QuoteMeta(arg) + "$"
 		}
 		if re, err := regexp.Compile(arg); err != nil {
@@ -129,7 +134,7 @@ func runPackageInfo(jirix *jiri.X, args []string) error {
 		fmt.Printf("  Platforms: %v\n", i.Platforms)
 	}
 
-	if jsonOutputFlag != "" {
+	if packageFlags.jsonOutput != "" {
 		if err := writeJSONOutput(info); err != nil {
 			return err
 		}
