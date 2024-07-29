@@ -287,7 +287,7 @@ func runProjectInfo(jirix *jiri.X, args []string) error {
 	}
 
 	if projectFlags.jsonOutput != "" {
-		if err := writeJSONOutput(info); err != nil {
+		if err := writeJSONOutput(projectFlags.jsonOutput, info); err != nil {
 			return err
 		}
 	}
@@ -295,15 +295,15 @@ func runProjectInfo(jirix *jiri.X, args []string) error {
 	return nil
 }
 
-func writeJSONOutput(result any) error {
+func writeJSONOutput(path string, result any) error {
 	out, err := json.MarshalIndent(&result, "", "  ")
 	if err != nil {
 		return fmt.Errorf("failed to serialize JSON output: %s", err)
 	}
 
-	err = os.WriteFile(projectFlags.jsonOutput, out, 0600)
+	err = os.WriteFile(path, out, 0600)
 	if err != nil {
-		return fmt.Errorf("failed write JSON output to %s: %s", projectFlags.jsonOutput, err)
+		return fmt.Errorf("failed write JSON output to %s: %s", path, err)
 	}
 
 	return nil

@@ -135,7 +135,7 @@ func runPackageInfo(jirix *jiri.X, args []string) error {
 	}
 
 	if packageFlags.jsonOutput != "" {
-		if err := writeJSONOutput(info); err != nil {
+		if err := writeJSONOutput(packageFlags.jsonOutput, info); err != nil {
 			return err
 		}
 	}
