@@ -49,8 +49,7 @@ path-2 manifest public
 `)
 
 	// Setup fake workspace and update $JIRI_ROOT
-	_, fakeroot, cleanup := setupUniverse(t)
-	defer cleanup()
+	_, fakeroot := setupUniverse(t)
 	if err := fakeroot.UpdateUniverse(false); err != nil {
 		t.Errorf("%v", err)
 	}
@@ -69,11 +68,7 @@ path-2 manifest public
 		pathMap[v.Path] = v
 	}
 
-	tempDir, err := os.MkdirTemp("", "gitmodules")
-	if err != nil {
-		t.Errorf(".gitmodules generation failed due to error %v", err)
-	}
-	defer os.RemoveAll(tempDir)
+	tempDir := t.TempDir()
 
 	genGitModuleFlags.genScript = path.Join(tempDir, "setup.sh")
 	err = runGenGitModule(fakeroot.X, []string{

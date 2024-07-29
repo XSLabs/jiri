@@ -128,8 +128,7 @@ func expectedOutput(t *testing.T, fake *jiritest.FakeJiriRoot, localProjects []p
 
 func TestStatus(t *testing.T) {
 	setDefaultStatusFlags()
-	fake, cleanup := jiritest.NewFakeJiriRoot(t)
-	defer cleanup()
+	fake := jiritest.NewFakeJiriRoot(t)
 
 	// Add projects
 	numProjects := 3
@@ -182,8 +181,7 @@ func TestStatus(t *testing.T) {
 
 func TestStatusWhenUserUpdatesGitTree(t *testing.T) {
 	setDefaultStatusFlags()
-	fake, cleanup := jiritest.NewFakeJiriRoot(t)
-	defer cleanup()
+	fake := jiritest.NewFakeJiriRoot(t)
 
 	// Add projects
 	numProjects := 1
@@ -209,8 +207,7 @@ func TestStatusWhenUserUpdatesGitTree(t *testing.T) {
 
 func TestStatusDeleted(t *testing.T) {
 	setDefaultStatusFlags()
-	fake, cleanup := jiritest.NewFakeJiriRoot(t)
-	defer cleanup()
+	fake := jiritest.NewFakeJiriRoot(t)
 
 	// Add projects
 	numProjects := 5
@@ -251,8 +248,7 @@ func TestStatusDeleted(t *testing.T) {
 }
 
 func statusFlagsTest(t *testing.T) {
-	fake, cleanup := jiritest.NewFakeJiriRoot(t)
-	defer cleanup()
+	fake := jiritest.NewFakeJiriRoot(t)
 
 	// Add projects
 	numProjects := 6

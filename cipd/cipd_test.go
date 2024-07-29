@@ -51,13 +51,8 @@ var (
 // TestFetchBinary tests fetchiBinary method by fetching a set of
 // cipd binaries. This test requires network access
 func TestFetchBinary(t *testing.T) {
-	fakex, cleanup := xtest.NewX(t)
-	defer cleanup()
-	tmpDir, err := os.MkdirTemp("", "jiri-test")
-	if err != nil {
-		t.Error("failed to create temp dir for testing")
-	}
-	defer os.RemoveAll(tmpDir)
+	fakex := xtest.NewX(t)
+	tmpDir := t.TempDir()
 
 	tests := []struct {
 		version string
@@ -112,13 +107,8 @@ func TestFetchDigest(t *testing.T) {
 }
 
 func TestSelfUpdate(t *testing.T) {
-	fakex, cleanup := xtest.NewX(t)
-	defer cleanup()
-	tmpDir, err := os.MkdirTemp("", "jiri-test")
-	if err != nil {
-		t.Error("failed to create temp dir for testing")
-	}
-	defer os.RemoveAll(tmpDir)
+	fakex := xtest.NewX(t)
+	tmpDir := t.TempDir()
 	// Bootstrap cipd to version A
 	cipdPath := path.Join(tmpDir, "cipd")
 	if err := fetchBinary(fakex, cipdPath, CipdPlatform.String(), cipdVersionForTestA, digestMapA[CipdPlatform.String()]); err != nil {
@@ -143,8 +133,7 @@ func TestSelfUpdate(t *testing.T) {
 }
 
 func TestBootsrap(t *testing.T) {
-	fakex, cleanup := xtest.NewX(t)
-	defer cleanup()
+	fakex := xtest.NewX(t)
 	cipdPath, err := Bootstrap(fakex, fakex.CIPDPath())
 	if cipdPath == "" {
 		t.Errorf("bootstrap returned an empty path")
@@ -162,20 +151,17 @@ func TestBootsrap(t *testing.T) {
 }
 
 func TestEnsure(t *testing.T) {
-	fakex, cleanup := xtest.NewX(t)
-	defer cleanup()
-	cipdPath, err := Bootstrap(fakex, fakex.CIPDPath())
+	fakex := xtest.NewX(t)
+	_, err := Bootstrap(fakex, fakex.CIPDPath())
 	if err != nil {
 		t.Errorf("bootstrap failed due to error: %v", err)
 	}
-	defer os.Remove(cipdPath)
 	// Write test ensure file
-	testEnsureFile, err := os.CreateTemp("", "test_jiri*.ensure")
+	testEnsureFile, err := os.CreateTemp(t.TempDir(), "test_jiri*.ensure")
 	if err != nil {
 		t.Errorf("failed to create test ensure file: %v", err)
 	}
 	defer testEnsureFile.Close()
-	defer os.Remove(testEnsureFile.Name())
 	_, err = testEnsureFile.Write([]byte(`
 $ParanoidMode CheckPresence
 
@@ -186,11 +172,7 @@ gn/gn/${platform} git_revision:bdb0fd02324b120cacde634a9235405061c8ea06
 		t.Errorf("failed to write test ensure file: %v", err)
 	}
 	testEnsureFile.Sync()
-	tmpDir, err := os.MkdirTemp("", "jiri-test")
-	if err != nil {
-		t.Error("failed to creat temp dir for testing")
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := t.TempDir()
 	// Invoke Ensure on test ensure file
 	if err := Ensure(fakex, testEnsureFile.Name(), tmpDir, 30); err != nil {
 		t.Errorf("ensure failed due to error: %v", err)
@@ -206,8 +188,7 @@ gn/gn/${platform} git_revision:bdb0fd02324b120cacde634a9235405061c8ea06
 }
 
 func TestEnsureFileVerify(t *testing.T) {
-	fakex, cleanup := xtest.NewX(t)
-	defer cleanup()
+	fakex := xtest.NewX(t)
 	cipdPath, err := Bootstrap(fakex, fakex.CIPDPath())
 	if err != nil {
 		t.Errorf("bootstrap failed due to error: %v", err)
@@ -238,8 +219,7 @@ gn/gn/${platform} git_revision:bdb0fd02324b120cacde634a9235405061c8ea06
 }
 
 func TestEnsureFileVerifyInvalid(t *testing.T) {
-	fakex, cleanup := xtest.NewX(t)
-	defer cleanup()
+	fakex := xtest.NewX(t)
 	cipdPath, err := Bootstrap(fakex, fakex.CIPDPath())
 	if err != nil {
 		t.Errorf("bootstrap failed due to error: %v", err)
@@ -270,8 +250,7 @@ gn/gn/${platform} git_revision:not_a_real_version
 }
 
 func TestCheckACL(t *testing.T) {
-	fakex, cleanup := xtest.NewX(t)
-	defer cleanup()
+	fakex := xtest.NewX(t)
 	cipdPath, err := Bootstrap(fakex, fakex.CIPDPath())
 	if err != nil {
 		t.Errorf("bootstrap failed due to error: %v", err)
@@ -296,8 +275,7 @@ func TestCheckACL(t *testing.T) {
 }
 
 func TestResolve(t *testing.T) {
-	fakex, cleanup := xtest.NewX(t)
-	defer cleanup()
+	fakex := xtest.NewX(t)
 	cipdPath, err := Bootstrap(fakex, fakex.CIPDPath())
 	if err != nil {
 		t.Errorf("bootstrap failed due to error: %v", err)
@@ -415,8 +393,7 @@ func TestDecl(t *testing.T) {
 }
 
 func TestFloatingRefs(t *testing.T) {
-	fakex, cleanup := xtest.NewX(t)
-	defer cleanup()
+	fakex := xtest.NewX(t)
 	cipdPath, err := Bootstrap(fakex, fakex.CIPDPath())
 	if err != nil {
 		t.Errorf("bootstrap failed due to error: %v", err)

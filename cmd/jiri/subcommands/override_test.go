@@ -274,13 +274,6 @@ func TestOverride(t *testing.T) {
 		},
 	}
 
-	// Temporary directory in which our jiri binary will live.
-	binDir, err := os.MkdirTemp("", "")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(binDir)
-
 	for _, test := range tests {
 		if err := testOverride(t, test); err != nil {
 			t.Errorf("%v: %v", test.Args, err)
@@ -289,14 +282,7 @@ func TestOverride(t *testing.T) {
 }
 
 func testOverride(t *testing.T, test overrideTestCase) error {
-	jirix, cleanup := xtest.NewX(t)
-	defer cleanup()
-	// Temporary directory in which to run `jiri import`.
-	tmpDir, err := os.MkdirTemp("", "")
-	if err != nil {
-		return err
-	}
-	defer os.RemoveAll(tmpDir)
+	jirix := xtest.NewX(t)
 
 	// Create a .jiri_manifest file which imports the manifest created above.
 	manifest := project.Manifest{

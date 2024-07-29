@@ -46,8 +46,7 @@ func createRunHookProjects(t *testing.T, fake *jiritest.FakeJiriRoot, numProject
 
 func TestRunHookSimple(t *testing.T) {
 	setDefaultRunHookFlags()
-	fake, cleanup := jiritest.NewFakeJiriRoot(t)
-	defer cleanup()
+	fake := jiritest.NewFakeJiriRoot(t)
 	projects := createRunHookProjects(t, fake, 1)
 	err := fake.AddHook(project.Hook{Name: "hook1",
 		Action:      "action.sh",
@@ -67,8 +66,7 @@ func TestRunHookSimple(t *testing.T) {
 
 func TestRunHookLocalManifest(t *testing.T) {
 	setDefaultRunHookFlags()
-	fake, cleanup := jiritest.NewFakeJiriRoot(t)
-	defer cleanup()
+	fake := jiritest.NewFakeJiriRoot(t)
 	projects := createRunHookProjects(t, fake, 1)
 	err := fake.AddHook(project.Hook{Name: "hook1",
 		Action:      "action.sh",

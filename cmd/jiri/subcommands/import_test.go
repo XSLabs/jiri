@@ -328,13 +328,6 @@ func TestImport(t *testing.T) {
 		},
 	}
 
-	// Temporary directory in which our jiri binary will live.
-	binDir, err := os.MkdirTemp("", "")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(binDir)
-
 	for _, test := range tests {
 		if err := testImport(t, test); err != nil {
 			t.Errorf("%v: %v", test.Args, err)
@@ -343,14 +336,9 @@ func TestImport(t *testing.T) {
 }
 
 func testImport(t *testing.T, test importTestCase) error {
-	jirix, cleanup := xtest.NewX(t)
-	defer cleanup()
+	jirix := xtest.NewX(t)
 	// Temporary directory in which to run `jiri import`.
-	tmpDir, err := os.MkdirTemp("", "")
-	if err != nil {
-		return err
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := t.TempDir()
 
 	// Return to the current working directory when done.
 	cwd, err := os.Getwd()

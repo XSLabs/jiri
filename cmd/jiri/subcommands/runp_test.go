@@ -78,8 +78,8 @@ func executeRunp(t *testing.T, fake *jiritest.FakeJiriRoot, args ...string) stri
 }
 
 func TestRunP(t *testing.T) {
-	fake, cleanup := jiritest.NewFakeJiriRoot(t)
-	defer cleanup()
+	fake := jiritest.NewFakeJiriRoot(t)
+
 	projects := addProjects(t, fake)
 
 	if got, want := len(projects), 5; got != want {

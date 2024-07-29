@@ -52,8 +52,7 @@ func TestManifest(t *testing.T) {
 
 	runCommand := func(t *testing.T, args []string) (stdout string, stderr string) {
 		// Set up a fake Jiri root to pass to our command.
-		fake, cleanup := jiritest.NewFakeJiriRoot(t)
-		defer cleanup()
+		fake := jiritest.NewFakeJiriRoot(t)
 
 		// Initialize flags for the command.
 		flagSet := flag.NewFlagSet("manifest-test", flag.ContinueOnError)

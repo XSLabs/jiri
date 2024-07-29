@@ -60,8 +60,7 @@ func writeReadme(t *testing.T, jirix *jiri.X, projectDir, message string) {
 
 // TestSnapshot tests creating and checking out a snapshot.
 func TestSnapshot(t *testing.T) {
-	fake, cleanup := jiritest.NewFakeJiriRoot(t)
-	defer cleanup()
+	fake := jiritest.NewFakeJiriRoot(t)
 
 	// Setup the initial remote and local projects.
 	numProjects, remoteProjects := 2, []string{}
@@ -127,8 +126,7 @@ func TestSnapshot(t *testing.T) {
 
 // TestCipdSnapshot tests creating cipd snapshot files.
 func TestCipdSnapshot(t *testing.T) {
-	fake, cleanup := jiritest.NewFakeJiriRoot(t)
-	defer cleanup()
+	fake := jiritest.NewFakeJiriRoot(t)
 
 	// Setup fake packages
 	fake.AddPackage(project.Package{

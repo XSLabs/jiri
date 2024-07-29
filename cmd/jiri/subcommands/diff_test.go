@@ -104,8 +104,7 @@ func setUpSnapshots(t *testing.T, rootDir string) ([]byte, []byte, *Diff) {
 }
 
 func TestDiffLocalSnapshots(t *testing.T) {
-	fake, cleanup := jiritest.NewFakeJiriRoot(t)
-	defer cleanup()
+	fake := jiritest.NewFakeJiriRoot(t)
 	s1, s2, d := setUpSnapshots(t, fake.X.Root)
 	if string(s1) == string(s2) {
 		t.Fatal("e")
@@ -150,8 +149,7 @@ func TestDiffLocalSnapshots(t *testing.T) {
 }
 
 func TestDiffSnapshotsUrl(t *testing.T) {
-	fake, cleanup := jiritest.NewFakeJiriRoot(t)
-	defer cleanup()
+	fake := jiritest.NewFakeJiriRoot(t)
 
 	s1, s2, d := setUpSnapshots(t, fake.X.Root)
 	want, err := json.Marshal(d)

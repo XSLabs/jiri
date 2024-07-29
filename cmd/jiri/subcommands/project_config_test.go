@@ -65,11 +65,10 @@ func testConfig(t *testing.T, fake *jiritest.FakeJiriRoot, localProjects []proje
 }
 
 func TestConfig(t *testing.T) {
-	localProjects, fake, cleanup := setupUniverse(t)
+	localProjects, fake := setupUniverse(t)
 	if err := fake.UpdateUniverse(false); err != nil {
 		t.Fatal(err)
 	}
-	defer cleanup()
 	currentDir, err := os.Getwd()
 	if err != nil {
 		t.Fatal(err)

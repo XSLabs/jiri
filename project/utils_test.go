@@ -46,8 +46,8 @@ func TestWriteGitExcludeFiles(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(fmt.Sprint(tc), func(t *testing.T) {
-			fake, cleanup := jiritest.NewFakeJiriRoot(t)
-			defer cleanup()
+			fake := jiritest.NewFakeJiriRoot(t)
+
 			// write initialFile
 			gitExclude := filepath.Join(fake.X.Root, ".git/info/exclude")
 			if err := project.SafeWriteFile(fake.X, gitExclude, []byte(tc.initialFile)); err != nil {

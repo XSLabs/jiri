@@ -13,8 +13,7 @@ import (
 )
 
 func TestResolveProjects(t *testing.T) {
-	_, fakeroot, cleanup := setupUniverse(t)
-	defer cleanup()
+	_, fakeroot := setupUniverse(t)
 
 	if err := fakeroot.UpdateUniverse(false); err != nil {
 		t.Errorf("%v", err)
@@ -55,8 +54,8 @@ func TestResolveProjects(t *testing.T) {
 }
 
 func TestResolvePackages(t *testing.T) {
-	fakeroot, cleanup := jiritest.NewFakeJiriRoot(t)
-	defer cleanup()
+	fakeroot := jiritest.NewFakeJiriRoot(t)
+
 	// Replace the .jiri_manifest with package declarations
 	pkgData := []byte(`
 <manifest>
@@ -129,8 +128,8 @@ func TestResolvePackages(t *testing.T) {
 }
 
 func TestResolvePackagesPartial(t *testing.T) {
-	fakeroot, cleanup := jiritest.NewFakeJiriRoot(t)
-	defer cleanup()
+	fakeroot := jiritest.NewFakeJiriRoot(t)
+
 	// Replace the .jiri_manifest with package declarations
 	pkgData := []byte(`
 <manifest>

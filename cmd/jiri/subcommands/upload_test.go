@@ -24,14 +24,8 @@ func projectName(i int) string {
 
 // setupUniverse creates a fake jiri root with 3 remote projects.  Each project
 // has a README with text "initial readme".
-func setupUniverse(t *testing.T) ([]project.Project, *jiritest.FakeJiriRoot, func()) {
-	fake, cleanup := jiritest.NewFakeJiriRoot(t)
-	success := false
-	defer func() {
-		if !success {
-			cleanup()
-		}
-	}()
+func setupUniverse(t *testing.T) ([]project.Project, *jiritest.FakeJiriRoot) {
+	fake := jiritest.NewFakeJiriRoot(t)
 
 	// Create some projects and add them to the remote manifest.
 	numProjects := 3
@@ -58,17 +52,16 @@ func setupUniverse(t *testing.T) ([]project.Project, *jiritest.FakeJiriRoot, fun
 		writeReadme(t, fake.X, remoteProjectDir, "initial readme")
 	}
 
-	success = true
-	return localProjects, fake, cleanup
+	return localProjects, fake
 }
 
 // setupTest creates a setup for testing the upload tool.
-func setupUploadTest(t *testing.T) (*jiritest.FakeJiriRoot, []project.Project, func()) {
-	localProjects, fake, cleanup := setupUniverse(t)
+func setupUploadTest(t *testing.T) (*jiritest.FakeJiriRoot, []project.Project) {
+	localProjects, fake := setupUniverse(t)
 	if err := fake.UpdateUniverse(false); err != nil {
 		t.Fatal(err)
 	}
-	return fake, localProjects, cleanup
+	return fake, localProjects
 }
 
 func assertUploadPushedFilesToRef(t *testing.T, jirix *jiri.X, gerritPath, pushedRef string, files []string) {
@@ -125,8 +118,8 @@ func resetFlags() {
 
 func TestUpload(t *testing.T) {
 	defer resetFlags()
-	fake, localProjects, cleanup := setupUploadTest(t)
-	defer cleanup()
+	fake, localProjects := setupUploadTest(t)
+
 	currentDir, err := os.Getwd()
 	if err != nil {
 		t.Fatal(err)
@@ -171,8 +164,8 @@ func TestUpload(t *testing.T) {
 
 func TestUploadRef(t *testing.T) {
 	defer resetFlags()
-	fake, localProjects, cleanup := setupUploadTest(t)
-	defer cleanup()
+	fake, localProjects := setupUploadTest(t)
+
 	currentDir, err := os.Getwd()
 	if err != nil {
 		t.Fatal(err)
@@ -208,8 +201,8 @@ func TestUploadRef(t *testing.T) {
 
 func TestUploadFromDetachedHead(t *testing.T) {
 	defer resetFlags()
-	fake, localProjects, cleanup := setupUploadTest(t)
-	defer cleanup()
+	fake, localProjects := setupUploadTest(t)
+
 	currentDir, err := os.Getwd()
 	if err != nil {
 		t.Fatal(err)
@@ -253,8 +246,8 @@ func TestUploadFromDetachedHead(t *testing.T) {
 
 func TestUploadMultipart(t *testing.T) {
 	defer resetFlags()
-	fake, localProjects, cleanup := setupUploadTest(t)
-	defer cleanup()
+	fake, localProjects := setupUploadTest(t)
+
 	currentDir, err := os.Getwd()
 	if err != nil {
 		t.Fatal(err)
@@ -306,8 +299,8 @@ func TestUploadMultipart(t *testing.T) {
 
 func TestUploadMultipartWithBranchFlagSimple(t *testing.T) {
 	defer resetFlags()
-	fake, localProjects, cleanup := setupUploadTest(t)
-	defer cleanup()
+	fake, localProjects := setupUploadTest(t)
+
 	currentDir, err := os.Getwd()
 	if err != nil {
 		t.Fatal(err)
@@ -359,8 +352,8 @@ func TestUploadMultipartWithBranchFlagSimple(t *testing.T) {
 
 func TestUploadRebase(t *testing.T) {
 	defer resetFlags()
-	fake, localProjects, cleanup := setupUploadTest(t)
-	defer cleanup()
+	fake, localProjects := setupUploadTest(t)
+
 	currentDir, err := os.Getwd()
 	if err != nil {
 		t.Fatal(err)
@@ -413,8 +406,8 @@ func TestUploadRebase(t *testing.T) {
 
 func TestUploadMultipleCommits(t *testing.T) {
 	defer resetFlags()
-	fake, localProjects, cleanup := setupUploadTest(t)
-	defer cleanup()
+	fake, localProjects := setupUploadTest(t)
+
 	currentDir, err := os.Getwd()
 	if err != nil {
 		t.Fatal(err)
@@ -451,8 +444,8 @@ func TestUploadMultipleCommits(t *testing.T) {
 
 func TestUploadUntrackedBranch(t *testing.T) {
 	defer resetFlags()
-	fake, localProjects, cleanup := setupUploadTest(t)
-	defer cleanup()
+	fake, localProjects := setupUploadTest(t)
+
 	currentDir, err := os.Getwd()
 	if err != nil {
 		t.Fatal(err)
@@ -492,8 +485,8 @@ func TestUploadUntrackedBranch(t *testing.T) {
 
 func TestGitOptions(t *testing.T) {
 	defer resetFlags()
-	fake, localProjects, cleanup := setupUploadTest(t)
-	defer cleanup()
+	fake, localProjects := setupUploadTest(t)
+
 	currentDir, err := os.Getwd()
 	if err != nil {
 		t.Errorf("failed to retrieve current directory due to error: %v", err)

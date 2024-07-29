@@ -35,9 +35,9 @@ const (
 // NewFakeJiriRoot returns a new FakeJiriRoot and a cleanup closure.  The
 // closure must be run to cleanup temporary directories and restore the original
 // environment; typically it is run as a defer function.
-func NewFakeJiriRoot(t *testing.T) (*FakeJiriRoot, func()) {
+func NewFakeJiriRoot(t *testing.T) *FakeJiriRoot {
 	// lockfiles are disabled in tests by defaults
-	jirix, cleanup := xtest.NewX(t)
+	jirix := xtest.NewX(t)
 	fake := &FakeJiriRoot{
 		X:             jirix,
 		Projects:      map[string]string{},
@@ -45,10 +45,7 @@ func NewFakeJiriRoot(t *testing.T) (*FakeJiriRoot, func()) {
 	}
 
 	// Create fake remote manifest projects.
-	remoteDir, err := os.MkdirTemp("", "")
-	if err != nil {
-		t.Fatalf("TempDir() failed: %v", err)
-	}
+	remoteDir := t.TempDir()
 	fake.remote = remoteDir
 	if err := fake.CreateRemoteProject(ManifestProjectPath); err != nil {
 		t.Fatal(err)
@@ -88,12 +85,7 @@ func NewFakeJiriRoot(t *testing.T) (*FakeJiriRoot, func()) {
 		t.Fatal(err)
 	}
 
-	return fake, func() {
-		cleanup()
-		if err := os.RemoveAll(fake.remote); err != nil {
-			t.Fatalf("RemoveAll(%q) failed: %v", fake.remote, err)
-		}
-	}
+	return fake
 }
 
 // AddProject adds the given project to a remote manifest.
@@ -103,10 +95,7 @@ func (fake FakeJiriRoot) AddProject(project project.Project) error {
 		return err
 	}
 	manifest.Projects = append(manifest.Projects, project)
-	if err := fake.WriteRemoteManifest(manifest); err != nil {
-		return err
-	}
-	return nil
+	return fake.WriteRemoteManifest(manifest)
 }
 
 // AddHook adds the given hook to a remote manifest.
@@ -116,10 +105,7 @@ func (fake FakeJiriRoot) AddHook(hook project.Hook) error {
 		return err
 	}
 	manifest.Hooks = append(manifest.Hooks, hook)
-	if err := fake.WriteRemoteManifest(manifest); err != nil {
-		return err
-	}
-	return nil
+	return fake.WriteRemoteManifest(manifest)
 }
 
 // AddPackage adds the given package to a remote manifest.
@@ -129,20 +115,14 @@ func (fake FakeJiriRoot) AddPackage(pkg project.Package) error {
 		return err
 	}
 	manifest.Packages = append(manifest.Packages, pkg)
-	if err := fake.WriteRemoteManifest(manifest); err != nil {
-		return err
-	}
-	return nil
+	return fake.WriteRemoteManifest(manifest)
 }
 
 // DisableRemoteManifestPush disables pushes to the remote manifest
 // repository.
 func (fake FakeJiriRoot) DisableRemoteManifestPush() error {
 	dir := gitutil.RootDirOpt(filepath.Join(fake.remote, ManifestProjectPath))
-	if err := gitutil.New(fake.X, dir).CheckoutBranch("main", false, false); err != nil {
-		return err
-	}
-	return nil
+	return gitutil.New(fake.X, dir).CheckoutBranch("main", false, false)
 }
 
 // EnableRemoteManifestPush enables pushes to the remote manifest
@@ -157,10 +137,7 @@ func (fake FakeJiriRoot) EnableRemoteManifestPush() error {
 	} else if err != nil {
 		return err
 	}
-	if err := scm.CheckoutBranch("non-main", false, false); err != nil {
-		return err
-	}
-	return nil
+	return scm.CheckoutBranch("non-main", false, false)
 }
 
 // CreateRemoteProject creates a new remote project.

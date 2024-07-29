@@ -20,8 +20,7 @@ import (
 
 // TestSourceManifest tests creation of source manifest.
 func TestSourceManifest(t *testing.T) {
-	fake, cleanup := jiritest.NewFakeJiriRoot(t)
-	defer cleanup()
+	fake := jiritest.NewFakeJiriRoot(t)
 
 	// Setup the initial remote and local projects.
 	numProjects := 4

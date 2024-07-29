@@ -61,8 +61,7 @@ func createBranchProjects(t *testing.T, fake *jiritest.FakeJiriRoot, numProjects
 
 func TestBranch(t *testing.T) {
 	setDefaultBranchFlags()
-	fake, cleanup := jiritest.NewFakeJiriRoot(t)
-	defer cleanup()
+	fake := jiritest.NewFakeJiriRoot(t)
 
 	// Add projects
 	numProjects := 8
@@ -162,10 +161,9 @@ func TestDeleteBranchWithProjectConfig(t *testing.T) {
 	testDeleteBranchWithProjectConfig(t, true)
 }
 
-func testDeleteBranchWithProjectConfig(t *testing.T, override_pc bool) {
+func testDeleteBranchWithProjectConfig(t *testing.T, overridePC bool) {
 	setDefaultBranchFlags()
-	fake, cleanup := jiritest.NewFakeJiriRoot(t)
-	defer cleanup()
+	fake := jiritest.NewFakeJiriRoot(t)
 
 	// Add projects
 	numProjects := 4
@@ -209,7 +207,7 @@ func testDeleteBranchWithProjectConfig(t *testing.T, override_pc bool) {
 
 	setDefaultBranchFlags()
 	branchFlags.deleteFlag = true
-	branchFlags.overrideProjectConfigFlag = override_pc
+	branchFlags.overrideProjectConfigFlag = overridePC
 	executeBranch(t, fake, testBranch)
 
 	states, err := project.GetProjectStates(fake.X, projects, false)
@@ -228,7 +226,7 @@ func testDeleteBranchWithProjectConfig(t *testing.T, override_pc bool) {
 				break
 			}
 		}
-		if (!override_pc && i == 0) || i == 1 || i == 2 {
+		if (!overridePC && i == 0) || i == 1 || i == 2 {
 			if !branchFound {
 				t.Errorf("project %q should contain branch %q", localProject.Name, testBranch)
 			}
@@ -243,8 +241,7 @@ func testDeleteBranchWithProjectConfig(t *testing.T, override_pc bool) {
 
 func TestDeleteBranch(t *testing.T) {
 	setDefaultBranchFlags()
-	fake, cleanup := jiritest.NewFakeJiriRoot(t)
-	defer cleanup()
+	fake := jiritest.NewFakeJiriRoot(t)
 
 	// Add projects
 	numProjects := 4
@@ -425,8 +422,7 @@ func TestDeleteMergedClsBranch(t *testing.T) {
 	server := httptest.NewServer(serverMux)
 	defer server.Close()
 
-	fake, cleanup := jiritest.NewFakeJiriRoot(t)
-	defer cleanup()
+	fake := jiritest.NewFakeJiriRoot(t)
 
 	// Add projects
 	numProjects := 6
@@ -550,10 +546,9 @@ func TestDeleteMergedBranch(t *testing.T) {
 	testDeleteMergedBranch(t, true)
 }
 
-func testDeleteMergedBranch(t *testing.T, override_pc bool) {
+func testDeleteMergedBranch(t *testing.T, overridePC bool) {
 	setDefaultBranchFlags()
-	fake, cleanup := jiritest.NewFakeJiriRoot(t)
-	defer cleanup()
+	fake := jiritest.NewFakeJiriRoot(t)
 
 	// Add projects
 	numProjects := 7
@@ -624,7 +619,7 @@ func testDeleteMergedBranch(t *testing.T, override_pc bool) {
 
 	setDefaultBranchFlags()
 	branchFlags.deleteMergedFlag = true
-	branchFlags.overrideProjectConfigFlag = override_pc
+	branchFlags.overrideProjectConfigFlag = overridePC
 	executeBranch(t, fake)
 
 	newstates, err := project.GetProjectStates(fake.X, projects, false)
@@ -635,7 +630,7 @@ func testDeleteMergedBranch(t *testing.T, override_pc bool) {
 	// test project states
 	for i = 0; i < numProjects; i++ {
 		localProject := localProjects[i]
-		dontdelete := localProject.LocalConfig.NoUpdate && !override_pc
+		dontdelete := localProject.LocalConfig.NoUpdate && !overridePC
 		oldstate, _ := oldstates[localProject.Key()]
 		newstate, _ := newstates[localProject.Key()]
 		newBranchMap := make(map[string]bool)
@@ -682,7 +677,7 @@ func testDeleteMergedBranch(t *testing.T, override_pc bool) {
 
 	setDefaultBranchFlags()
 	branchFlags.deleteMergedFlag = true
-	branchFlags.overrideProjectConfigFlag = override_pc
+	branchFlags.overrideProjectConfigFlag = overridePC
 	executeBranch(t, fake, branchToDelete1)
 
 	newstates, err = project.GetProjectStates(fake.X, projects, false)
@@ -693,7 +688,7 @@ func testDeleteMergedBranch(t *testing.T, override_pc bool) {
 	// test project states
 	for i = 0; i <= 4; i++ {
 		localProject := localProjects[i]
-		dontdelete := localProject.LocalConfig.NoUpdate && !override_pc
+		dontdelete := localProject.LocalConfig.NoUpdate && !overridePC
 		newstate, _ := newstates[localProject.Key()]
 		newBranchMap := make(map[string]bool)
 		for _, newb := range newstate.Branches {

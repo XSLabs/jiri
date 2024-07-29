@@ -105,8 +105,7 @@ func setup(t *testing.T, fake *jiritest.FakeJiriRoot) {
 	}
 }
 func TestGrep(t *testing.T) {
-	fake, cleanup := jiritest.NewFakeJiriRoot(t)
-	defer cleanup()
+	fake := jiritest.NewFakeJiriRoot(t)
 
 	setup(t, fake)
 	setDefaultGrepFlags()
@@ -119,8 +118,7 @@ func TestGrep(t *testing.T) {
 }
 
 func TestNFlagGrep(t *testing.T) {
-	fake, cleanup := jiritest.NewFakeJiriRoot(t)
-	defer cleanup()
+	fake := jiritest.NewFakeJiriRoot(t)
 
 	setup(t, fake)
 	setDefaultGrepFlags()
@@ -132,8 +130,7 @@ func TestNFlagGrep(t *testing.T) {
 }
 
 func TestWFlagGrep(t *testing.T) {
-	fake, cleanup := jiritest.NewFakeJiriRoot(t)
-	defer cleanup()
+	fake := jiritest.NewFakeJiriRoot(t)
 
 	setup(t, fake)
 	setDefaultGrepFlags()
@@ -145,8 +142,7 @@ func TestWFlagGrep(t *testing.T) {
 }
 
 func TestEFlagGrep(t *testing.T) {
-	fake, cleanup := jiritest.NewFakeJiriRoot(t)
-	defer cleanup()
+	fake := jiritest.NewFakeJiriRoot(t)
 
 	setup(t, fake)
 	setDefaultGrepFlags()
@@ -157,8 +153,7 @@ func TestEFlagGrep(t *testing.T) {
 }
 
 func TestIFlagGrep(t *testing.T) {
-	fake, cleanup := jiritest.NewFakeJiriRoot(t)
-	defer cleanup()
+	fake := jiritest.NewFakeJiriRoot(t)
 
 	setup(t, fake)
 	setDefaultGrepFlags()
@@ -174,8 +169,7 @@ func TestIFlagGrep(t *testing.T) {
 }
 
 func TestLFlagGrep(t *testing.T) {
-	fake, cleanup := jiritest.NewFakeJiriRoot(t)
-	defer cleanup()
+	fake := jiritest.NewFakeJiriRoot(t)
 
 	setup(t, fake)
 	setDefaultGrepFlags()

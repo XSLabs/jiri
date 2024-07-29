@@ -16,14 +16,10 @@ import (
 func TestFindRootEnvSymlink(t *testing.T) {
 	t.Parallel()
 	// Create a temporary directory.
-	tmpDir, err := os.MkdirTemp("", "")
-	if err != nil {
-		t.Fatalf("TempDir() failed: %v", err)
-	}
-	defer func() { os.RemoveAll(tmpDir) }()
+	tmpDir := t.TempDir()
 
 	// Make sure tmpDir is not a symlink itself.
-	tmpDir, err = filepath.EvalSymlinks(tmpDir)
+	tmpDir, err := filepath.EvalSymlinks(tmpDir)
 	if err != nil {
 		t.Fatalf("EvalSymlinks(%v) failed: %v", tmpDir, err)
 	}
