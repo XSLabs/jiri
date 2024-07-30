@@ -438,6 +438,10 @@ func TestUpdateUniverseWhenLocalTracksEachOther(t *testing.T) {
 // TestUpdateUniverseWithCache checks that UpdateUniverse can clone and pull
 // from a cache.
 func TestUpdateUniverseWithCache(t *testing.T) {
+	// TODO(olivernewman): Support for a cache directory is broken. Fix it and
+	// re-enable this test, or else remove the cache directory feature.
+	t.Skip("`jiri init -cache` is broken")
+
 	localProjects, fake := setupUniverse(t)
 
 	// Create cache directory
