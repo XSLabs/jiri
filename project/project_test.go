@@ -119,7 +119,7 @@ func projectName(i int) string {
 	return fmt.Sprintf("project-%d", i)
 }
 
-func writeUncommitedFile(t *testing.T, jirix *jiri.X, projectDir, fileName, message string) string {
+func writeUncommitedFile(t *testing.T, projectDir, fileName, message string) string {
 	path, perm := filepath.Join(projectDir, fileName), os.FileMode(0644)
 	if err := os.WriteFile(path, []byte(message), perm); err != nil {
 		t.Fatalf("WriteFile(%v, %v) failed: %v", path, perm, err)
@@ -127,7 +127,7 @@ func writeUncommitedFile(t *testing.T, jirix *jiri.X, projectDir, fileName, mess
 	return path
 }
 func writeFile(t *testing.T, jirix *jiri.X, projectDir, fileName, message string) {
-	path := writeUncommitedFile(t, jirix, projectDir, fileName, message)
+	path := writeUncommitedFile(t, projectDir, fileName, message)
 	commitFile(t, jirix, projectDir, path, "creating "+fileName)
 }
 
@@ -1417,7 +1417,7 @@ func testUpdateUniverseDeletedProject(t *testing.T, testDirtyProjectDelete, test
 	}
 	projects := []project.Project{}
 	if testDirtyProjectDelete {
-		writeUncommitedFile(t, fake.X, localProjects[4].Path, "extra", "")
+		writeUncommitedFile(t, localProjects[4].Path, "extra", "")
 	} else if testProjectWithBranch {
 		// Create and checkout main.
 		git := gitutil.New(fake.X, gitutil.RootDirOpt(localProjects[4].Path))

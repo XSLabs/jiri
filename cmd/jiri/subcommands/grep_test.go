@@ -73,13 +73,6 @@ func expectGrep(t *testing.T, fake *jiritest.FakeJiriRoot, args []string, expect
 	}
 }
 func setup(t *testing.T, fake *jiritest.FakeJiriRoot) {
-	cwd, err := os.Getwd()
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.Chdir(cwd)
-	os.Chdir(fake.X.Root)
-
 	projects := makeProjects(t, fake)
 
 	files := []string{

@@ -15,10 +15,11 @@ import (
 )
 
 type importTestCase struct {
+	Name           string
 	Args           []string
-	Filename       string
-	OutputFileName string
-	Exist, Want    string
+	Exist          string
+	Want           string
+	WantJSONOutput string
 	Stdout, Stderr string
 	SetFlags       func()
 	runOnce        bool
@@ -39,18 +40,21 @@ func setDefaultImportFlags() {
 func TestImport(t *testing.T) {
 	tests := []importTestCase{
 		{
+			Name:   "no args",
 			Stderr: `wrong number of arguments`,
 		},
 		{
+			Name:   "too few args",
 			Args:   []string{"a"},
 			Stderr: `wrong number of arguments`,
 		},
 		{
+			Name:   "too many args",
 			Args:   []string{"a", "b", "c"},
 			Stderr: `wrong number of arguments`,
 		},
-		// Remote imports, default append behavior
 		{
+			Name: "remote imports, default append behavior",
 			SetFlags: func() {
 				importFlags.name = "name"
 				importFlags.remoteBranch = "remotebranch"
@@ -65,6 +69,7 @@ func TestImport(t *testing.T) {
 `,
 		},
 		{
+			Name: "import in new manifest",
 			Args: []string{"foo", "https://github.com/new.git"},
 			Want: `<manifest>
   <imports>
@@ -74,11 +79,11 @@ func TestImport(t *testing.T) {
 `,
 		},
 		{
+			Name: "overridden output file",
 			SetFlags: func() {
-				importFlags.out = "file"
+				importFlags.out = filepath.Join(t.TempDir(), "file")
 			},
-			Args:     []string{"foo", "https://github.com/new.git"},
-			Filename: `file`,
+			Args: []string{"foo", "https://github.com/new.git"},
 			Want: `<manifest>
   <imports>
     <import manifest="foo" name="manifest" remote="https://github.com/new.git"/>
@@ -87,6 +92,7 @@ func TestImport(t *testing.T) {
 `,
 		},
 		{
+			Name: "output to stdout",
 			SetFlags: func() {
 				importFlags.out = "-"
 			},
@@ -99,9 +105,10 @@ func TestImport(t *testing.T) {
 `,
 		},
 		{
+			Name: "list json output",
 			SetFlags: func() {
 				importFlags.list = true
-				importFlags.jsonOutput = "file"
+				importFlags.jsonOutput = filepath.Join(t.TempDir(), "file")
 			},
 			Exist: `<manifest>
   <imports>
@@ -109,8 +116,7 @@ func TestImport(t *testing.T) {
   </imports>
 </manifest>
 `,
-			OutputFileName: `file`,
-			Want: `[
+			WantJSONOutput: `[
   {
     "manifest": "bar",
     "name": "manifest",
@@ -122,6 +128,7 @@ func TestImport(t *testing.T) {
 ]`,
 		},
 		{
+			Name: "list",
 			SetFlags: func() {
 				importFlags.list = true
 			},
@@ -147,6 +154,7 @@ func TestImport(t *testing.T) {
 `,
 		},
 		{
+			Name: "import in existing manifest",
 			Args: []string{"foo", "https://github.com/new.git"},
 			Exist: `<manifest>
   <imports>
@@ -162,8 +170,8 @@ func TestImport(t *testing.T) {
 </manifest>
 `,
 		},
-		// Remote imports, explicit overwrite behavior
 		{
+			Name: "remote imports with overwrite",
 			SetFlags: func() {
 				importFlags.overwrite = true
 			},
@@ -176,12 +184,12 @@ func TestImport(t *testing.T) {
 `,
 		},
 		{
+			Name: "overwrite to output file",
 			SetFlags: func() {
 				importFlags.overwrite = true
-				importFlags.out = "file"
+				importFlags.out = filepath.Join(t.TempDir(), "file")
 			},
-			Args:     []string{"foo", "https://github.com/new.git"},
-			Filename: `file`,
+			Args: []string{"foo", "https://github.com/new.git"},
 			Want: `<manifest>
   <imports>
     <import manifest="foo" name="manifest" remote="https://github.com/new.git"/>
@@ -190,6 +198,7 @@ func TestImport(t *testing.T) {
 `,
 		},
 		{
+			Name: "overwrite with writing to stdout",
 			SetFlags: func() {
 				importFlags.overwrite = true
 				importFlags.out = "-"
@@ -203,6 +212,7 @@ func TestImport(t *testing.T) {
 `,
 		},
 		{
+			Name: "overwrite",
 			SetFlags: func() {
 				importFlags.overwrite = true
 			},
@@ -222,6 +232,7 @@ func TestImport(t *testing.T) {
 		},
 		// test delete flag
 		{
+			Name: "delete with no args",
 			SetFlags: func() {
 				importFlags.delete = true
 			},
@@ -229,6 +240,7 @@ func TestImport(t *testing.T) {
 			runOnce: true,
 		},
 		{
+			Name: "delete with too many args",
 			SetFlags: func() {
 				importFlags.delete = true
 			},
@@ -237,6 +249,7 @@ func TestImport(t *testing.T) {
 			runOnce: true,
 		},
 		{
+			Name: "delete and overwrite",
 			SetFlags: func() {
 				importFlags.delete = true
 				importFlags.overwrite = true
@@ -246,6 +259,7 @@ func TestImport(t *testing.T) {
 			runOnce: true,
 		},
 		{
+			Name: "delete",
 			SetFlags: func() {
 				importFlags.delete = true
 			},
@@ -268,6 +282,7 @@ func TestImport(t *testing.T) {
 `,
 		},
 		{
+			Name: "ambiguous delete",
 			SetFlags: func() {
 				importFlags.delete = true
 			},
@@ -284,6 +299,7 @@ func TestImport(t *testing.T) {
 			Stderr: `More than 1 import meets your criteria. Please provide remote.`,
 		},
 		{
+			Name: "delete multiple",
 			SetFlags: func() {
 				importFlags.delete = true
 			},
@@ -305,6 +321,7 @@ func TestImport(t *testing.T) {
 `,
 		},
 		{
+			Name: "delete by remote",
 			SetFlags: func() {
 				importFlags.delete = true
 			},
@@ -329,39 +346,25 @@ func TestImport(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		if err := testImport(t, test); err != nil {
-			t.Errorf("%v: %v", test.Args, err)
-		}
+		t.Run(test.Name, func(t *testing.T) {
+			if err := testImport(t, test); err != nil {
+				t.Errorf("%v: %v", test.Args, err)
+			}
+		})
 	}
 }
 
 func testImport(t *testing.T, test importTestCase) error {
 	jirix := xtest.NewX(t)
+
 	// Temporary directory in which to run `jiri import`.
 	tmpDir := t.TempDir()
 
-	// Return to the current working directory when done.
-	cwd, err := os.Getwd()
-	if err != nil {
-		return err
-	}
-	defer os.Chdir(cwd)
-
-	// cd into a root directory in which to do the actual import.
-	jiriRoot := jirix.Root
-	if err := os.Chdir(jiriRoot); err != nil {
-		return err
-	}
-
-	// Allow optional non-default filenames, for testing the -out option.
-	filename := test.Filename
-	if filename == "" {
-		filename = ".jiri_manifest"
-	}
+	manifestPath := filepath.Join(jirix.Root, ".jiri_manifest")
 
 	// Set up manfile for the local file import tests.  It should exist in both
 	// the tmpDir (for ../manfile tests) and jiriRoot.
-	for _, dir := range []string{tmpDir, jiriRoot} {
+	for _, dir := range []string{tmpDir, jirix.Root} {
 		if err := os.WriteFile(filepath.Join(dir, "manfile"), nil, 0644); err != nil {
 			return err
 		}
@@ -369,13 +372,14 @@ func testImport(t *testing.T, test importTestCase) error {
 
 	// Set up an existing file if it was specified.
 	if test.Exist != "" {
-		if err := os.WriteFile(filename, []byte(test.Exist), 0644); err != nil {
+		if err := os.WriteFile(manifestPath, []byte(test.Exist), 0644); err != nil {
 			return err
 		}
 	}
 
 	run := func() error {
 		// Run import and check the results.
+		var err error
 		importCmd := func() {
 			setDefaultImportFlags()
 			if test.SetFlags != nil {
@@ -409,14 +413,14 @@ func testImport(t *testing.T, test importTestCase) error {
 			return err
 		}
 	}
-	f := test.OutputFileName
-	if f == "" {
-		f = filename
-	}
 
 	// Make sure the right file is generated.
 	if test.Want != "" {
-		data, err := os.ReadFile(f)
+		out := importFlags.out
+		if out == "" {
+			out = manifestPath
+		}
+		data, err := os.ReadFile(out)
 		if err != nil {
 			return err
 		}
@@ -424,5 +428,16 @@ func testImport(t *testing.T, test importTestCase) error {
 			return fmt.Errorf("GOT\n%s\nWANT\n%s", got, want)
 		}
 	}
+
+	if test.WantJSONOutput != "" {
+		data, err := os.ReadFile(importFlags.jsonOutput)
+		if err != nil {
+			return err
+		}
+		if got, want := string(data), test.WantJSONOutput; got != want {
+			return fmt.Errorf("GOT\n%s\nWANT\n%s", got, want)
+		}
+	}
+
 	return nil
 }

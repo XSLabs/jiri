@@ -1996,10 +1996,7 @@ func tryRebase(jirix *jiri.X, project Project, branch string) (bool, error) {
 // syncProjectMaster checks out latest detached head if project is on one
 // else it rebases current branch onto its tracking branch
 func syncProjectMaster(jirix *jiri.X, project Project, state ProjectState, rebaseTracked, rebaseUntracked, rebaseAll, rebaseSubmodules, snapshot bool) error {
-	cwd, err := os.Getwd()
-	if err != nil {
-		return fmtError(err)
-	}
+	cwd := jirix.Cwd
 	relativePath, err := filepath.Rel(cwd, project.Path)
 	if err != nil {
 		// Just use the full path if an error occurred.
@@ -2722,13 +2719,9 @@ func updateProjects(jirix *jiri.X, localProjects, remoteProjects Projects, hooks
 	if projectStatuses, err := getProjectStatus(jirix, remoteProjects); err != nil {
 		return fmt.Errorf("Error getting project status: %s", err)
 	} else if len(projectStatuses) != 0 {
-		cwd, err := os.Getwd()
-		if err != nil {
-			return fmtError(err)
-		}
 		msg := "Projects with local changes and/or not on JIRI_HEAD:"
 		for _, p := range projectStatuses {
-			relativePath, err := filepath.Rel(cwd, p.Project.Path)
+			relativePath, err := filepath.Rel(jirix.Cwd, p.Project.Path)
 			if err != nil {
 				// Just use the full path if an error occurred.
 				relativePath = p.Project.Path

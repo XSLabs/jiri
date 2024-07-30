@@ -7,6 +7,7 @@ package subcommands
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -15,10 +16,11 @@ import (
 )
 
 type overrideTestCase struct {
+	Name           string
 	Args           []string
-	Filename       string
-	OutputFileName string
-	Exist, Want    string
+	Exist          string
+	Want           string
+	WantJSONOutput string
 	Stdout, Stderr string
 	SetFlags       func()
 	runOnce        bool
@@ -37,18 +39,22 @@ func setDefaultOverrideFlags() {
 func TestOverride(t *testing.T) {
 	tests := []overrideTestCase{
 		{
+			Name:   "no args",
 			Stderr: `wrong number of arguments`,
 		},
 		{
+			Name:   "too few args",
 			Args:   []string{"a"},
 			Stderr: `wrong number of arguments`,
 		},
 		{
+			Name:   "too many args",
 			Args:   []string{"a", "b", "c"},
 			Stderr: `wrong number of arguments`,
 		},
 		// Remote imports, default append behavior
 		{
+			Name: "remote imports",
 			Args: []string{"foo", "https://github.com/new.git"},
 			Want: `<manifest>
   <imports>
@@ -61,6 +67,7 @@ func TestOverride(t *testing.T) {
 `,
 		},
 		{
+			Name: "path specified",
 			SetFlags: func() {
 				overrideFlags.path = "bar"
 			},
@@ -76,6 +83,7 @@ func TestOverride(t *testing.T) {
 `,
 		},
 		{
+			Name: "revision specified",
 			SetFlags: func() {
 				overrideFlags.revision = "bar"
 			},
@@ -91,9 +99,10 @@ func TestOverride(t *testing.T) {
 `,
 		},
 		{
+			Name: "json output",
 			SetFlags: func() {
 				overrideFlags.list = true
-				overrideFlags.JSONOutput = "file"
+				overrideFlags.JSONOutput = filepath.Join(t.TempDir(), "file")
 			},
 			Exist: `<manifest>
   <imports>
@@ -104,8 +113,7 @@ func TestOverride(t *testing.T) {
   </overrides>
 </manifest>
 `,
-			OutputFileName: `file`,
-			Want: `[
+			WantJSONOutput: `[
   {
     "name": "foo",
     "remote": "https://github.com/new.git",
@@ -115,6 +123,7 @@ func TestOverride(t *testing.T) {
 `,
 		},
 		{
+			Name: "list",
 			SetFlags: func() {
 				overrideFlags.list = true
 			},
@@ -133,6 +142,7 @@ func TestOverride(t *testing.T) {
 `,
 		},
 		{
+			Name: "existing overrides",
 			Args: []string{"bar", "https://github.com/bar.git"},
 			Exist: `<manifest>
   <imports>
@@ -156,6 +166,7 @@ func TestOverride(t *testing.T) {
 		},
 		// test delete flag
 		{
+			Name: "delete with too few args",
 			SetFlags: func() {
 				overrideFlags.delete = true
 			},
@@ -163,6 +174,7 @@ func TestOverride(t *testing.T) {
 			runOnce: true,
 		},
 		{
+			Name: "delete with too many args",
 			SetFlags: func() {
 				overrideFlags.delete = true
 			},
@@ -171,6 +183,7 @@ func TestOverride(t *testing.T) {
 			runOnce: true,
 		},
 		{
+			Name: "delete with list",
 			SetFlags: func() {
 				overrideFlags.delete = true
 				overrideFlags.list = true
@@ -180,6 +193,7 @@ func TestOverride(t *testing.T) {
 			runOnce: true,
 		},
 		{
+			Name: "delete",
 			SetFlags: func() {
 				overrideFlags.delete = true
 			},
@@ -206,6 +220,7 @@ func TestOverride(t *testing.T) {
 `,
 		},
 		{
+			Name: "ambiguous delete",
 			SetFlags: func() {
 				overrideFlags.delete = true
 			},
@@ -224,6 +239,7 @@ func TestOverride(t *testing.T) {
 			Stderr: `more than one override matches`,
 		},
 		{
+			Name: "delete specifying remote",
 			SetFlags: func() {
 				overrideFlags.delete = true
 			},
@@ -250,6 +266,7 @@ func TestOverride(t *testing.T) {
 `,
 		},
 		{
+			Name: "override manifest with revision",
 			SetFlags: func() {
 				overrideFlags.importManifest = "manifest"
 				overrideFlags.revision = "eabeadae97b1e7f97ba93206066411adfe93a509"
@@ -275,9 +292,11 @@ func TestOverride(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		if err := testOverride(t, test); err != nil {
-			t.Errorf("%v: %v", test.Args, err)
-		}
+		t.Run(test.Name, func(t *testing.T) {
+			if err := testOverride(t, test); err != nil {
+				t.Errorf("%v: %v", test.Args, err)
+			}
+		})
 	}
 }
 
@@ -298,24 +317,7 @@ func testOverride(t *testing.T, test overrideTestCase) error {
 		t.Fatal(err)
 	}
 
-	// Return to the current working directory when done.
-	cwd, err := os.Getwd()
-	if err != nil {
-		return err
-	}
-	defer os.Chdir(cwd)
-
-	// cd into a root directory in which to do the actual import.
-	jiriRoot := jirix.Root
-	if err := os.Chdir(jiriRoot); err != nil {
-		return err
-	}
-
-	// Allow optional non-default filenames.
-	filename := test.Filename
-	if filename == "" {
-		filename = ".jiri_manifest"
-	}
+	filename := filepath.Join(jirix.Root, ".jiri_manifest")
 
 	// Set up an existing file if it was specified.
 	if test.Exist != "" {
@@ -325,6 +327,7 @@ func testOverride(t *testing.T, test overrideTestCase) error {
 	}
 
 	run := func() error {
+		var err error
 		// Run override and check the results.
 		overrideCmd := func() {
 			setDefaultOverrideFlags()
@@ -359,14 +362,10 @@ func testOverride(t *testing.T, test overrideTestCase) error {
 			return err
 		}
 	}
-	f := test.OutputFileName
-	if f == "" {
-		f = filename
-	}
 
 	// Make sure the right file is generated.
 	if test.Want != "" {
-		data, err := os.ReadFile(f)
+		data, err := os.ReadFile(filename)
 		if err != nil {
 			return err
 		}
@@ -374,5 +373,17 @@ func testOverride(t *testing.T, test overrideTestCase) error {
 			return fmt.Errorf("GOT\n%s\nWANT\n%s", got, want)
 		}
 	}
+
+	// Make sure the right file is generated.
+	if test.WantJSONOutput != "" {
+		data, err := os.ReadFile(overrideFlags.JSONOutput)
+		if err != nil {
+			return err
+		}
+		if got, want := string(data), test.WantJSONOutput; got != want {
+			return fmt.Errorf("GOT\n%s\nWANT\n%s", got, want)
+		}
+	}
+
 	return nil
 }

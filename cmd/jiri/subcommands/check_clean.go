@@ -6,7 +6,6 @@ package subcommands
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 	"sort"
 
@@ -31,10 +30,7 @@ func runCheckClean(jirix *jiri.X, args []string) error {
 	if err != nil {
 		return err
 	}
-	cDir, err := os.Getwd()
-	if err != nil {
-		return err
-	}
+	cDir := jirix.Cwd
 	states, err := project.GetProjectStates(jirix, localProjects, false)
 	if err != nil {
 		return err

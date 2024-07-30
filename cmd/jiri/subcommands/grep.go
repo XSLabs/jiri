@@ -123,9 +123,7 @@ func doGrep(jirix *jiri.X, args []string) ([]string, error) {
 
 	cwd := jirix.Root
 	if grepFlags.cwdRel {
-		if wd, err := os.Getwd(); err == nil {
-			cwd = wd
-		}
+		cwd = jirix.Cwd
 	}
 
 	for _, project := range projects {

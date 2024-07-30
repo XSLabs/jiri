@@ -116,6 +116,7 @@ func GitGetConfig(key string) (string, error) {
 type X struct {
 	*tool.Context
 	Root                            string
+	Cwd                             string
 	Usage                           func(format string, args ...any) error
 	config                          *Config
 	Cache                           string
@@ -185,6 +186,7 @@ func (jirix *X) UsePartialClone(remote string) bool {
 
 var (
 	rootFlag              string
+	cwdFlag               string
 	jobsFlag              uint
 	colorFlag             string
 	quietVerboseFlag      bool
@@ -226,6 +228,7 @@ func init() {
 	flag.Var(showRootFlag{}, "show-root", "Displays jiri root and exits.")
 	flag.UintVar(&progessWindowSizeFlag, "progress-window", 5, "Number of progress messages to show simultaneously. Should be between 1 and 10")
 	flag.DurationVar(&timeLogThresholdFlag, "time-log-threshold", time.Second*10, "Log time taken by operations if more than the passed value (eg 5s). This only works with -v and -vv.")
+	flag.StringVar(&cwdFlag, "cwd", "", "Run as if this is the current working directory")
 	flag.BoolVar(&quietVerboseFlag, "quiet", false, "Only print user actionable messages.")
 	flag.BoolVar(&quietVerboseFlag, "q", false, "Same as -quiet")
 	flag.BoolVar(&debugVerboseFlag, "v", false, "Print debug level output.")
@@ -266,8 +269,14 @@ func NewX(env *cmdline.Env) (*X, error) {
 		return nil, fmt.Errorf("No of concurrent jobs should be more than zero")
 	}
 
+	cwd, err := GetCwd()
+	if err != nil {
+		return nil, err
+	}
+
 	x := &X{
 		Context:  ctx,
+		Cwd:      cwd,
 		Root:     root,
 		Usage:    env.UsageErrorf,
 		Jobs:     jobsFlag,
@@ -380,6 +389,13 @@ func NewX(env *cmdline.Env) (*X, error) {
 	return x, nil
 }
 
+func GetCwd() (string, error) {
+	if cwdFlag != "" {
+		return cwdFlag, nil
+	}
+	return os.Getwd()
+}
+
 func cleanPath(path string) (string, error) {
 	result, err := filepath.EvalSymlinks(path)
 	if err != nil {
@@ -410,7 +426,7 @@ func findJiriRoot(timer *timing.Timer) (string, error) {
 		return cleanPath(rootFlag)
 	}
 
-	wd, err := os.Getwd()
+	wd, err := GetCwd()
 	if err != nil {
 		return "", err
 	}
@@ -463,6 +479,7 @@ func (x *X) Clone(opts tool.ContextOpts) *X {
 	return &X{
 		Context:           x.Context.Clone(opts),
 		Root:              x.Root,
+		Cwd:               x.Cwd,
 		Usage:             x.Usage,
 		Jobs:              x.Jobs,
 		Cache:             x.Cache,

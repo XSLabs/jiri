@@ -80,23 +80,20 @@ func runUpload(jirix *jiri.X, args []string) error {
 	if uploadFlags.multipart && refToUpload != "HEAD" {
 		return jirix.UsageErrorf("can only use HEAD as <ref> when using -multipart flag.")
 	}
-	dir, err := os.Getwd()
-	if err != nil {
-		return fmt.Errorf("os.Getwd() failed: %s", err)
-	}
+	cwd := jirix.Cwd
 	var p *project.Project
 	// Walk up the path until we find a project at that path, or hit the jirix.Root parent.
 	// Note that we can't just compare path prefixes because of soft links.
-	for dir != filepath.Dir(jirix.Root) && dir != string(filepath.Separator) {
-		if isLocal, err := project.IsLocalProject(jirix, dir); err != nil {
-			return fmt.Errorf("Error while checking for local project at path %q: %s", dir, err)
+	for cwd != filepath.Dir(jirix.Root) && cwd != string(filepath.Separator) {
+		if isLocal, err := project.IsLocalProject(jirix, cwd); err != nil {
+			return fmt.Errorf("Error while checking for local project at path %q: %s", cwd, err)
 		} else if !isLocal {
-			dir = filepath.Dir(dir)
+			cwd = filepath.Dir(cwd)
 			continue
 		}
-		project, err := project.ProjectAtPath(jirix, dir)
+		project, err := project.ProjectAtPath(jirix, cwd)
 		if err != nil {
-			return fmt.Errorf("Error while getting project at path %q: %s", dir, err)
+			return fmt.Errorf("Error while getting project at path %q: %s", cwd, err)
 		}
 		p = &project
 		break
@@ -112,12 +109,11 @@ func runUpload(jirix *jiri.X, args []string) error {
 	currentBranch := ""
 	if p == nil {
 		if !uploadFlags.multipart {
-			return fmt.Errorf("directory %q is not contained in a project", dir)
+			return fmt.Errorf("directory %q is not contained in a project", cwd)
 		} else if uploadFlags.branch == "" {
 			return fmt.Errorf("Please run with -branch flag")
-		} else {
-			currentBranch = uploadFlags.branch
 		}
+		currentBranch = uploadFlags.branch
 	} else {
 		scm := gitutil.New(jirix, gitutil.RootDirOpt(p.Path))
 		if !scm.IsOnBranch() {
@@ -128,6 +124,7 @@ func runUpload(jirix *jiri.X, args []string) error {
 				return fmt.Errorf("Current project is not on any branch. Either provide a topic or set flag \"-set-topic\" to false.")
 			}
 		} else {
+			var err error
 			currentBranch, err = scm.CurrentBranchName()
 			if err != nil {
 				return err
@@ -169,10 +166,6 @@ func runUpload(jirix *jiri.X, args []string) error {
 		Project      project.Project
 		CLOpts       gerrit.CLOpts
 		relativePath string
-	}
-	cwd, err := os.Getwd()
-	if err != nil {
-		return err
 	}
 	var gerritPushOptions []GerritPushOption
 	remoteProjects, _, _, err := project.LoadManifestFile(jirix, jirix.JiriManifestFile(), localProjects, false /*localManifest*/)

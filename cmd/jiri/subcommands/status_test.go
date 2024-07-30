@@ -28,10 +28,6 @@ func setDefaultStatusFlags() {
 }
 
 func createCommits(t *testing.T, fake *jiritest.FakeJiriRoot, localProjects []project.Project) ([]string, []string, []string, []string) {
-	cwd, err := os.Getwd()
-	if err != nil {
-		t.Fatal(err)
-	}
 	var file2CommitRevs []string
 	var file1CommitRevs []string
 	var latestCommitRevs []string
@@ -52,7 +48,7 @@ func createCommits(t *testing.T, fake *jiritest.FakeJiriRoot, localProjects []pr
 		writeFile(t, fake.X, fake.Projects[localProject.Name], "file3"+strconv.Itoa(i), "file3"+strconv.Itoa(i))
 		file3CommitRev, _ := gitRemote.CurrentRevision()
 		latestCommitRevs = append(latestCommitRevs, file3CommitRev)
-		relativePath, _ := filepath.Rel(cwd, localProject.Path)
+		relativePath, _ := filepath.Rel(fake.X.Cwd, localProject.Path)
 		relativePaths = append(relativePaths, relativePath)
 	}
 	return file1CommitRevs, file2CommitRevs, latestCommitRevs, relativePaths

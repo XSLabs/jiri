@@ -173,7 +173,7 @@ func runProjectInfo(jirix *jiri.X, args []string) error {
 		// Due to fuchsia.git is checked out at root.
 		// set currentProject to nil if current working
 		// dir is JIRI_ROOT to allow list all projects.
-		cwd, err := os.Getwd()
+		cwd := jirix.Cwd
 		if cwd == jirix.Root {
 			currentProject = nil
 		}

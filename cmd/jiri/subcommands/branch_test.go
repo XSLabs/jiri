@@ -9,7 +9,6 @@ import (
 	"math/rand"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -61,7 +60,9 @@ func createBranchProjects(t *testing.T, fake *jiritest.FakeJiriRoot, numProjects
 
 func TestBranch(t *testing.T) {
 	setDefaultBranchFlags()
+
 	fake := jiritest.NewFakeJiriRoot(t)
+	cDir := fake.X.Root
 
 	// Add projects
 	numProjects := 8
@@ -82,12 +83,9 @@ func TestBranch(t *testing.T) {
 	defaultWant := ""
 	branchWant := ""
 	listWant := ""
-	cDir, err := os.Getwd()
-	if err != nil {
-		t.Fatal(err)
-	}
 	relativePath := make([]string, numProjects)
 	for i, p := range localProjects {
+		var err error
 		relativePath[i], err = filepath.Rel(cDir, p.Path)
 		if err != nil {
 			t.Fatal(err)

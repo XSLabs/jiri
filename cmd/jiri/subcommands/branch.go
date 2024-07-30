@@ -7,7 +7,6 @@ package subcommands
 import (
 	"fmt"
 	"net/url"
-	"os"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -79,10 +78,7 @@ func displayProjects(jirix *jiri.X, branch string) error {
 	}
 
 	jirix.TimerPop()
-	cDir, err := os.Getwd()
-	if err != nil {
-		return err
-	}
+	cDir := jirix.Cwd
 	var keys project.ProjectKeys
 	for key := range states {
 		keys = append(keys, key)
@@ -165,10 +161,7 @@ func deleteMergedBranches(jirix *jiri.X, branchToDelete string, deleteMergedCls 
 		return err
 	}
 
-	cDir, err := os.Getwd()
-	if err != nil {
-		return err
-	}
+	cDir := jirix.Cwd
 
 	jirix.TimerPush("Get states")
 	states, err := project.GetProjectStates(jirix, localProjects, false)
@@ -474,10 +467,7 @@ func deleteBranches(jirix *jiri.X, branchToDelete string) error {
 	if err != nil {
 		return err
 	}
-	cDir, err := os.Getwd()
-	if err != nil {
-		return err
-	}
+	cDir := jirix.Cwd
 	states, err := project.GetProjectStates(jirix, localProjects, false)
 	if err != nil {
 		return err

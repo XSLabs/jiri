@@ -45,15 +45,7 @@ func writeReadme(t *testing.T, jirix *jiri.X, projectDir, message string) {
 	if err := os.WriteFile(path, []byte(message), perm); err != nil {
 		t.Fatalf("%s", err)
 	}
-	cwd, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("%s", err)
-	}
-	defer os.Chdir(cwd)
-	if err := os.Chdir(projectDir); err != nil {
-		t.Fatalf("%s", err)
-	}
-	if err := gitutil.New(jirix, gitutil.UserNameOpt("John Doe"), gitutil.UserEmailOpt("john.doe@example.com")).CommitFile(path, "creating README"); err != nil {
+	if err := gitutil.New(jirix, gitutil.RootDirOpt(projectDir), gitutil.UserNameOpt("John Doe"), gitutil.UserEmailOpt("john.doe@example.com")).CommitFile(path, "creating README"); err != nil {
 		t.Fatalf("%s", err)
 	}
 }

@@ -83,11 +83,10 @@ func TestUpdateExecutable(t *testing.T) {
 	t.Parallel()
 	content := []byte("old")
 
-	f, err := os.CreateTemp("", "jiri")
+	f, err := os.CreateTemp(t.TempDir(), "jiri")
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.RemoveAll(f.Name())
 
 	if _, err := f.Write(content); err != nil {
 		t.Fatal(err)

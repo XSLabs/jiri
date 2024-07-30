@@ -113,7 +113,7 @@ const (
 
 // New is the Git factory.
 func New(jirix *jiri.X, opts ...gitOpt) *Git {
-	rootDir := ""
+	rootDir := jirix.Cwd
 	userName := ""
 	userEmail := ""
 	env := map[string]string{}
@@ -138,6 +138,11 @@ func New(jirix *jiri.X, opts ...gitOpt) *Git {
 		userName:  userName,
 		userEmail: userEmail,
 	}
+}
+
+// RootDir returns the root directory of the git repository.
+func (g *Git) RootDir() string {
+	return g.rootDir
 }
 
 // Add adds a file to staging.
@@ -1602,13 +1607,6 @@ func (g *Git) runGit(stdout, stderr io.Writer, args ...string) error {
 	env = envvar.MergeMaps(g.opts, env, GitConfigEnvVars(config))
 	command.Env = envvar.MapToSlice(env)
 	dir := g.rootDir
-	if dir == "" {
-		if cwd, err := os.Getwd(); err == nil {
-			dir = cwd
-		} else {
-			// ignore error
-		}
-	}
 	g.jirix.Logger.Tracef("Run: git %s (%s)", strings.Join(args, " "), dir)
 	err := command.Run()
 	exitCode := 0

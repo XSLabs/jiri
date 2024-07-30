@@ -6,7 +6,6 @@ package subcommands
 
 import (
 	"fmt"
-	"os"
 	"path"
 	"path/filepath"
 
@@ -17,10 +16,7 @@ import (
 // currentProject returns the Project containing the current working directory.
 // The current working directory must be inside root.
 func currentProject(jirix *jiri.X) (project.Project, error) {
-	dir, err := os.Getwd()
-	if err != nil {
-		return project.Project{}, fmt.Errorf("os.Getwd() failed: %s", err)
-	}
+	dir := jirix.Cwd
 
 	// Walk up the path until we find a project at that path, or hit the jirix.Root parent.
 	// Note that we can't just compare path prefixes because of soft links.

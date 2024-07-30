@@ -6,7 +6,6 @@ package subcommands
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -67,14 +66,11 @@ func runStatus(jirix *jiri.X, args []string) error {
 	if err != nil {
 		return err
 	}
-	cDir, err := os.Getwd()
-	if err != nil {
-		return err
-	}
+	cwd := jirix.Cwd
 	if statusFlags.deleted {
 		for key, localProject := range localProjects {
 			if _, remoteOk := remoteProjects[key]; !remoteOk && !localProject.IsSubmodule {
-				relativePath, err := filepath.Rel(cDir, localProject.Path)
+				relativePath, err := filepath.Rel(cwd, localProject.Path)
 				if err != nil {
 					return err
 				}
@@ -109,7 +105,7 @@ func runStatus(jirix *jiri.X, args []string) error {
 		if statusFlags.branch != "" && (statusFlags.branch != state.CurrentBranch.Name) {
 			continue
 		}
-		relativePath, err := filepath.Rel(cDir, localProject.Path)
+		relativePath, err := filepath.Rel(cwd, localProject.Path)
 		if err != nil {
 			return err
 		}

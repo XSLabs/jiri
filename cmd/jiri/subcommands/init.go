@@ -114,7 +114,7 @@ func runInit(env *cmdline.Env, args []string) error {
 			}
 		}
 	} else {
-		dir, err = os.Getwd()
+		dir, err = jiri.GetCwd()
 		if err != nil {
 			return err
 		}

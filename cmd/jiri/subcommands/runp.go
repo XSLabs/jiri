@@ -320,10 +320,7 @@ func runRunp(jirix *jiri.X, args []string) error {
 		runpFlags.collateOutput = true
 	}
 
-	dir, err := os.Getwd()
-	if err != nil {
-		return fmt.Errorf("os.Getwd() failed: %v", err)
-	}
+	dir := jirix.Cwd
 	if dir == jirix.Root || err != nil {
 		// jiri was run from outside of a project. Let's assume we'll
 		// use all projects if none have been specified via the projects flag.

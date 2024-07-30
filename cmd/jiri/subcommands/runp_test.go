@@ -86,18 +86,6 @@ func TestRunP(t *testing.T) {
 		t.Errorf("got %v, want %v", got, want)
 	}
 
-	cwd, err := os.Getwd()
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.Chdir(cwd)
-
-	chdir := func(dir string) {
-		if err := os.Chdir(dir); err != nil {
-			t.Fatal(err)
-		}
-	}
-
 	manifestKey := strings.Replace(projects[0].Key().String(), "r.a", "manifest", -1)
 	manifestPath := strings.Replace(projects[0].Path, "r.a", "manifest", -1)
 	keys := []string{manifestKey}
@@ -107,7 +95,7 @@ func TestRunP(t *testing.T) {
 		paths = append(paths, p.Path)
 	}
 
-	chdir(projects[0].Path)
+	fake.X.Cwd = projects[0].Path
 	setDefaultRunpFlags()
 	runpFlags.showNamePrefix = true
 	runpFlags.verbose = true
@@ -231,7 +219,7 @@ func TestRunP(t *testing.T) {
 	git(rc).CreateAndCheckoutBranch("b2")
 	git(t1).CreateAndCheckoutBranch("a1")
 
-	chdir(rc)
+	fake.X.Cwd = rc
 
 	// Just the projects with branch b2.
 	setDefaultRunpFlags()
