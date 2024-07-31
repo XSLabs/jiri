@@ -26,7 +26,6 @@ func setDefaultBranchFlags() {
 	branchFlags.deleteMergedClsFlag = false
 	branchFlags.deleteMergedFlag = false
 	branchFlags.forceDeleteFlag = false
-	branchFlags.listFlag = false
 	branchFlags.overrideProjectConfigFlag = false
 }
 
@@ -82,7 +81,6 @@ func TestBranch(t *testing.T) {
 
 	defaultWant := ""
 	branchWant := ""
-	listWant := ""
 	relativePath := make([]string, numProjects)
 	for i, p := range localProjects {
 		var err error
@@ -95,48 +93,47 @@ func TestBranch(t *testing.T) {
 	i := 0
 	gitLocals[i].CreateBranch(testBranch)
 	gitLocals[i].CheckoutBranch("main", localProjects[i].GitSubmodules, false)
-	branchWant = fmt.Sprintf("%s%s(%s)\n", branchWant, localProjects[i].Name, relativePath[i])
 	defaultWant = fmt.Sprintf("%sProject: %s(%s)\n", defaultWant, localProjects[i].Name, relativePath[i])
 	defaultWant = fmt.Sprintf("%sBranch(es): %s, *main\n\n", defaultWant, testBranch)
+	branchWant = fmt.Sprintf("%s%s(%s)\n", branchWant, localProjects[i].Name, relativePath[i])
 
 	i = 2
 	gitLocals[i].CreateBranch(testBranch)
 	gitLocals[i].CreateBranch(testBranch2)
-	branchWant = fmt.Sprintf("%s%s(%s)\n", branchWant, localProjects[i].Name, relativePath[i])
 	defaultWant = fmt.Sprintf("%sProject: %s(%s)\n", defaultWant, localProjects[i].Name, relativePath[i])
 	defaultWant = fmt.Sprintf("%sBranch(es): %s, %s\n\n", defaultWant, testBranch, testBranch2)
+	branchWant = fmt.Sprintf("%s%s(%s)\n", branchWant, localProjects[i].Name, relativePath[i])
 
 	i = 3
 	gitLocals[i].CreateBranch(testBranch)
-	branchWant = fmt.Sprintf("%s%s(%s)\n", branchWant, localProjects[i].Name, relativePath[i])
 	defaultWant = fmt.Sprintf("%sProject: %s(%s)\n", defaultWant, localProjects[i].Name, relativePath[i])
 	defaultWant = fmt.Sprintf("%sBranch(es): %s\n\n", defaultWant, testBranch)
+	branchWant = fmt.Sprintf("%s%s(%s)\n", branchWant, localProjects[i].Name, relativePath[i])
 
 	// current branch is test branch
 	i = 1
 	gitLocals[i].CreateBranch(testBranch)
 	gitLocals[i].CheckoutBranch(testBranch, localProjects[i].GitSubmodules, false)
 	gitLocals[i].CreateBranch(testBranch2)
-	listWant = fmt.Sprintf("%s%s(%s)\n", listWant, localProjects[i].Name, relativePath[i])
 	defaultWant = fmt.Sprintf("%sProject: %s(%s)\n", defaultWant, localProjects[i].Name, relativePath[i])
 	defaultWant = fmt.Sprintf("%sBranch(es): *%s, %s\n\n", defaultWant, testBranch, testBranch2)
+	branchWant = fmt.Sprintf("%s%s(%s)\n", branchWant, localProjects[i].Name, relativePath[i])
 
 	i = 6
 	gitLocals[i].CreateBranch(testBranch)
 	gitLocals[i].CreateBranch("main")
 	gitLocals[i].CheckoutBranch(testBranch, localProjects[i].GitSubmodules, false)
-	listWant = fmt.Sprintf("%s%s(%s)\n", listWant, localProjects[i].Name, relativePath[i])
 	defaultWant = fmt.Sprintf("%sProject: %s(%s)\n", defaultWant, localProjects[i].Name, relativePath[i])
 	defaultWant = fmt.Sprintf("%sBranch(es): *%s, main\n\n", defaultWant, testBranch)
+	branchWant = fmt.Sprintf("%s%s(%s)\n", branchWant, localProjects[i].Name, relativePath[i])
 
 	i = 4
 	gitLocals[i].CreateBranch(testBranch)
 	gitLocals[i].CheckoutBranch(testBranch, localProjects[i].GitSubmodules, false)
 	gitLocals[i].CreateBranch(testBranch2)
-	listWant = fmt.Sprintf("%s%s(%s)\n", listWant, localProjects[i].Name, relativePath[i])
-	branchWant = fmt.Sprintf("%s%s", branchWant, listWant)
 	defaultWant = fmt.Sprintf("%sProject: %s(%s)\n", defaultWant, localProjects[i].Name, relativePath[i])
 	defaultWant = fmt.Sprintf("%sBranch(es): *%s, %s\n\n", defaultWant, testBranch, testBranch2)
+	branchWant = fmt.Sprintf("%s%s(%s)\n", branchWant, localProjects[i].Name, relativePath[i])
 
 	// Run default
 	if got := executeBranch(t, fake); !equalDefaultBranchOut(got, defaultWant) {
@@ -145,12 +142,6 @@ func TestBranch(t *testing.T) {
 	// Run with branch
 	if got := executeBranch(t, fake, testBranch); !equalBranchOut(got, branchWant) {
 		t.Errorf("got %s, want %s", got, branchWant)
-	}
-
-	// Run with listFlag
-	branchFlags.listFlag = true
-	if got := executeBranch(t, fake, testBranch); !equalBranchOut(got, listWant) {
-		t.Errorf("got %s, want %s", got, listWant)
 	}
 }
 

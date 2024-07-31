@@ -25,7 +25,6 @@ var branchFlags struct {
 	deleteMergedClsFlag       bool
 	deleteMergedFlag          bool
 	forceDeleteFlag           bool
-	listFlag                  bool
 	overrideProjectConfigFlag bool
 }
 
@@ -60,7 +59,6 @@ func init() {
 	flags := &cmdBranch.Flags
 	flags.BoolVar(&branchFlags.deleteFlag, "d", false, "Delete branch from project. Similar to running 'git branch -d <branch-name>'")
 	flags.BoolVar(&branchFlags.forceDeleteFlag, "D", false, "Force delete branch from project. Similar to running 'git branch -D <branch-name>'")
-	flags.BoolVar(&branchFlags.listFlag, "list", false, "Show only projects with current branch <branch>")
 	flags.BoolVar(&branchFlags.overrideProjectConfigFlag, "override-pc", false, "Overrides project config's ignore and noupdate flag and deletes the branch.")
 	flags.BoolVar(&branchFlags.deleteMergedFlag, "delete-merged", false, "Delete merged branches. Merged branches are the tracked branches merged with their tracking remote or un-tracked branches merged with the branch specified in manifest(default main). If <branch> is provided, it will only delete branch <branch> if merged.")
 	flags.BoolVar(&branchFlags.deleteMergedClsFlag, "delete-merged-cl", false, "Implies -delete-merged. It also parses commit messages for ChangeID and checks with gerrit if those changes have been merged and deletes those branches. It will ignore a branch if it differs with remote by more than 10 commits.")
@@ -110,11 +108,6 @@ func displayProjects(jirix *jiri.X, branch string) error {
 				}
 				fmt.Fprintf(jirix.Stdout(), "%s: %s(%s)\n", jirix.Color.Yellow("Project"), state.Project.Name, relativePath)
 				fmt.Fprintf(jirix.Stdout(), "%s: %s\n\n", jirix.Color.Yellow("Branch(es)"), strings.Join(branches, ", "))
-			}
-
-		} else if branchFlags.listFlag {
-			if state.CurrentBranch.Name == branch {
-				fmt.Fprintf(jirix.Stdout(), "%s(%s)\n", state.Project.Name, relativePath)
 			}
 		} else {
 			for _, b := range state.Branches {
