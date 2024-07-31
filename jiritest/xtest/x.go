@@ -6,6 +6,7 @@
 package xtest
 
 import (
+	"io"
 	"os"
 	"path/filepath"
 	"testing"
@@ -20,9 +21,14 @@ import (
 
 // NewX is similar to jiri.NewX, but is meant for usage in a testing environment.
 func NewX(t *testing.T) *jiri.X {
-	ctx := tool.NewContextFromEnv(cmdline.EnvFromOS())
+	env := cmdline.EnvFromOS()
+	// Don't write test output to the global stdout/stderr, since it causes
+	// noise.
+	env.Stdout = io.Discard
+	env.Stderr = io.Discard
+	ctx := tool.NewContextFromEnv(env)
 	color := color.NewColor(color.ColorNever)
-	logger := log.NewLogger(log.InfoLevel, color, false, 0, time.Second*100, nil, nil)
+	logger := log.NewLogger(log.InfoLevel, color, false, 0, time.Second*100, env.Stdout, env.Stderr)
 	root := t.TempDir()
 	if err := os.Mkdir(filepath.Join(root, jiri.RootMetaDir), 0755); err != nil {
 		t.Fatalf("TempDir() failed: %v", err)

@@ -40,7 +40,7 @@ func runProjectConfig(jirix *jiri.X, args []string) error {
 		return err
 	}
 	if projectConfigFlags.ignore == "" && projectConfigFlags.noUpdate == "" && projectConfigFlags.noRebase == "" {
-		displayConfig(p.LocalConfig)
+		displayConfig(jirix, p.LocalConfig)
 		return nil
 	}
 	lc := p.LocalConfig
@@ -68,9 +68,9 @@ func setBoolVar(value string, b *bool, flagName string) error {
 	return nil
 }
 
-func displayConfig(lc project.LocalConfig) {
-	fmt.Printf("Config:\n")
-	fmt.Printf("ignore: %t\n", lc.Ignore)
-	fmt.Printf("no-update: %t\n", lc.NoUpdate)
-	fmt.Printf("no-rebase: %t\n", lc.NoRebase)
+func displayConfig(jirix *jiri.X, lc project.LocalConfig) {
+	fmt.Fprintf(jirix.Stdout(), "Config:\n")
+	fmt.Fprintf(jirix.Stdout(), "ignore: %t\n", lc.Ignore)
+	fmt.Fprintf(jirix.Stdout(), "no-update: %t\n", lc.NoUpdate)
+	fmt.Fprintf(jirix.Stdout(), "no-rebase: %t\n", lc.NoRebase)
 }

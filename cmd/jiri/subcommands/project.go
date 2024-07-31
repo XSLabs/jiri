@@ -253,20 +253,20 @@ func runProjectInfo(jirix *jiri.X, args []string) error {
 			if err := tmpl.Execute(out, i); err != nil {
 				return jirix.UsageErrorf("invalid format")
 			}
-			fmt.Fprintln(os.Stdout, out.String())
+			fmt.Fprintln(jirix.Stdout(), out.String())
 		} else {
-			fmt.Printf("* project %s\n", i.Name)
-			fmt.Printf("  Path:     %s\n", i.Path)
-			fmt.Printf("  Remote:   %s\n", i.Remote)
-			fmt.Printf("  Revision: %s\n", i.Revision)
+			fmt.Fprintf(jirix.Stdout(), "* project %s\n", i.Name)
+			fmt.Fprintf(jirix.Stdout(), "  Path:     %s\n", i.Path)
+			fmt.Fprintf(jirix.Stdout(), "  Remote:   %s\n", i.Remote)
+			fmt.Fprintf(jirix.Stdout(), "  Revision: %s\n", i.Revision)
 			if i.GitSubmoduleOf != "" {
-				fmt.Printf("  GitSubmoduleOf: %s\n", i.GitSubmoduleOf)
+				fmt.Fprintf(jirix.Stdout(), "  GitSubmoduleOf: %s\n", i.GitSubmoduleOf)
 			}
 			if projectFlags.useRemoteProjects {
-				fmt.Printf("  Manifest: %s\n", i.Manifest)
+				fmt.Fprintf(jirix.Stdout(), "  Manifest: %s\n", i.Manifest)
 			}
 			if len(i.Branches) != 0 {
-				fmt.Printf("  Branches:\n")
+				fmt.Fprintf(jirix.Stdout(), "  Branches:\n")
 				width := 0
 				for _, b := range i.Branches {
 					if len(b) > width {
@@ -274,14 +274,14 @@ func runProjectInfo(jirix *jiri.X, args []string) error {
 					}
 				}
 				for _, b := range i.Branches {
-					fmt.Printf("    %-*s", width, b)
+					fmt.Fprintf(jirix.Stdout(), "    %-*s", width, b)
 					if i.CurrentBranch == b {
-						fmt.Printf(" current")
+						fmt.Fprintf(jirix.Stdout(), " current")
 					}
-					fmt.Println()
+					fmt.Fprintln(jirix.Stdout())
 				}
 			} else {
-				fmt.Printf("  Branches: none\n")
+				fmt.Fprintf(jirix.Stdout(), "  Branches: none\n")
 			}
 		}
 	}

@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
-	"os"
 	"path/filepath"
 	"sort"
 	"sync"
@@ -144,7 +143,7 @@ func runDiff(jirix *jiri.X, args []string) error {
 	if err != nil {
 		return err
 	}
-	e := json.NewEncoder(os.Stdout)
+	e := json.NewEncoder(jirix.Stdout())
 	if diffFlags.indentOutput {
 		e.SetIndent("", " ")
 	}

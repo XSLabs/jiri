@@ -239,12 +239,12 @@ func runUpload(jirix *jiri.X, args []string) error {
 	}
 
 	for _, gerritPushOption := range gerritPushOptions {
-		fmt.Printf("Pushing project %s(%s)\n", gerritPushOption.Project.Name, gerritPushOption.relativePath)
+		fmt.Fprintf(jirix.Stdout(), "Pushing project %s(%s)\n", gerritPushOption.Project.Name, gerritPushOption.relativePath)
 		if err := gerrit.Push(jirix, gerritPushOption.Project.Path, gerritPushOption.CLOpts); err != nil {
 			if strings.Contains(err.Error(), "(no new changes)") {
 				if gitErr, ok := err.(gerrit.PushError); ok {
-					fmt.Printf("%s", gitErr.Output)
-					fmt.Printf("%s", gitErr.ErrorOutput)
+					fmt.Fprintf(jirix.Stdout(), "%s", gitErr.Output)
+					fmt.Fprintf(jirix.Stdout(), "%s", gitErr.ErrorOutput)
 				} else {
 					return uploadError(err.Error())
 				}
@@ -252,7 +252,7 @@ func runUpload(jirix *jiri.X, args []string) error {
 				return uploadError(err.Error())
 			}
 		}
-		fmt.Println()
+		fmt.Fprintln(jirix.Stdout())
 	}
 	return nil
 }

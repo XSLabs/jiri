@@ -153,7 +153,7 @@ func runGrep(jirix *jiri.X, args []string) error {
 	}
 
 	for _, line := range lines {
-		fmt.Println(line)
+		fmt.Fprintln(jirix.Stdout(), line)
 	}
 	return nil
 }

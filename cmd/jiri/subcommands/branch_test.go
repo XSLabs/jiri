@@ -392,6 +392,8 @@ func generateChangeIds(n int) []string {
 }
 
 func TestDeleteMergedClsBranch(t *testing.T) {
+	t.Parallel()
+
 	mergedIds := generateChangeIds(2)
 	unmergedIds := generateChangeIds(1)
 	localIds := generateChangeIds(1)
@@ -743,13 +745,7 @@ func equalDefaultBranchOut(first, second string) bool {
 }
 
 func executeBranch(t *testing.T, fake *jiritest.FakeJiriRoot, args ...string) string {
-	stderr := ""
-	runCmd := func() {
-		if err := runBranch(fake.X, args); err != nil {
-			stderr = err.Error()
-		}
-	}
-	stdout, _, err := runfunc(runCmd)
+	stdout, stderr, err := collectStdio(fake.X, args, runBranch)
 	if err != nil {
 		t.Fatal(err)
 	}

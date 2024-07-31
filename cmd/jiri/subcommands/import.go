@@ -146,12 +146,13 @@ func runImport(jirix *jiri.X, args []string) error {
 		imports := getListObject(manifest.Imports)
 		if importFlags.jsonOutput == "" {
 			for _, i := range imports {
-				fmt.Printf("* import\t%s\n", i.Name)
-				fmt.Printf("  Manifest:\t%s\n", i.Manifest)
-				fmt.Printf("  Remote:\t%s\n", i.Remote)
-				fmt.Printf("  Revision:\t%s\n", i.Revision)
-				fmt.Printf("  RemoteBranch:\t%s\n", i.RemoteBranch)
-				fmt.Printf("  Root:\t%s\n", i.Root)
+				fmt.Fprint(jirix.Stdout(),
+					fmt.Sprintf("* import\t%s\n", i.Name)+
+						fmt.Sprintf("  Manifest:\t%s\n", i.Manifest)+
+						fmt.Sprintf("  Remote:\t%s\n", i.Remote)+
+						fmt.Sprintf("  Revision:\t%s\n", i.Revision)+
+						fmt.Sprintf("  RemoteBranch:\t%s\n", i.RemoteBranch)+
+						fmt.Sprintf("  Root:\t%s\n", i.Root))
 			}
 			return nil
 		} else {
@@ -226,7 +227,7 @@ func runImport(jirix *jiri.X, args []string) error {
 		if err != nil {
 			return err
 		}
-		_, err = os.Stdout.Write(bytes)
+		_, err = jirix.Stdout().Write(bytes)
 		return err
 	}
 	return manifest.ToFile(jirix, outFile)

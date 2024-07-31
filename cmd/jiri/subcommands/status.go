@@ -74,7 +74,7 @@ func runStatus(jirix *jiri.X, args []string) error {
 				if err != nil {
 					return err
 				}
-				fmt.Printf("Name: '%s', Path: '%s'\n", jirix.Color.Red(localProject.Name), jirix.Color.Red(relativePath))
+				fmt.Fprintf(jirix.Stdout(), "Name: '%s', Path: '%s'\n", jirix.Color.Red(localProject.Name), jirix.Color.Red(relativePath))
 			}
 			continue
 		}
@@ -140,26 +140,26 @@ func runStatus(jirix *jiri.X, args []string) error {
 		}
 		if statusFlags.branch != "" || changes != "" || revisionMessage != "" ||
 			len(extraCommits) != 0 {
-			fmt.Printf("%s: %s", jirix.Color.Yellow(relativePath), revisionMessage)
-			fmt.Println()
+			fmt.Fprintf(jirix.Stdout(), "%s: %s", jirix.Color.Yellow(relativePath), revisionMessage)
+			fmt.Fprintln(jirix.Stdout())
 			branch := state.CurrentBranch.Name
 			if branch == "" {
 				branch = fmt.Sprintf("DETACHED-HEAD(%s)", currentLog)
 			}
-			fmt.Printf("%s: %s\n", jirix.Color.Yellow("Branch"), branch)
+			fmt.Fprintf(jirix.Stdout(), "%s: %s\n", jirix.Color.Yellow("Branch"), branch)
 			if len(extraCommits) != 0 {
-				fmt.Printf("%s: %d commit(s) not merged to remote\n", jirix.Color.Yellow("Commits"), len(extraCommits))
+				fmt.Fprintf(jirix.Stdout(), "%s: %d commit(s) not merged to remote\n", jirix.Color.Yellow("Commits"), len(extraCommits))
 				for _, commitLog := range extraCommits {
-					fmt.Println(colorFormatGitLog(jirix, commitLog))
+					fmt.Fprintln(jirix.Stdout(), colorFormatGitLog(jirix, commitLog))
 				}
 			}
 			if changes != "" {
 				changesArr := strings.Split(changes, "\n")
 				for _, change := range changesArr {
-					fmt.Println(colorFormatGitiStatusLog(jirix, change))
+					fmt.Fprintln(jirix.Stdout(), colorFormatGitiStatusLog(jirix, change))
 				}
 			}
-			fmt.Println()
+			fmt.Fprintln(jirix.Stdout())
 		}
 
 	}

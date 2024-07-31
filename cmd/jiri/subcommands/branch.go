@@ -108,18 +108,18 @@ func displayProjects(jirix *jiri.X, branch string) error {
 				if main != "" {
 					branches = append(branches, main)
 				}
-				fmt.Printf("%s: %s(%s)\n", jirix.Color.Yellow("Project"), state.Project.Name, relativePath)
-				fmt.Printf("%s: %s\n\n", jirix.Color.Yellow("Branch(es)"), strings.Join(branches, ", "))
+				fmt.Fprintf(jirix.Stdout(), "%s: %s(%s)\n", jirix.Color.Yellow("Project"), state.Project.Name, relativePath)
+				fmt.Fprintf(jirix.Stdout(), "%s: %s\n\n", jirix.Color.Yellow("Branch(es)"), strings.Join(branches, ", "))
 			}
 
 		} else if branchFlags.listFlag {
 			if state.CurrentBranch.Name == branch {
-				fmt.Printf("%s(%s)\n", state.Project.Name, relativePath)
+				fmt.Fprintf(jirix.Stdout(), "%s(%s)\n", state.Project.Name, relativePath)
 			}
 		} else {
 			for _, b := range state.Branches {
 				if b.Name == branch {
-					fmt.Printf("%s(%s)\n", state.Project.Name, relativePath)
+					fmt.Fprintf(jirix.Stdout(), "%s(%s)\n", state.Project.Name, relativePath)
 					break
 				}
 			}
@@ -495,18 +495,18 @@ func deleteBranches(jirix *jiri.X, branchToDelete string) error {
 					jirix.Logger.Warningf("Project %s(%s): branch %q won't be deleted due to its local-config. Use '-override-pc' flag\n\n", localProject.Name, localProject.Path, branchToDelete)
 					break
 				}
-				fmt.Printf("Project %s(%s): ", localProject.Name, relativePath)
+				fmt.Fprintf(jirix.Stdout(), "Project %s(%s): ", localProject.Name, relativePath)
 				scm := gitutil.New(jirix, gitutil.RootDirOpt(localProject.Path))
 
 				if err := scm.DeleteBranch(branchToDelete, gitutil.ForceOpt(branchFlags.forceDeleteFlag)); err != nil {
 					errors = true
-					fmt.Printf(jirix.Color.Red("Error while deleting branch: %s\n", err))
+					fmt.Fprintf(jirix.Stdout(), jirix.Color.Red("Error while deleting branch: %s\n", err))
 				} else {
 					shortHash, err := scm.ShortHash(branch.Revision)
 					if err != nil {
 						return err
 					}
-					fmt.Printf("%s (was %s)\n", jirix.Color.Green("Deleted Branch %s", branchToDelete), jirix.Color.Yellow(shortHash))
+					fmt.Fprintf(jirix.Stdout(), "%s (was %s)\n", jirix.Color.Green("Deleted Branch %s", branchToDelete), jirix.Color.Yellow(shortHash))
 				}
 				break
 			}
@@ -515,11 +515,11 @@ func deleteBranches(jirix *jiri.X, branchToDelete string) error {
 	jirix.TimerPop()
 
 	if !projectFound {
-		fmt.Printf("Cannot find any project with branch %q\n", branchToDelete)
+		fmt.Fprintf(jirix.Stdout(), "Cannot find any project with branch %q\n", branchToDelete)
 		return nil
 	}
 	if errors {
-		fmt.Println(jirix.Color.Yellow("Please check errors above"))
+		fmt.Fprintln(jirix.Stdout(), jirix.Color.Yellow("Please check errors above"))
 	}
 	return nil
 }

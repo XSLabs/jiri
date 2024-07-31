@@ -503,11 +503,11 @@ func runPatch(jirix *jiri.X, args []string) error {
 				if _, err := patchProject(jirix, *projectToPatch, ref, branch, change.Branch); err != nil {
 					return err
 				}
-				fmt.Println()
+				fmt.Fprintln(jirix.Stdout())
 			} else {
 				jirix.Logger.Errorf("Cannot find project to patch CL %s\n", g.GetChangeURL(change.Number))
 				jirix.IncrementFailures()
-				fmt.Println()
+				fmt.Fprintln(jirix.Stdout())
 			}
 		}
 	}

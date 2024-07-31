@@ -74,9 +74,9 @@ func runCheckClean(jirix *jiri.X, args []string) error {
 	}
 
 	if len(dirtyProjects) > 0 {
-		fmt.Println("Dirty projects:")
+		fmt.Fprintln(jirix.Stdout(), "Dirty projects:")
 		for relativePath, changes := range dirtyProjects {
-			fmt.Printf("%s\n%s\n\n", relativePath, changes)
+			fmt.Fprintf(jirix.Stdout(), "%s\n%s\n\n", relativePath, changes)
 		}
 	}
 

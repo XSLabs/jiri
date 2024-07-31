@@ -20,7 +20,8 @@ type importTestCase struct {
 	Exist          string
 	Want           string
 	WantJSONOutput string
-	Stdout, Stderr string
+	WantErr        string
+	Stdout         string
 	SetFlags       func()
 	runOnce        bool
 }
@@ -40,18 +41,18 @@ func setDefaultImportFlags() {
 func TestImport(t *testing.T) {
 	tests := []importTestCase{
 		{
-			Name:   "no args",
-			Stderr: `wrong number of arguments`,
+			Name:    "no args",
+			WantErr: `wrong number of arguments`,
 		},
 		{
-			Name:   "too few args",
-			Args:   []string{"a"},
-			Stderr: `wrong number of arguments`,
+			Name:    "too few args",
+			Args:    []string{"a"},
+			WantErr: `wrong number of arguments`,
 		},
 		{
-			Name:   "too many args",
-			Args:   []string{"a", "b", "c"},
-			Stderr: `wrong number of arguments`,
+			Name:    "too many args",
+			Args:    []string{"a", "b", "c"},
+			WantErr: `wrong number of arguments`,
 		},
 		{
 			Name: "remote imports, default append behavior",
@@ -236,7 +237,7 @@ func TestImport(t *testing.T) {
 			SetFlags: func() {
 				importFlags.delete = true
 			},
-			Stderr:  `wrong number of arguments`,
+			WantErr: `wrong number of arguments with delete flag`,
 			runOnce: true,
 		},
 		{
@@ -245,7 +246,7 @@ func TestImport(t *testing.T) {
 				importFlags.delete = true
 			},
 			Args:    []string{"a", "b", "c"},
-			Stderr:  `wrong number of arguments`,
+			WantErr: `wrong number of arguments with delete flag`,
 			runOnce: true,
 		},
 		{
@@ -255,7 +256,7 @@ func TestImport(t *testing.T) {
 				importFlags.overwrite = true
 			},
 			Args:    []string{"a", "b"},
-			Stderr:  `cannot use -delete and -overwrite together`,
+			WantErr: `cannot use -delete and -overwrite together`,
 			runOnce: true,
 		},
 		{
@@ -296,7 +297,7 @@ func TestImport(t *testing.T) {
   </imports>
 </manifest>
 `,
-			Stderr: `More than 1 import meets your criteria. Please provide remote.`,
+			WantErr: `More than 1 import meets your criteria. Please provide remote.`,
 		},
 		{
 			Name: "delete multiple",
@@ -378,28 +379,21 @@ func testImport(t *testing.T, test importTestCase) error {
 	}
 
 	run := func() error {
-		// Run import and check the results.
-		var err error
-		importCmd := func() {
-			setDefaultImportFlags()
-			if test.SetFlags != nil {
-				test.SetFlags()
-			}
-			err = runImport(jirix, test.Args)
+		setDefaultImportFlags()
+		if test.SetFlags != nil {
+			test.SetFlags()
 		}
-		stdout, _, runErr := runfunc(importCmd)
-		if runErr != nil {
-			return err
-		}
-		stderr := ""
+		stdout, _, err := collectStdio(jirix, test.Args, runImport)
 		if err != nil {
-			stderr = err.Error()
+			if test.WantErr == "" {
+				return err
+			}
+			if got, want := err.Error(), test.WantErr; got != want {
+				return fmt.Errorf("got err %q, want substr %q", got, want)
+			}
 		}
 		if got, want := stdout, test.Stdout; !strings.Contains(got, want) || (got != "" && want == "") {
 			return fmt.Errorf("stdout got %q, want substr %q", got, want)
-		}
-		if got, want := stderr, test.Stderr; !strings.Contains(got, want) || (got != "" && want == "") {
-			return fmt.Errorf("stderr got %q, want substr %q", got, want)
 		}
 		return nil
 	}

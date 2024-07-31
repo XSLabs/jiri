@@ -111,6 +111,7 @@ func projectKeys(mapInputs map[project.ProjectKey]*mapInput) []string {
 }
 
 type runner struct {
+	jirix                *jiri.X
 	args                 []string
 	serializedWriterLock sync.Mutex
 	collatedOutputLock   sync.Mutex
@@ -157,7 +158,7 @@ func (r *runner) Map(mr *simplemr.MR, key string, val any) error {
 	output := &mapOutput{
 		key: key,
 		mi:  mi}
-	jirix := mi.jirix
+	jirix := r.jirix
 	path := os.Getenv("SHELL")
 	if path == "" {
 		path = "sh"
@@ -169,8 +170,8 @@ func (r *runner) Map(mr *simplemr.MR, key string, val any) error {
 	cmd.Stdin = mi.jirix.Stdin()
 	var stdoutCloser, stderrCloser io.Closer
 	if runpFlags.interactive {
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
+		cmd.Stdout = jirix.Stdout()
+		cmd.Stderr = jirix.Stdout()
 	} else {
 		var stdout io.Writer
 		stderr := r.serializedWriter(jirix.Stderr())
@@ -192,7 +193,7 @@ func (r *runner) Map(mr *simplemr.MR, key string, val any) error {
 			// here.
 			defer f.Close()
 		} else {
-			stdout = r.serializedWriter(os.Stdout)
+			stdout = r.serializedWriter(jirix.Stdout())
 			cleanup = func() {}
 		}
 		if !runpFlags.showNamePrefix && !runpFlags.showKeyPrefix && !runpFlags.showPathPrefix {
@@ -261,7 +262,7 @@ func (r *runner) Reduce(mr *simplemr.MR, key string, values []any) error {
 	for _, v := range values {
 		mo := v.(*mapOutput)
 		if mo.err != nil {
-			fmt.Fprintf(os.Stdout, "FAILED: %v: %s %v\n", mo.key, strings.Join(r.args, " "), mo.err)
+			fmt.Fprintf(r.jirix.Stdout(), "FAILED: %v: %s %v\n", mo.key, strings.Join(r.args, " "), mo.err)
 			return nil
 		} else {
 			if runpFlags.collateOutput {
@@ -269,7 +270,7 @@ func (r *runner) Reduce(mr *simplemr.MR, key string, values []any) error {
 				defer r.collatedOutputLock.Unlock()
 				defer os.Remove(mo.outputFilename)
 				if fi, err := os.Open(mo.outputFilename); err == nil {
-					io.Copy(os.Stdout, fi)
+					io.Copy(r.jirix.Stdout(), fi)
 					fi.Close()
 				} else {
 					return err
@@ -390,12 +391,13 @@ func runRunp(jirix *jiri.X, args []string) error {
 	}
 
 	if runpFlags.verbose {
-		fmt.Fprintf(os.Stdout, "Project Names: %s\n", strings.Join(projectNames(mapInputs), " "))
-		fmt.Fprintf(os.Stdout, "Project Keys: %s\n", strings.Join(projectKeys(mapInputs), " "))
+		fmt.Fprintf(jirix.Stdout(), "Project Names: %s\n", strings.Join(projectNames(mapInputs), " "))
+		fmt.Fprintf(jirix.Stdout(), "Project Keys: %s\n", strings.Join(projectKeys(mapInputs), " "))
 	}
 
 	runner := &runner{
-		args: args,
+		jirix: jirix,
+		args:  args,
 	}
 	mr := simplemr.MR{}
 	if runpFlags.interactive {
@@ -406,13 +408,13 @@ func runRunp(jirix *jiri.X, args []string) error {
 		mr.NumMappers = int(jirix.Jobs)
 	}
 	in, out := make(chan *simplemr.Record, len(mapInputs)), make(chan *simplemr.Record, len(mapInputs))
-	sigch := make(chan os.Signal)
+	sigch := make(chan os.Signal, 1)
 	signal.Notify(sigch, os.Interrupt)
 	jirix.TimerPush("Map and Reduce")
 	go func() { <-sigch; mr.Cancel() }()
 	go mr.Run(in, out, runner, runner)
 	for _, key := range keys {
-		in <- &simplemr.Record{key.String(), []any{mapInputs[key]}}
+		in <- &simplemr.Record{Key: key.String(), Values: []any{mapInputs[key]}}
 	}
 	close(in)
 	<-out

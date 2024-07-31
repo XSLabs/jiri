@@ -50,7 +50,9 @@ func TestManifest(t *testing.T) {
 </manifest>
 `))
 
-	runCommand := func(t *testing.T, args []string) (stdout string, stderr string) {
+	runCommand := func(t *testing.T, args []string) (string, error) {
+		t.Helper()
+
 		// Set up a fake Jiri root to pass to our command.
 		fake := jiritest.NewFakeJiriRoot(t)
 
@@ -63,31 +65,17 @@ func TestManifest(t *testing.T) {
 			t.Error(err)
 		}
 
-		// Run the command.
-		runCmd := func() {
-			if err := runManifest(fake.X, flagSet.Args()); err != nil {
-				// Capture the error as stderr since Jiri subcommands don't
-				// intenionally print to stderr when they fail.
-				stderr = err.Error()
-			}
-		}
-
-		var err error
-		stdout, _, err = runfunc(runCmd)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		return stdout, stderr
+		stdout, _, err := collectStdio(fake.X, flagSet.Args(), runManifest)
+		return stdout, err
 	}
 
 	// Expects manifest to return a specific value when given args.
 	expectAttributeValue := func(t *testing.T, args []string, expectedValue string) {
-		stdout, stderr := runCommand(t, args)
+		stdout, err := runCommand(t, args)
 
 		// If an error occurred, fail.
-		if stderr != "" {
-			t.Error("error:", stderr)
+		if err != nil {
+			t.Error(err)
 			return
 		}
 
@@ -99,10 +87,10 @@ func TestManifest(t *testing.T) {
 
 	// Expects manifest to error when given args.
 	expectError := func(t *testing.T, args []string) {
-		stdout, stderr := runCommand(t, args)
+		stdout, err := runCommand(t, args)
 
 		// Fail if no error was output.
-		if stderr == "" {
+		if err == nil {
 			t.Errorf("expected an error, got %s", stdout)
 			return
 		}

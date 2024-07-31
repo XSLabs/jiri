@@ -64,13 +64,7 @@ func addProjects(t *testing.T, fake *jiritest.FakeJiriRoot) []*project.Project {
 }
 
 func executeRunp(t *testing.T, fake *jiritest.FakeJiriRoot, args ...string) string {
-	stderr := ""
-	runCmd := func() {
-		if err := runRunp(fake.X, args); err != nil {
-			stderr = err.Error()
-		}
-	}
-	stdout, _, err := runfunc(runCmd)
+	stdout, stderr, err := collectStdio(fake.X, args, runRunp)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -83,7 +77,7 @@ func TestRunP(t *testing.T) {
 	projects := addProjects(t, fake)
 
 	if got, want := len(projects), 5; got != want {
-		t.Errorf("got %v, want %v", got, want)
+		t.Errorf("got %d, want %d", got, want)
 	}
 
 	manifestKey := strings.Replace(projects[0].Key().String(), "r.a", "manifest", -1)
@@ -104,14 +98,14 @@ func TestRunP(t *testing.T) {
 	hdr += "Project Keys: " + strings.Join(keys, " ") + "\n"
 
 	if want := hdr + "manifest: \nr.a: \nr.b: \nr.c: \nsub/r.t1: \nsub/sub2/r.t2:"; got != want {
-		t.Errorf("got %v, want %v", got, want)
+		t.Errorf("got %q, want %q", got, want)
 	}
 
 	setDefaultRunpFlags()
 	runpFlags.interactive = false
 	got = executeRunp(t, fake, "git", "rev-parse", "--abbrev-ref", "HEAD")
 	if want := "HEAD\nHEAD\nHEAD\nHEAD\nHEAD\nHEAD"; got != want {
-		t.Errorf("got %v, want %v", got, want)
+		t.Errorf("got %q, want %q", got, want)
 	}
 
 	setDefaultRunpFlags()
@@ -119,7 +113,7 @@ func TestRunP(t *testing.T) {
 	runpFlags.interactive = false
 	got = executeRunp(t, fake, "git", "rev-parse", "--abbrev-ref", "HEAD")
 	if want := strings.Join(keys, ": HEAD\n") + ": HEAD"; got != want {
-		t.Errorf("got %v, want %v", got, want)
+		t.Errorf("got %q, want %q", got, want)
 	}
 
 	setDefaultRunpFlags()
@@ -131,14 +125,14 @@ func TestRunP(t *testing.T) {
 	sort.Strings(split)
 	got = strings.TrimSpace(strings.Join(split, "\n"))
 	if want := "manifest: HEAD\nr.a: HEAD\nr.b: HEAD\nr.c: HEAD\nsub/r.t1: HEAD\nsub/sub2/r.t2: HEAD"; got != want {
-		t.Errorf("got %v, want %v", got, want)
+		t.Errorf("got %q, want %q", got, want)
 	}
 
 	setDefaultRunpFlags()
 	runpFlags.showPathPrefix = true
 	got = executeRunp(t, fake, "git", "rev-parse", "--abbrev-ref", "HEAD")
 	if want := strings.Join(paths, ": HEAD\n") + ": HEAD"; got != want {
-		t.Errorf("got %v, want %v", got, want)
+		t.Errorf("got %q, want %q", got, want)
 	}
 
 	setDefaultRunpFlags()
@@ -146,7 +140,7 @@ func TestRunP(t *testing.T) {
 	runpFlags.showNamePrefix = true
 	got = executeRunp(t, fake, "echo")
 	if want := "sub/r.t1: \nsub/sub2/r.t2:"; got != want {
-		t.Errorf("got %v, want %v", got, want)
+		t.Errorf("got %q, want %q", got, want)
 	}
 
 	rb := projects[1].Path
@@ -171,7 +165,7 @@ func TestRunP(t *testing.T) {
 	runpFlags.showNamePrefix = true
 	got = executeRunp(t, fake, "echo")
 	if want := "r.b:"; got != want {
-		t.Errorf("got %v, want %v", got, want)
+		t.Errorf("got %q, want %q", got, want)
 	}
 
 	setDefaultRunpFlags()
@@ -179,7 +173,7 @@ func TestRunP(t *testing.T) {
 	runpFlags.showNamePrefix = true
 	got = executeRunp(t, fake, "echo")
 	if want := "manifest: \nr.a: \nr.c: \nsub/r.t1: \nsub/sub2/r.t2:"; got != want {
-		t.Errorf("got %v, want %v", got, want)
+		t.Errorf("got %q, want %q", got, want)
 	}
 
 	newfile(rc, "uncommitted.go")
@@ -193,7 +187,7 @@ func TestRunP(t *testing.T) {
 	runpFlags.showNamePrefix = true
 	got = executeRunp(t, fake, "echo")
 	if want := "r.c:"; got != want {
-		t.Errorf("got %v, want %v", got, want)
+		t.Errorf("got %q, want %q", got, want)
 	}
 
 	setDefaultRunpFlags()
@@ -201,7 +195,7 @@ func TestRunP(t *testing.T) {
 	runpFlags.showNamePrefix = true
 	got = executeRunp(t, fake, "echo")
 	if want := "manifest: \nr.a: \nr.b: \nsub/r.t1: \nsub/sub2/r.t2:"; got != want {
-		t.Errorf("got %v, want %v", got, want)
+		t.Errorf("got %q, want %q", got, want)
 	}
 
 	newfile(rc, "untracked.go")
@@ -211,7 +205,7 @@ func TestRunP(t *testing.T) {
 	runpFlags.showNamePrefix = true
 	got = executeRunp(t, fake, "echo")
 	if want := "r.c:"; got != want {
-		t.Errorf("got %v, want %v", got, want)
+		t.Errorf("got %q, want %q", got, want)
 	}
 
 	git(rb).CreateAndCheckoutBranch("a1")
@@ -221,42 +215,42 @@ func TestRunP(t *testing.T) {
 
 	fake.X.Cwd = rc
 
-	// Just the projects with branch b2.
 	setDefaultRunpFlags()
+	// Just the projects with branch b2.
 	runpFlags.showNamePrefix = true
 	runpFlags.branch = "b2"
 	got = executeRunp(t, fake, "echo")
 	if want := "r.b: \nr.c:"; got != want {
-		t.Errorf("got %v, want %v", got, want)
+		t.Errorf("got %q, want %q", got, want)
 	}
 
-	// Show all prjects even though current project is on b2
 	setDefaultRunpFlags()
+	// Show all projects even though current project is on b2
 	runpFlags.showNamePrefix = true
 	got = executeRunp(t, fake, "echo")
 	if want := "manifest: \nr.a: \nr.b: \nr.c: \nsub/r.t1: \nsub/sub2/r.t2:"; got != want {
-		t.Errorf("got %v, want %v", got, want)
+		t.Errorf("got %q, want %q", got, want)
 	}
 
-	// All projects since --projects takes precedence over branches.
 	setDefaultRunpFlags()
+	// All projects since --projects takes precedence over branches.
 	runpFlags.projectKeys = ".*"
 	runpFlags.showNamePrefix = true
 	got = executeRunp(t, fake, "echo")
 	if want := "manifest: \nr.a: \nr.b: \nr.c: \nsub/r.t1: \nsub/sub2/r.t2:"; got != want {
-		t.Errorf("got %v, want %v", got, want)
+		t.Errorf("got %q, want %q", got, want)
 	}
 
 	if err := os.MkdirAll(filepath.Join(rb, ".jiri", "a1"), os.FileMode(0755)); err != nil {
 		t.Fatal(err)
 	}
 
-	// Just the projects with remotes containing "sub".
 	setDefaultRunpFlags()
+	// Just the projects with remotes containing "sub".
 	runpFlags.remote = "sub"
 	runpFlags.showNamePrefix = true
 	got = executeRunp(t, fake, "echo")
 	if want := "sub/r.t1: \nsub/sub2/r.t2:"; got != want {
-		t.Errorf("got %v, want %v", got, want)
+		t.Errorf("got %q, want %q", got, want)
 	}
 }

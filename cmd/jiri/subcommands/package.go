@@ -127,11 +127,11 @@ func runPackageInfo(jirix *jiri.X, args []string) error {
 	}
 
 	for _, i := range info {
-		fmt.Printf("* package %s\n", i.Name)
-		fmt.Printf("  Path:     %s\n", i.Path)
-		fmt.Printf("  Version:  %s\n", i.Version)
-		fmt.Printf("  Manifest: %s\n", i.Manifest)
-		fmt.Printf("  Platforms: %v\n", i.Platforms)
+		fmt.Fprintf(jirix.Stdout(), "* package %s\n", i.Name)
+		fmt.Fprintf(jirix.Stdout(), "  Path:     %s\n", i.Path)
+		fmt.Fprintf(jirix.Stdout(), "  Version:  %s\n", i.Version)
+		fmt.Fprintf(jirix.Stdout(), "  Manifest: %s\n", i.Manifest)
+		fmt.Fprintf(jirix.Stdout(), "  Platforms: %v\n", i.Platforms)
 	}
 
 	if packageFlags.jsonOutput != "" {

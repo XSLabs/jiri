@@ -8,7 +8,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 	"text/template"
 
@@ -94,21 +93,21 @@ func readManifest(jirix *jiri.X, manifestPath string, tmpl *template.Template) e
 	// Check if any <project> elements match the given element name.
 	for _, project := range manifest.Projects {
 		if strings.ToLower(project.Name) == elementName {
-			return tmpl.Execute(os.Stdout, &project)
+			return tmpl.Execute(jirix.Stdout(), &project)
 		}
 	}
 
 	// Check if any <import> elements match the given element name.
 	for _, imprt := range manifest.Imports {
 		if strings.ToLower(imprt.Name) == elementName {
-			return tmpl.Execute(os.Stdout, &imprt)
+			return tmpl.Execute(jirix.Stdout(), &imprt)
 		}
 	}
 
 	// Check if any <package> elements match the given element name.
 	for _, pkg := range manifest.Packages {
 		if strings.ToLower(pkg.Name) == elementName {
-			return tmpl.Execute(os.Stdout, &pkg)
+			return tmpl.Execute(jirix.Stdout(), &pkg)
 		}
 	}
 

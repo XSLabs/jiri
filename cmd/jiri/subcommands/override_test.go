@@ -21,7 +21,8 @@ type overrideTestCase struct {
 	Exist          string
 	Want           string
 	WantJSONOutput string
-	Stdout, Stderr string
+	Stdout         string
+	WantErr        string
 	SetFlags       func()
 	runOnce        bool
 }
@@ -39,18 +40,18 @@ func setDefaultOverrideFlags() {
 func TestOverride(t *testing.T) {
 	tests := []overrideTestCase{
 		{
-			Name:   "no args",
-			Stderr: `wrong number of arguments`,
+			Name:    "no args",
+			WantErr: `wrong number of arguments`,
 		},
 		{
-			Name:   "too few args",
-			Args:   []string{"a"},
-			Stderr: `wrong number of arguments`,
+			Name:    "too few args",
+			Args:    []string{"a"},
+			WantErr: `wrong number of arguments`,
 		},
 		{
-			Name:   "too many args",
-			Args:   []string{"a", "b", "c"},
-			Stderr: `wrong number of arguments`,
+			Name:    "too many args",
+			Args:    []string{"a", "b", "c"},
+			WantErr: `wrong number of arguments`,
 		},
 		// Remote imports, default append behavior
 		{
@@ -170,7 +171,7 @@ func TestOverride(t *testing.T) {
 			SetFlags: func() {
 				overrideFlags.delete = true
 			},
-			Stderr:  `wrong number of arguments`,
+			WantErr: `wrong number of arguments for the delete flag`,
 			runOnce: true,
 		},
 		{
@@ -179,7 +180,7 @@ func TestOverride(t *testing.T) {
 				overrideFlags.delete = true
 			},
 			Args:    []string{"a", "b", "c"},
-			Stderr:  `wrong number of arguments`,
+			WantErr: `wrong number of arguments for the delete flag`,
 			runOnce: true,
 		},
 		{
@@ -189,7 +190,7 @@ func TestOverride(t *testing.T) {
 				overrideFlags.list = true
 			},
 			Args:    []string{"a", "b"},
-			Stderr:  `cannot use -delete and -list together`,
+			WantErr: `cannot use -delete and -list together`,
 			runOnce: true,
 		},
 		{
@@ -236,7 +237,7 @@ func TestOverride(t *testing.T) {
   </overrides>
 </manifest>
 `,
-			Stderr: `more than one override matches`,
+			WantErr: `more than one override matches`,
 		},
 		{
 			Name: "delete specifying remote",
@@ -327,28 +328,21 @@ func testOverride(t *testing.T, test overrideTestCase) error {
 	}
 
 	run := func() error {
-		var err error
-		// Run override and check the results.
-		overrideCmd := func() {
-			setDefaultOverrideFlags()
-			if test.SetFlags != nil {
-				test.SetFlags()
-			}
-			err = runOverride(jirix, test.Args)
+		setDefaultOverrideFlags()
+		if test.SetFlags != nil {
+			test.SetFlags()
 		}
-		stdout, _, runErr := runfunc(overrideCmd)
-		if runErr != nil {
-			return err
-		}
-		stderr := ""
+		stdout, _, err := collectStdio(jirix, test.Args, runOverride)
 		if err != nil {
-			stderr = err.Error()
+			if test.WantErr == "" {
+				return err
+			}
+			if got, want := err.Error(), test.WantErr; got != want {
+				return fmt.Errorf("err got %q, want %q", got, want)
+			}
 		}
 		if got, want := stdout, test.Stdout; !strings.Contains(got, want) || (got != "" && want == "") {
 			return fmt.Errorf("stdout got %q, want substr %q", got, want)
-		}
-		if got, want := stderr, test.Stderr; !strings.Contains(got, want) || (got != "" && want == "") {
-			return fmt.Errorf("stderr got %q, want substr %q", got, want)
 		}
 		return nil
 	}

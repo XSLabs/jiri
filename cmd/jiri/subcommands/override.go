@@ -119,21 +119,21 @@ func runOverride(jirix *jiri.X, args []string) error {
 
 		if overrideFlags.JSONOutput == "" {
 			for _, o := range overrides {
-				fmt.Printf("* override %s\n", o.Name)
+				fmt.Fprintf(jirix.Stdout(), "* override %s\n", o.Name)
 				if o.Import {
-					fmt.Printf("  IsImport: %v\n", o.Import)
-					fmt.Printf("  ImportManifest: %s\n", o.ImportManifest)
+					fmt.Fprintf(jirix.Stdout(), "  IsImport: %v\n", o.Import)
+					fmt.Fprintf(jirix.Stdout(), "  ImportManifest: %s\n", o.ImportManifest)
 				}
-				fmt.Printf("  Name:        %s\n", o.Name)
-				fmt.Printf("  Remote:      %s\n", o.Remote)
+				fmt.Fprintf(jirix.Stdout(), "  Name:        %s\n", o.Name)
+				fmt.Fprintf(jirix.Stdout(), "  Remote:      %s\n", o.Remote)
 				if o.Path != "" {
-					fmt.Printf("  Path:        %s\n", o.Path)
+					fmt.Fprintf(jirix.Stdout(), "  Path:        %s\n", o.Path)
 				}
 				if o.Remote != "" {
-					fmt.Printf("  Revision:    %s\n", o.Revision)
+					fmt.Fprintf(jirix.Stdout(), "  Revision:    %s\n", o.Revision)
 				}
 				if o.GerritHost != "" {
-					fmt.Printf("  Gerrit Host: %s\n", o.GerritHost)
+					fmt.Fprintf(jirix.Stdout(), "  Gerrit Host: %s\n", o.GerritHost)
 				}
 			}
 		} else {

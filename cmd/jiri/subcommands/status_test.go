@@ -378,17 +378,11 @@ func equal(first, second string) bool {
 }
 
 func executeStatus(t *testing.T, fake *jiritest.FakeJiriRoot, args ...string) string {
-	stderr := ""
-	runCmd := func() {
-		if err := runStatus(fake.X, args); err != nil {
-			stderr = err.Error()
-		}
-	}
-	stdout, _, err := runfunc(runCmd)
+	stdout, _, err := collectStdio(fake.X, args, runStatus)
 	if err != nil {
 		t.Fatal(err)
 	}
-	return strings.TrimSpace(strings.Join([]string{stdout, stderr}, " "))
+	return strings.TrimSpace(strings.Join([]string{stdout}, " "))
 }
 
 func writeFile(t *testing.T, jirix *jiri.X, projectDir, fileName, message string) {
