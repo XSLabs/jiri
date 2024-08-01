@@ -7,14 +7,22 @@ package cipd
 import (
 	"bytes"
 	"encoding/hex"
+	"io"
 	"os"
 	"path"
+	"path/filepath"
 	"reflect"
 	"sort"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 
-	"go.fuchsia.dev/jiri/jiritest/xtest"
+	"go.fuchsia.dev/jiri"
+	"go.fuchsia.dev/jiri/cmdline"
+	"go.fuchsia.dev/jiri/color"
+	"go.fuchsia.dev/jiri/log"
+	"go.fuchsia.dev/jiri/tool"
 )
 
 const (
@@ -48,10 +56,66 @@ var (
 	}
 )
 
-// TestFetchBinary tests fetchiBinary method by fetching a set of
+var (
+	downloadCIPDOnce   sync.Once
+	cipdBinaryContents []byte
+)
+
+// newX is copied from `jiritest/xtest/x.go` to avoid circular dependencies
+// between this Go package and the `xtest` Go package.
+func newX(t *testing.T) *jiri.X {
+	env := cmdline.EnvFromOS()
+	// Don't write test output to the global stdout/stderr, since it causes
+	// noise.
+	env.Stdout = io.Discard
+	env.Stderr = io.Discard
+	ctx := tool.NewContextFromEnv(env)
+	color := color.NewColor(color.ColorNever)
+	logger := log.NewLogger(log.InfoLevel, color, false, 0, time.Second*100, env.Stdout, env.Stderr)
+	root := t.TempDir()
+	if err := os.Mkdir(filepath.Join(root, jiri.RootMetaDir), 0o700); err != nil {
+		t.Fatalf("TempDir() failed: %v", err)
+	}
+	jirix := &jiri.X{
+		Context:         ctx,
+		Root:            root,
+		Cwd:             root,
+		Jobs:            jiri.DefaultJobs,
+		Color:           color,
+		Logger:          logger,
+		Attempts:        1,
+		LockfileEnabled: false,
+	}
+
+	downloadCIPDOnce.Do(func() {
+		binaryPath := filepath.Join(t.TempDir(), "cipd")
+		if err := FetchBinary(jirix, binaryPath); err != nil {
+			t.Fatal(err)
+		}
+		b, err := os.ReadFile(binaryPath)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// Set global variable.
+		cipdBinaryContents = b
+	})
+
+	if err := os.MkdirAll(filepath.Dir(jirix.CIPDPath()), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(jirix.CIPDPath(), cipdBinaryContents, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	return jirix
+}
+
+// TestFetchBinary tests fetchBinary method by fetching a set of
 // cipd binaries. This test requires network access
 func TestFetchBinary(t *testing.T) {
-	fakex := xtest.NewX(t)
+	t.Parallel()
+
+	fakex := newX(t)
 	tmpDir := t.TempDir()
 
 	tests := []struct {
@@ -65,7 +129,7 @@ func TestFetchBinary(t *testing.T) {
 	for i, test := range tests {
 		for platform, digest := range test.digest {
 			cipdPath := path.Join(tmpDir, "cipd"+platform+test.version)
-			if err := fetchBinary(fakex, cipdPath, platform, test.version, digest); err != nil {
+			if err := fetchBinaryImpl(fakex, cipdPath, platform, test.version, digest); err != nil {
 				t.Errorf("test %d failed while retrieving cipd binary for platform %q on version %q with digest %q: %v", i, platform, test.version, digest, err)
 			}
 		}
@@ -107,59 +171,60 @@ func TestFetchDigest(t *testing.T) {
 }
 
 func TestSelfUpdate(t *testing.T) {
-	fakex := xtest.NewX(t)
+	t.Parallel()
+	fakex := newX(t)
 	tmpDir := t.TempDir()
 	// Bootstrap cipd to version A
 	cipdPath := path.Join(tmpDir, "cipd")
-	if err := fetchBinary(fakex, cipdPath, CipdPlatform.String(), cipdVersionForTestA, digestMapA[CipdPlatform.String()]); err != nil {
-		t.Errorf("failed to bootstrap cipd with version %q: %v", cipdVersionForTestA, err)
+	if err := fetchBinaryImpl(fakex, cipdPath, CipdPlatform.String(), cipdVersionForTestA, digestMapA[CipdPlatform.String()]); err != nil {
+		t.Fatalf("failed to bootstrap cipd with version %q: %v", cipdVersionForTestA, err)
 	}
 	// Perform cipd self update to version B
 	if err := selfUpdate(cipdPath, cipdVersionForTestB); err != nil {
-		t.Errorf("failed to perform cipd self update: %v", err)
+		t.Fatalf("failed to perform cipd self update: %v", err)
 	}
 	// Verify self updated cipd
 	cipdData, err := os.ReadFile(cipdPath)
 	if err != nil {
-		t.Errorf("failed to read self-updated cipd binary: %v", err)
+		t.Fatalf("failed to read self-updated cipd binary: %v", err)
 	}
 	verified, err := verifyDigest(cipdData, digestMapB[CipdPlatform.String()])
 	if err != nil {
-		t.Errorf("digest failed verification for platform %q on version %q", CipdPlatform.String(), cipdVersionForTestB)
+		t.Fatalf("digest failed verification for platform %q on version %q", CipdPlatform.String(), cipdVersionForTestB)
 	}
 	if !verified {
 		t.Errorf("self-updated cipd failed integrity test")
 	}
 }
 
-func TestBootsrap(t *testing.T) {
-	fakex := xtest.NewX(t)
-	cipdPath, err := Bootstrap(fakex, fakex.CIPDPath())
-	if cipdPath == "" {
-		t.Errorf("bootstrap returned an empty path")
+func TestBootstrap(t *testing.T) {
+	t.Parallel()
+	fakex := newX(t)
+	if err := Bootstrap(fakex); err != nil {
+		t.Fatal(err)
 	}
-	fileInfo, err := os.Stat(cipdPath)
+	fileInfo, err := os.Stat(fakex.CIPDPath())
 	if err != nil {
 		if os.IsNotExist(err) {
-			t.Errorf("bootstrap failed, cipd binary was not found at %q", cipdPath)
+			t.Fatalf("bootstrap failed, cipd binary was not found at %q", fakex.CIPDPath())
 		}
-		t.Errorf("bootstrap failed, could not access cipd binary at %q due to error %v", cipdPath, err)
+		t.Fatalf("bootstrap failed, could not access cipd binary at %q due to error %v", fakex.CIPDPath(), err)
 	}
 	if fileInfo.Mode()&0111 == 0 {
-		t.Errorf("bootstrap failed, cipd binary at %q is not executable", cipdBinary)
+		t.Errorf("bootstrap failed, cipd binary at %q is not executable", fakex.CIPDPath())
 	}
 }
 
 func TestEnsure(t *testing.T) {
-	fakex := xtest.NewX(t)
-	_, err := Bootstrap(fakex, fakex.CIPDPath())
-	if err != nil {
-		t.Errorf("bootstrap failed due to error: %v", err)
+	t.Parallel()
+	fakex := newX(t)
+	if err := Bootstrap(fakex); err != nil {
+		t.Fatalf("bootstrap failed due to error: %v", err)
 	}
 	// Write test ensure file
 	testEnsureFile, err := os.CreateTemp(t.TempDir(), "test_jiri*.ensure")
 	if err != nil {
-		t.Errorf("failed to create test ensure file: %v", err)
+		t.Fatalf("failed to create test ensure file: %v", err)
 	}
 	defer testEnsureFile.Close()
 	_, err = testEnsureFile.Write([]byte(`
@@ -169,38 +234,36 @@ $ParanoidMode CheckPresence
 gn/gn/${platform} git_revision:bdb0fd02324b120cacde634a9235405061c8ea06
 `))
 	if err != nil {
-		t.Errorf("failed to write test ensure file: %v", err)
+		t.Fatalf("failed to write test ensure file: %v", err)
 	}
 	testEnsureFile.Sync()
 	tmpDir := t.TempDir()
 	// Invoke Ensure on test ensure file
 	if err := Ensure(fakex, testEnsureFile.Name(), tmpDir, 30); err != nil {
-		t.Errorf("ensure failed due to error: %v", err)
+		t.Fatalf("ensure failed due to error: %v", err)
 	}
 	// Check the existence downloaded package
 	gnPath := path.Join(tmpDir, "gn")
 	if _, err := os.Stat(gnPath); err != nil {
 		if os.IsNotExist(err) {
-			t.Errorf("fetched cipd package is not found at %q", gnPath)
+			t.Fatalf("fetched cipd package is not found at %q", gnPath)
 		}
 		t.Errorf("failed to execute os.Stat() on fetched cipd package due to error: %v", err)
 	}
 }
 
 func TestEnsureFileVerify(t *testing.T) {
-	fakex := xtest.NewX(t)
-	cipdPath, err := Bootstrap(fakex, fakex.CIPDPath())
-	if err != nil {
-		t.Errorf("bootstrap failed due to error: %v", err)
+	t.Parallel()
+	fakex := newX(t)
+	if err := Bootstrap(fakex); err != nil {
+		t.Fatalf("bootstrap failed due to error: %v", err)
 	}
-	defer os.Remove(cipdPath)
 	// Write test ensure file
-	testEnsureFile, err := os.CreateTemp("", "test_jiri*.ensure")
+	testEnsureFile, err := os.CreateTemp(t.TempDir(), "test_jiri*.ensure")
 	if err != nil {
-		t.Errorf("failed to create test ensure file: %v", err)
+		t.Fatalf("failed to create test ensure file: %v", err)
 	}
 	defer testEnsureFile.Close()
-	defer os.Remove(testEnsureFile.Name())
 	_, err = testEnsureFile.Write([]byte(`
 $ParanoidMode CheckPresence
 $VerifiedPlatform linux-amd64
@@ -210,7 +273,7 @@ $VerifiedPlatform mac-amd64
 gn/gn/${platform} git_revision:bdb0fd02324b120cacde634a9235405061c8ea06
 `))
 	if err != nil {
-		t.Errorf("failed to write test ensure file: %v", err)
+		t.Fatalf("failed to write test ensure file: %v", err)
 	}
 	testEnsureFile.Sync()
 	if err := EnsureFileVerify(fakex, testEnsureFile.Name()); err != nil {
@@ -219,19 +282,14 @@ gn/gn/${platform} git_revision:bdb0fd02324b120cacde634a9235405061c8ea06
 }
 
 func TestEnsureFileVerifyInvalid(t *testing.T) {
-	fakex := xtest.NewX(t)
-	cipdPath, err := Bootstrap(fakex, fakex.CIPDPath())
-	if err != nil {
-		t.Errorf("bootstrap failed due to error: %v", err)
-	}
-	defer os.Remove(cipdPath)
+	t.Parallel()
+	fakex := newX(t)
 	// Write test ensure file
-	testEnsureFile, err := os.CreateTemp("", "test_jiri*.ensure")
+	testEnsureFile, err := os.CreateTemp(t.TempDir(), "test_jiri*.ensure")
 	if err != nil {
-		t.Errorf("failed to create test ensure file: %v", err)
+		t.Fatalf("failed to create test ensure file: %v", err)
 	}
 	defer testEnsureFile.Close()
-	defer os.Remove(testEnsureFile.Name())
 	_, err = testEnsureFile.Write([]byte(`
 $ParanoidMode CheckPresence
 $VerifiedPlatform linux-amd64
@@ -241,7 +299,7 @@ $VerifiedPlatform mac-amd64
 gn/gn/${platform} git_revision:not_a_real_version
 `))
 	if err != nil {
-		t.Errorf("failed to write test ensure file: %v", err)
+		t.Fatalf("failed to write test ensure file: %v", err)
 	}
 	testEnsureFile.Sync()
 	if err := EnsureFileVerify(fakex, testEnsureFile.Name()); err == nil {
@@ -250,18 +308,14 @@ gn/gn/${platform} git_revision:not_a_real_version
 }
 
 func TestCheckACL(t *testing.T) {
-	fakex := xtest.NewX(t)
-	cipdPath, err := Bootstrap(fakex, fakex.CIPDPath())
-	if err != nil {
-		t.Errorf("bootstrap failed due to error: %v", err)
-	}
-	defer os.Remove(cipdPath)
+	t.Parallel()
+	fakex := newX(t)
 
 	pkgMap := make(map[string]bool)
 	pkgMap[cipdPkgPathA] = false
 	pkgMap[cipdPkgPathB] = false
 	if err := CheckPackageACL(fakex, pkgMap); err != nil {
-		t.Errorf("CheckPackageACL failed due to error: %v", err)
+		t.Fatalf("CheckPackageACL failed due to error: %v", err)
 	}
 
 	if !pkgMap[cipdPkgPathA] {
@@ -275,21 +329,16 @@ func TestCheckACL(t *testing.T) {
 }
 
 func TestResolve(t *testing.T) {
-	fakex := xtest.NewX(t)
-	cipdPath, err := Bootstrap(fakex, fakex.CIPDPath())
-	if err != nil {
-		t.Errorf("bootstrap failed due to error: %v", err)
-	}
-	defer os.Remove(cipdPath)
+	t.Parallel()
+	fakex := newX(t)
 
 	// Write test ensure file
-	testEnsureFile, err := os.CreateTemp("", "test_jiri*.ensure")
+	testEnsureFile, err := os.CreateTemp(t.TempDir(), "test_jiri*.ensure")
 	if err != nil {
-		t.Errorf("failed to create test ensure file: %v", err)
+		t.Fatalf("failed to create test ensure file: %v", err)
 	}
 	defer testEnsureFile.Close()
 	ensureFileName := testEnsureFile.Name()
-	defer os.Remove(ensureFileName)
 	versionFileName := ensureFileName[:len(ensureFileName)-len(".ensure")] + ".version"
 	var ensureBuf bytes.Buffer
 	ensureBuf.WriteString("$ResolvedVersions " + versionFileName + "\n")
@@ -303,13 +352,13 @@ gn/gn/${platform} git_revision:bdb0fd02324b120cacde634a9235405061c8ea06
 `)
 	_, err = testEnsureFile.Write(ensureBuf.Bytes())
 	if err != nil {
-		t.Errorf("failed to write test ensure file: %v", err)
+		t.Fatalf("failed to write test ensure file: %v", err)
 	}
 
 	testEnsureFile.Sync()
 	instances, err := Resolve(fakex, testEnsureFile.Name())
 	if err != nil {
-		t.Errorf("resolve failed due to error: %v", err)
+		t.Fatalf("resolve failed due to error: %v", err)
 	}
 	for _, instance := range instances {
 		if val, ok := instanceIDMap[instance.PackageName]; ok {
@@ -393,12 +442,8 @@ func TestDecl(t *testing.T) {
 }
 
 func TestFloatingRefs(t *testing.T) {
-	fakex := xtest.NewX(t)
-	cipdPath, err := Bootstrap(fakex, fakex.CIPDPath())
-	if err != nil {
-		t.Errorf("bootstrap failed due to error: %v", err)
-	}
-	defer os.Remove(cipdPath)
+	t.Parallel()
+	fakex := newX(t)
 	testExpects := map[PackageInstance]bool{
 		{
 			PackageName: "gn/gn/${platform}",
@@ -421,7 +466,7 @@ func TestFloatingRefs(t *testing.T) {
 	}
 
 	if err := CheckFloatingRefs(fakex, tests, platformMap); err != nil {
-		t.Errorf("CheckFloatingRefs failed due to error: %v", err)
+		t.Fatalf("CheckFloatingRefs failed due to error: %v", err)
 		return
 	}
 

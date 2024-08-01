@@ -81,7 +81,17 @@ func init() {
 	CipdPlatform = Platform{cipdOS, cipdArch}
 }
 
-func fetchBinary(jirix *jiri.X, binaryPath, platform, version, digest string) error {
+// FetchBinary downloads CIPD to the specified path.
+func FetchBinary(jirix *jiri.X, binaryPath string) error {
+	// Fetch cipd digest
+	digest, _, err := fetchDigest(CipdPlatform.String())
+	if err != nil {
+		return err
+	}
+	return fetchBinaryImpl(jirix, binaryPath, CipdPlatform.String(), cipdVersion, digest)
+}
+
+func fetchBinaryImpl(jirix *jiri.X, binaryPath, platform, version, digest string) error {
 	cipdURL := fmt.Sprintf("%s/client?platform=%s&version=%s", cipdBackend, platform, version)
 	data, err := fetchFile(jirix, cipdURL)
 	if err != nil {
@@ -105,62 +115,39 @@ func fetchBinary(jirix *jiri.X, binaryPath, platform, version, digest string) er
 // Bootstrap returns the path of a valid cipd binary. It will fetch cipd from
 // remote if a valid cipd binary is not found. It will update cipd if there
 // is a new version.
-func Bootstrap(jirix *jiri.X, binaryPath string) (string, error) {
-	cipdBinary = binaryPath
-	bootstrap := func() error {
-		// Fetch cipd digest
-		cipdDigest, _, err := fetchDigest(CipdPlatform.String())
-		if err != nil {
-			return err
-		}
-		if cipdBinary == "" {
-			return errors.New("cipd binary path was not set")
-		}
-		if err != nil {
-			return err
-		}
-		return fetchBinary(jirix, cipdBinary, CipdPlatform.String(), cipdVersion, cipdDigest)
-	}
-
-	getCipd := func() (string, error) {
-		if cipdBinary == "" {
-			return "", errors.New("cipd binary path was not set")
-		}
-		fileInfo, err := os.Stat(cipdBinary)
+func Bootstrap(jirix *jiri.X) error {
+	checkValidity := func() error {
+		fileInfo, err := os.Stat(jirix.CIPDPath())
 		if err != nil {
 			if os.IsNotExist(err) {
-				return "", fmt.Errorf("cipd binary was not found at %q", cipdBinary)
+				return fmt.Errorf("cipd binary was not found at %q", jirix.CIPDPath())
 			}
-			return "", err
+			return err
 		}
 		// Check if cipd binary has execution permission
 		if fileInfo.Mode()&0111 == 0 {
-			return "", fmt.Errorf("cipd binary at %q is not executable", cipdBinary)
+			return fmt.Errorf("cipd binary at %q is not executable", jirix.CIPDPath())
 		}
-		return cipdBinary, nil
+		return nil
 	}
 
-	cipdPath, err := getCipd()
-	if err != nil {
+	if err := checkValidity(); err != nil {
 		// Could not find cipd binary or cipd is invalid
 		// Bootstrap it from scratch
-		if err := bootstrap(); err != nil {
-			return "", err
-		}
-		return cipdBinary, nil
+		return FetchBinary(jirix, jirix.CIPDPath())
 	}
 	// cipd is found, do self update
 	var e error
 	selfUpdateOnce.Do(func() {
-		e = selfUpdate(cipdPath, cipdVersion)
+		e = selfUpdate(jirix.CIPDPath(), cipdVersion)
 	})
 	if e != nil {
 		// Self update is unsuccessful, redo bootstrap
-		if err := bootstrap(); err != nil {
-			return "", err
+		if err := FetchBinary(jirix, jirix.CIPDPath()); err != nil {
+			return err
 		}
 	}
-	return cipdPath, nil
+	return nil
 }
 
 // FuchsiaPlatform returns a Platform struct which can be used in
@@ -225,15 +212,14 @@ func writeFile(filePath string, data []byte) error {
 		return errors.New("I/O error while downloading cipd binary")
 	}
 	// Set mode to rwxr-xr-x
-	if err := tempFile.Chmod(0755); err != nil {
+	if err := tempFile.Chmod(0o755); err != nil {
 		// Chmod errors
 		return errors.New("I/O error while adding executable permission to cipd binary")
 	}
-	tempFile.Close()
-	if err := os.Rename(tempFile.Name(), filePath); err != nil {
+	if err := tempFile.Close(); err != nil {
 		return err
 	}
-	return nil
+	return os.Rename(tempFile.Name(), filePath)
 }
 
 func verifyDigest(data []byte, cipdDigest string) (bool, error) {
@@ -254,6 +240,11 @@ func getUserAgent() string {
 }
 
 func fetchFile(jirix *jiri.X, url string) ([]byte, error) {
+	// Retry the fetch a hardcoded number of times. jirix.Attempts is intended
+	// to only apply to Git operations, and Git operation retries may be
+	// disabled even when HTTP file fetches should still be retried.
+	const maxAttempts = 3
+
 	client := &http.Client{}
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
@@ -272,7 +263,7 @@ func fetchFile(jirix *jiri.X, url string) ([]byte, error) {
 		}
 		contents, err = io.ReadAll(resp.Body)
 		return err
-	}, fmt.Sprintf("bootstrapping cipd binary"), retry.AttemptsOpt(jirix.Attempts)); err != nil {
+	}, fmt.Sprintf("bootstrapping cipd binary"), retry.AttemptsOpt(maxAttempts)); err != nil {
 		jirix.Logger.Errorf("error: failed to download cipd client: %v\n", err)
 		return nil, err
 	}
@@ -285,13 +276,6 @@ type packageACL struct {
 }
 
 func checkPackageACL(jirix *jiri.X, cipdPath, jsonDir string, c chan<- packageACL) {
-	// cipd should be already bootstrapped before this go routine.
-	// Silently return a false just in case if cipd is not found.
-	if cipdBinary == "" {
-		c <- packageACL{path: cipdPath, access: false}
-		return
-	}
-
 	jsonFile, err := os.CreateTemp(jsonDir, "cipd*.json")
 	if err != nil {
 		jirix.Logger.Warningf("Error while creating temporary file for cipd")
@@ -304,7 +288,7 @@ func checkPackageACL(jirix *jiri.X, cipdPath, jsonDir string, c chan<- packageAC
 	args := []string{"acl-check", "-reader", "-json-output", jsonFileName, cipdPath}
 	jirix.Logger.Debugf("Invoke cipd with %v", args)
 
-	command := exec.Command(cipdBinary, args...)
+	command := exec.Command(jirix.CIPDPath(), args...)
 	var stdoutBuf, stderrBuf bytes.Buffer
 	command.Stdout = &stdoutBuf
 	command.Stderr = &stderrBuf
@@ -346,7 +330,7 @@ func CheckPackageACL(jirix *jiri.X, pkgs map[string]bool) error {
 	// Not declared as CheckPackageACL(jirix *jiri.X, pkgs map[*package.Package]bool)
 	// due to import cycles. Package jiri/package imports jiri/cipd so here we cannot
 	// import jiri/package.
-	if _, err := Bootstrap(jirix, jirix.CIPDPath()); err != nil {
+	if err := Bootstrap(jirix); err != nil {
 		return err
 	}
 
@@ -381,12 +365,11 @@ func CheckPackageACL(jirix *jiri.X, pkgs map[string]bool) error {
 // if login information is found or return false if login information is not
 // found.
 func CheckLoggedIn(jirix *jiri.X) (bool, error) {
-	cipdPath, err := Bootstrap(jirix, jirix.CIPDPath())
-	if err != nil {
+	if err := Bootstrap(jirix); err != nil {
 		return false, err
 	}
 	args := []string{"auth-info"}
-	command := exec.Command(cipdPath, args...)
+	command := exec.Command(jirix.CIPDPath(), args...)
 	var stdoutBuf, stderrBuf bytes.Buffer
 	command.Stdout = &stdoutBuf
 	command.Stderr = &stderrBuf
@@ -404,8 +387,7 @@ func CheckLoggedIn(jirix *jiri.X) (bool, error) {
 // Ensure runs cipd binary's ensure functionality over file. Fetched packages will be
 // saved to projectRoot directory. Parameter timeout is in minutes.
 func Ensure(jirix *jiri.X, file, projectRoot string, timeout uint) error {
-	cipdPath, err := Bootstrap(jirix, jirix.CIPDPath())
-	if err != nil {
+	if err := Bootstrap(jirix); err != nil {
 		return err
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(timeout)*time.Minute)
@@ -428,14 +410,14 @@ func Ensure(jirix *jiri.X, file, projectRoot string, timeout uint) error {
 	jirix.Logger.Debugf("Invoke cipd with %v", args)
 
 	// Construct arguments and invoke cipd for ensure file
-	command := exec.CommandContext(ctx, cipdPath, args...)
+	command := exec.CommandContext(ctx, jirix.CIPDPath(), args...)
 	// Add User-Agent info for cipd
 	command.Env = append(os.Environ(), "CIPD_HTTP_USER_AGENT_PREFIX="+getUserAgent())
 	command.Stdin = os.Stdin
 	command.Stdout = os.Stdout
 	command.Stderr = os.Stderr
 
-	err = command.Run()
+	err := command.Run()
 	if ctx.Err() == context.DeadlineExceeded {
 		err = ctx.Err()
 	}
@@ -443,7 +425,7 @@ func Ensure(jirix *jiri.X, file, projectRoot string, timeout uint) error {
 }
 
 func EnsureFileVerify(jirix *jiri.X, file string) error {
-	cipdPath, err := Bootstrap(jirix, jirix.CIPDPath())
+	err := Bootstrap(jirix)
 	if err != nil {
 		return err
 	}
@@ -462,7 +444,7 @@ func EnsureFileVerify(jirix *jiri.X, file string) error {
 	jirix.Logger.Debugf("Invoke cipd with %v", args)
 
 	// Construct arguments and invoke cipd for ensure file
-	command := exec.Command(cipdPath, args...)
+	command := exec.Command(jirix.CIPDPath(), args...)
 	var stdoutBuf, stderrBuf bytes.Buffer
 	// Add User-Agent info for cipd
 	command.Env = append(os.Environ(), "CIPD_HTTP_USER_AGENT_PREFIX="+getUserAgent())
@@ -494,14 +476,13 @@ type PackageInstance struct {
 // Resolve runs cipd binary's ensure-file-resolve functionality over file.
 // It returns a slice containing resolved packages and cipd instance ids.
 func Resolve(jirix *jiri.X, file string) ([]PackageInstance, error) {
-	cipdPath, err := Bootstrap(jirix, jirix.CIPDPath())
-	if err != nil {
+	if err := Bootstrap(jirix); err != nil {
 		return nil, err
 	}
 	args := []string{"ensure-file-resolve", "-ensure-file", file, "-log-level", "warning"}
 	jirix.Logger.Debugf("Invoke cipd with %v", args)
 
-	command := exec.Command(cipdPath, args...)
+	command := exec.Command(jirix.CIPDPath(), args...)
 	command.Env = append(os.Environ(), "CIPD_HTTP_USER_AGENT_PREFIX="+getUserAgent())
 	var stdoutBuf, stderrBuf bytes.Buffer
 	command.Stdin = os.Stdin
@@ -611,7 +592,7 @@ type packageFloatingRef struct {
 // CheckFloatingRefs determines if pkgs contains a floating ref which shouldn't
 // be used normally.
 func CheckFloatingRefs(jirix *jiri.X, pkgs map[PackageInstance]bool, plats map[PackageInstance][]Platform) error {
-	if _, err := Bootstrap(jirix, jirix.CIPDPath()); err != nil {
+	if err := Bootstrap(jirix); err != nil {
 		return err
 	}
 
@@ -661,14 +642,6 @@ func checkFloatingRefs(jirix *jiri.X, pkg PackageInstance, plats []Platform, jso
 	// this function.
 	sem.Acquire(context.Background(), 1)
 	defer sem.Release(1)
-	if cipdBinary == "" {
-		c <- packageFloatingRef{
-			pkg:      pkg,
-			err:      errors.New("cipd is not bootstrapped when calling checkFloatingRefs"),
-			floating: false,
-		}
-		return
-	}
 	// jsonFile will be cleaned up by caller.
 	jsonFile, err := os.CreateTemp(jsonDir, "cipd*.json")
 	if err != nil {
@@ -712,7 +685,7 @@ func checkFloatingRefs(jirix *jiri.X, pkg PackageInstance, plats []Platform, jso
 
 	var stdoutBuf bytes.Buffer
 	var stderrBuf bytes.Buffer
-	command := exec.Command(cipdBinary, args...)
+	command := exec.Command(jirix.CIPDPath(), args...)
 	command.Env = append(os.Environ(), "CIPD_HTTP_USER_AGENT_PREFIX="+getUserAgent())
 	command.Stdin = os.Stdin
 	command.Stdout = &stdoutBuf

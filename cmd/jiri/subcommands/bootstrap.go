@@ -37,11 +37,10 @@ func runBootstrap(env *cmdline.Env, args []string) error {
 			if err != nil {
 				return err
 			}
-			cipdPath, err := cipd.Bootstrap(jirix, jirix.CIPDPath())
-			if err != nil {
+			if err := cipd.Bootstrap(jirix); err != nil {
 				return err
 			}
-			fmt.Printf("cipd bootstrapped to path:%q\n", cipdPath)
+			fmt.Printf("cipd bootstrapped to path:%q\n", jirix.CIPDPath())
 
 		default:
 			return fmt.Errorf("unsupported package %q", v)
