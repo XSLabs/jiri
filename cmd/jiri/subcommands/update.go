@@ -5,17 +5,37 @@
 package subcommands
 
 import (
+	"context"
+	"flag"
 	"fmt"
 	"os"
 	"time"
 
+	"github.com/google/subcommands"
 	"go.fuchsia.dev/jiri"
-	"go.fuchsia.dev/jiri/cmdline"
 	"go.fuchsia.dev/jiri/project"
 	"go.fuchsia.dev/jiri/retry"
 )
 
-var updateFlags struct {
+const (
+	minExecutionTimingThreshold time.Duration = time.Duration(30) * time.Minute        // 30 min
+	maxExecutionTimingThreshold time.Duration = time.Duration(2) * time.Hour * 24 * 14 // 2 weeks
+)
+
+// TODO(https://fxbug.dev/356134056): delete when finished migrating to
+// subcommands library.
+var (
+	updateFlags updateCmd
+	cmdUpdate   = commandFromSubcommand(&updateFlags)
+)
+
+// TODO(https://fxbug.dev/356134056): delete when finished migrating to
+// subcommands library.
+func init() {
+	updateFlags.SetFlags(&cmdUpdate.Flags)
+}
+
+type updateCmd struct {
 	gc               bool
 	localManifest    bool
 	attempts         uint
@@ -34,47 +54,47 @@ var updateFlags struct {
 	packagesToSkip   arrayFlag
 }
 
-const (
-	MIN_EXECUTION_TIMING_THRESHOLD time.Duration = time.Duration(30) * time.Minute        // 30 min
-	MAX_EXECUTION_TIMING_THRESHOLD time.Duration = time.Duration(2) * time.Hour * 24 * 14 // 2 weeks
-)
-
-func init() {
-	cmdUpdate.Flags.BoolVar(&updateFlags.gc, "gc", true, "Garbage collect obsolete repositories.")
-	cmdUpdate.Flags.BoolVar(&updateFlags.localManifest, "local-manifest", false, "Use local manifest")
-	cmdUpdate.Flags.UintVar(&updateFlags.attempts, "attempts", 3, "Number of attempts before failing.")
-	cmdUpdate.Flags.BoolVar(&updateFlags.autoupdate, "autoupdate", true, "Automatically update to the new version.")
-	cmdUpdate.Flags.BoolVar(&updateFlags.forceAutoupdate, "force-autoupdate", false, "Always update to the current version.")
-	cmdUpdate.Flags.BoolVar(&updateFlags.rebaseUntracked, "rebase-untracked", false, "Rebase untracked branches onto HEAD.")
-	cmdUpdate.Flags.UintVar(&updateFlags.hookTimeout, "hook-timeout", project.DefaultHookTimeout, "Timeout in minutes for running the hooks operation.")
-	cmdUpdate.Flags.UintVar(&updateFlags.fetchPkgsTimeout, "fetch-packages-timeout", project.DefaultPackageTimeout, "Timeout in minutes for fetching prebuilt packages using cipd.")
-	cmdUpdate.Flags.BoolVar(&updateFlags.rebaseAll, "rebase-all", false, "Rebase all tracked branches. Also rebase all untracked branches if -rebase-untracked is passed")
-	cmdUpdate.Flags.BoolVar(&updateFlags.rebaseCurrent, "rebase-current", false, "Deprecated. Implies -rebase-tracked. Would be removed in future.")
-	cmdUpdate.Flags.BoolVar(&updateFlags.rebaseSubmodules, "rebase-submodules", false, "Rebase current tracked branches for submodules.")
-	cmdUpdate.Flags.BoolVar(&updateFlags.rebaseTracked, "rebase-tracked", false, "Rebase current tracked branches instead of fast-forwarding them.")
-	cmdUpdate.Flags.BoolVar(&updateFlags.runHooks, "run-hooks", true, "Run hooks after updating sources.")
-	cmdUpdate.Flags.BoolVar(&updateFlags.fetchPkgs, "fetch-packages", true, "Use cipd to fetch packages.")
-	cmdUpdate.Flags.BoolVar(&updateFlags.overrideOptional, "override-optional", false, "Override existing optional attributes in the snapshot file with current jiri settings")
-	cmdUpdate.Flags.Var(&updateFlags.packagesToSkip, "package-to-skip", "Skip fetching this package. Repeatable.")
+func (c *updateCmd) SetFlags(f *flag.FlagSet) {
+	f.BoolVar(&c.gc, "gc", true, "Garbage collect obsolete repositories.")
+	f.BoolVar(&c.localManifest, "local-manifest", false, "Use local manifest")
+	f.UintVar(&c.attempts, "attempts", 3, "Number of attempts before failing.")
+	f.BoolVar(&c.autoupdate, "autoupdate", true, "Automatically update to the new version.")
+	f.BoolVar(&c.forceAutoupdate, "force-autoupdate", false, "Always update to the current version.")
+	f.BoolVar(&c.rebaseUntracked, "rebase-untracked", false, "Rebase untracked branches onto HEAD.")
+	f.UintVar(&c.hookTimeout, "hook-timeout", project.DefaultHookTimeout, "Timeout in minutes for running the hooks operation.")
+	f.UintVar(&c.fetchPkgsTimeout, "fetch-packages-timeout", project.DefaultPackageTimeout, "Timeout in minutes for fetching prebuilt packages using cipd.")
+	f.BoolVar(&c.rebaseAll, "rebase-all", false, "Rebase all tracked branches. Also rebase all untracked branches if -rebase-untracked is passed")
+	f.BoolVar(&c.rebaseCurrent, "rebase-current", false, "Deprecated. Implies -rebase-tracked. Would be removed in future.")
+	f.BoolVar(&c.rebaseSubmodules, "rebase-submodules", false, "Rebase current tracked branches for submodules.")
+	f.BoolVar(&c.rebaseTracked, "rebase-tracked", false, "Rebase current tracked branches instead of fast-forwarding them.")
+	f.BoolVar(&c.runHooks, "run-hooks", true, "Run hooks after updating sources.")
+	f.BoolVar(&c.fetchPkgs, "fetch-packages", true, "Use cipd to fetch packages.")
+	f.BoolVar(&c.overrideOptional, "override-optional", false, "Override existing optional attributes in the snapshot file with current jiri settings")
+	f.Var(&c.packagesToSkip, "package-to-skip", "Skip fetching this package. Repeatable.")
 }
 
-// cmdUpdate represents the "jiri update" command.
-var cmdUpdate = &cmdline.Command{
-	Runner: jiri.RunnerFunc(runUpdate),
-	Name:   "update",
-	Short:  "Update all jiri projects",
-	Long: `
+func (c *updateCmd) Name() string     { return "update" }
+func (c *updateCmd) Synopsis() string { return "Update all jiri projects" }
+func (c *updateCmd) Usage() string {
+	return `
 Updates all projects. The sequence in which the individual updates happen
 guarantees that we end up with a consistent workspace. The set of projects
 to update is described in the manifest.
 
 Run "jiri help manifest" for details on manifests.
-`,
-	ArgsName: "<file or url>",
-	ArgsLong: "<file or url> points to snapshot to checkout.",
+
+Usage:
+  jiri update [flags] <file or url>
+
+<file or url> points to snapshot to checkout.
+`
 }
 
-func runUpdate(jirix *jiri.X, args []string) error {
+func (c *updateCmd) Execute(ctx context.Context, _ *flag.FlagSet, args ...any) subcommands.ExitStatus {
+	return executeWrapper(ctx, c.run, args)
+}
+
+func (c *updateCmd) run(jirix *jiri.X, args []string) error {
 	if len(args) > 1 {
 		return jirix.UsageErrorf("unexpected number of arguments")
 	}
@@ -107,7 +127,7 @@ func runUpdate(jirix *jiri.X, args []string) error {
 		duration := time.Duration(0)
 		if info, err := os.Stat(lastSnapshot); err == nil {
 			duration = time.Since(info.ModTime())
-			if duration < MIN_EXECUTION_TIMING_THRESHOLD || duration > MAX_EXECUTION_TIMING_THRESHOLD {
+			if duration < minExecutionTimingThreshold || duration > maxExecutionTimingThreshold {
 				duration = time.Duration(0)
 			}
 		}

@@ -246,17 +246,19 @@ func usage(ctx context.Context, w *textutil.WrapWriter, path []*Command, config 
 	}
 	fmt.Fprintln(w, cmd.Long)
 	fmt.Fprintln(w)
-	// Usage line.
-	fmt.Fprintln(w, "Usage:")
 	cmdPathF := "   " + cmdPath
-	if countFlags(pathFlags(path), nil, true) > 0 || countFlags(globalFlags, nil, true) > 0 {
-		cmdPathF += " [flags]"
-	}
-	if cmd.Runner != nil {
-		if cmd.ArgsName != "" {
-			fmt.Fprintln(w, cmdPathF, cmd.ArgsName)
-		} else {
-			fmt.Fprintln(w, cmdPathF)
+	// Usage line.
+	if !strings.Contains(cmd.Long, "Usage:") {
+		fmt.Fprintln(w, "Usage:")
+		if countFlags(pathFlags(path), nil, true) > 0 || countFlags(globalFlags, nil, true) > 0 {
+			cmdPathF += " [flags]"
+		}
+		if cmd.Runner != nil {
+			if cmd.ArgsName != "" {
+				fmt.Fprintln(w, cmdPathF, cmd.ArgsName)
+			} else {
+				fmt.Fprintln(w, cmdPathF)
+			}
 		}
 	}
 	var extChildren []string

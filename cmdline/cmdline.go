@@ -421,7 +421,6 @@ func (cmd *Command) parse(ctx context.Context, path []*Command, args []string, s
 		if len(cmd.Children) > 0 {
 			return nil, nil, env.UsageErrorf("%s: unknown command %q", cmdPath, subName)
 		}
-		return nil, nil, env.UsageErrorf("%s: doesn't take arguments", cmdPath)
 	case reflect.DeepEqual(args, []string{helpName, "..."}):
 		return nil, nil, env.UsageErrorf("%s: unsupported help invocation", cmdPath)
 	}

@@ -5,6 +5,12 @@
 package subcommands
 
 import (
+	"context"
+	"errors"
+	"fmt"
+
+	"github.com/google/subcommands"
+	"go.fuchsia.dev/jiri"
 	"go.fuchsia.dev/jiri/cmdline"
 )
 
@@ -51,6 +57,64 @@ Command jiri is a multi-purpose tool for multi-repo development.
 			topicManifest,
 		},
 	}
+}
+
+type jiriSubcommand interface {
+	subcommands.Command
+
+	run(jirix *jiri.X, args []string) error
+}
+
+func commandFromSubcommand(s jiriSubcommand) *cmdline.Command {
+	// Command represents a single command in a command-line program.  A program
+	// with subcommands is represented as a root Command with children representing
+	// each subcommand.  The command graph must be a tree; each command may either
+	// have no parent (the root) or exactly one parent, and cycles are not allowed.
+	return &cmdline.Command{
+		Name:  s.Name(),
+		Short: s.Synopsis(),
+		Long:  s.Usage(),
+
+		// TODO
+		Runner: jiri.RunnerFunc(s.run),
+	}
+}
+
+// executeWrapper converts a Jiri-style subcommand implementation into a
+// subcommands.Command.Execute() function.
+//
+// Example:
+//
+//	func (c *fooCmd) Execute(ctx context.Context, _ *flag.Flagset, args ...any) subcommands.ExitStatus {
+//		executeWrapper(ctx, c.run, args)
+//	}
+//	func (c *fooCmd) run(jirix *jiri.X, args []string) error {
+//		// ... actual implementation of the command
+//	}
+func executeWrapper(ctx context.Context, f func(jirix *jiri.X, args []string) error, args []any) subcommands.ExitStatus {
+	err := func() error {
+		jirix, err := jiri.NewXFromContext(ctx)
+		if err != nil {
+			return err
+		}
+		var strArgs []string
+		for _, arg := range args {
+			s, ok := arg.(string)
+			if !ok {
+				return fmt.Errorf("cannot cast arg to string: %v", arg)
+			}
+			strArgs = append(strArgs, s)
+		}
+		return f(jirix, strArgs)
+	}()
+	if err != nil {
+		var exitCodeErr *cmdline.ErrExitCode
+		if errors.As(err, &exitCodeErr) {
+			return subcommands.ExitStatus(int(*exitCodeErr))
+		}
+		return subcommands.ExitFailure
+	}
+	return subcommands.ExitSuccess
 }
 
 var topicFileSystem = cmdline.Topic{
