@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	"go.fuchsia.dev/jiri/jiritest"
 	"go.fuchsia.dev/jiri/project"
 )
@@ -38,7 +39,7 @@ func setUpSnapshots(t *testing.T, rootDir string) ([]byte, []byte, *Diff) {
 	d.DeletedProjects = make([]DiffProject, 2)
 	d.UpdatedProjects = make([]DiffProject, 2)
 
-	//Simulate delete and new
+	// Simulate delete and new
 	i := 2
 	d.DeletedProjects[0].Name = m1.Projects[i].Name
 	d.DeletedProjects[0].Remote = m1.Projects[i].Remote
@@ -104,6 +105,8 @@ func setUpSnapshots(t *testing.T, rootDir string) ([]byte, []byte, *Diff) {
 }
 
 func TestDiffLocalSnapshots(t *testing.T) {
+	t.Parallel()
+
 	fake := jiritest.NewFakeJiriRoot(t)
 	s1, s2, d := setUpSnapshots(t, fake.X.Root)
 	if string(s1) == string(s2) {
@@ -113,29 +116,28 @@ func TestDiffLocalSnapshots(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t1, err := os.CreateTemp("", "test-diff")
+	tmpdir := t.TempDir()
+	t1, err := os.CreateTemp(tmpdir, "test-diff")
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.Remove(t1.Name())
 	defer t1.Close()
 	if _, err := t1.Write(s1); err != nil {
 		t.Fatal(err)
 	}
 	t1.Sync()
 
-	t2, err := os.CreateTemp("", "test-diff")
+	t2, err := os.CreateTemp(tmpdir, "test-diff")
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.Remove(t2.Name())
 	defer t2.Close()
 	if _, err := t2.Write(s2); err != nil {
 		t.Fatal(err)
 	}
 	t2.Sync()
 
-	diff, err := getDiff(fake.X, t1.Name(), t2.Name())
+	diff, err := (&diffCmd{cls: true}).getDiff(fake.X, t1.Name(), t2.Name())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -143,12 +145,12 @@ func TestDiffLocalSnapshots(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if string(got) != string(want) {
-		t.Fatalf("Error, got: %s\n\nwant:%s", got, want)
+	if d := cmp.Diff(want, got); d != "" {
+		t.Fatalf("Wrong diff (-want +got):\n%s", d)
 	}
 }
 
-func TestDiffSnapshotsUrl(t *testing.T) {
+func TestDiffSnapshotsURL(t *testing.T) {
 	fake := jiritest.NewFakeJiriRoot(t)
 
 	s1, s2, d := setUpSnapshots(t, fake.X.Root)
@@ -167,7 +169,7 @@ func TestDiffSnapshotsUrl(t *testing.T) {
 	server := httptest.NewServer(serverMux)
 	defer server.Close()
 
-	diff, err := getDiff(fake.X, server.URL+"/1", server.URL+"/2")
+	diff, err := (&diffCmd{cls: true}).getDiff(fake.X, server.URL+"/1", server.URL+"/2")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -175,7 +177,7 @@ func TestDiffSnapshotsUrl(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if string(got) != string(want) {
-		t.Fatalf("Error, got: %s\n\nwant:%s", got, want)
+	if d := cmp.Diff(want, got); d != "" {
+		t.Fatalf("Wrong diff (-want +got):\n%s", d)
 	}
 }

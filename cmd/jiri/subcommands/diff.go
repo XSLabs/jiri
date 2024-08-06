@@ -5,21 +5,36 @@
 package subcommands
 
 import (
+	"context"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"net/url"
 	"path/filepath"
 	"sort"
 	"sync"
 
+	"github.com/google/subcommands"
 	"go.fuchsia.dev/jiri"
-	"go.fuchsia.dev/jiri/cmdline"
 	"go.fuchsia.dev/jiri/gerrit"
 	"go.fuchsia.dev/jiri/log"
 	"go.fuchsia.dev/jiri/project"
 )
 
-var diffFlags struct {
+// TODO(https://fxbug.dev/356134056): delete when finished migrating to
+// subcommands library.
+var (
+	diffFlags diffCmd
+	cmdDiff   = commandFromSubcommand(&diffFlags)
+)
+
+// TODO(https://fxbug.dev/356134056): delete when finished migrating to
+// subcommands library.
+func init() {
+	diffFlags.SetFlags(&cmdDiff.Flags)
+}
+
+type diffCmd struct {
 	cls          bool
 	indentOutput bool
 
@@ -27,13 +42,10 @@ var diffFlags struct {
 	maxCls uint
 }
 
-var cmdDiff = &cmdline.Command{
-	Runner:   jiri.RunnerFunc(runDiff),
-	Name:     "diff",
-	Short:    "Prints diff between two snapshots",
-	ArgsName: "<snapshot-1> <snapshot-2>",
-	ArgsLong: "<snapshot-1/2> are files or urls containing snapshot",
-	Long: `
+func (c *diffCmd) Name() string     { return "diff" }
+func (c *diffCmd) Synopsis() string { return "Prints diff between two snapshots" }
+func (c *diffCmd) Usage() string {
+	return `
 Prints diff between two snapshots in json format. Max CLs returned for a
 project is controlled by flag max-xls and is default by 5. The format of
 returned json:
@@ -79,67 +91,29 @@ returned json:
 		},{...}...
 	]
 }
-`,
+
+Usage:
+  jiri diff [flags] <snapshot-1> <snapshot-2>
+
+<snapshot-1/2> are files or urls containing snapshot.
+`
 }
 
-func init() {
-	flags := &cmdDiff.Flags
-	flags.BoolVar(&diffFlags.cls, "cls", true, "Return CLs for changed projects")
-	flags.BoolVar(&diffFlags.indentOutput, "indent", true, "Indent json output")
-	flags.UintVar(&diffFlags.maxCls, "max-cls", 5, "Max number of CLs returned per changed project")
+func (c *diffCmd) SetFlags(f *flag.FlagSet) {
+	f.BoolVar(&c.cls, "cls", true, "Return CLs for changed projects")
+	f.BoolVar(&c.indentOutput, "indent", true, "Indent json output")
+	f.UintVar(&c.maxCls, "max-cls", 5, "Max number of CLs returned per changed project")
 }
 
-type DiffCl struct {
-	Commit  string `json:"commit"`
-	Number  int    `json:"number"`
-	Subject string `json:"subject"`
-	URL     string `json:"url"`
+func (c *diffCmd) Execute(ctx context.Context, _ *flag.FlagSet, args ...any) subcommands.ExitStatus {
+	return executeWrapper(ctx, c.run, args)
 }
 
-type DiffProject struct {
-	Name            string   `json:"name"`
-	Remote          string   `json:"remote"`
-	Path            string   `json:"path"`
-	RelativePath    string   `json:"relative_path"`
-	OldPath         string   `json:"old_path,omitempty"`
-	OldRelativePath string   `json:"old_relative_path,omitempty"`
-	Revision        string   `json:"revision"`
-	OldRevision     string   `json:"old_revision,omitempty"`
-	Cls             []DiffCl `json:"cls,omitempty"`
-	Error           string   `json:"error,omitempty"`
-	HasMoreCls      bool     `json:"has_more_cls,omitempty"`
-}
-
-type DiffProjectsByName []DiffProject
-
-func (p DiffProjectsByName) Len() int {
-	return len(p)
-}
-func (p DiffProjectsByName) Swap(i, j int) {
-	p[i], p[j] = p[j], p[i]
-}
-func (p DiffProjectsByName) Less(i, j int) bool {
-	return p[i].Name < p[j].Name
-}
-
-type Diff struct {
-	NewProjects     []DiffProject `json:"new_projects"`
-	DeletedProjects []DiffProject `json:"deleted_projects"`
-	UpdatedProjects []DiffProject `json:"updated_projects"`
-}
-
-func (d *Diff) Sort() *Diff {
-	sort.Sort(DiffProjectsByName(d.NewProjects))
-	sort.Sort(DiffProjectsByName(d.DeletedProjects))
-	sort.Sort(DiffProjectsByName(d.UpdatedProjects))
-	return d
-}
-
-func runDiff(jirix *jiri.X, args []string) error {
+func (c *diffCmd) run(jirix *jiri.X, args []string) error {
 	if len(args) != 2 {
 		return jirix.UsageErrorf("Please provide two snapshots to diff")
 	}
-	d, err := getDiff(jirix, args[0], args[1])
+	d, err := c.getDiff(jirix, args[0], args[1])
 	if err != nil {
 		return err
 	}
@@ -150,7 +124,7 @@ func runDiff(jirix *jiri.X, args []string) error {
 	return e.Encode(d)
 }
 
-func getDiff(jirix *jiri.X, snapshot1, snapshot2 string) (*Diff, error) {
+func (c *diffCmd) getDiff(jirix *jiri.X, snapshot1, snapshot2 string) (*Diff, error) {
 	diff := &Diff{
 		NewProjects:     make([]DiffProject, 0),
 		DeletedProjects: make([]DiffProject, 0),
@@ -242,7 +216,7 @@ func getDiff(jirix *jiri.X, snapshot1, snapshot2 string) (*Diff, error) {
 		}
 		if p1.Revision != p2.Revision {
 			diffP.OldRevision = p1.Revision
-			if !diffFlags.cls {
+			if !c.cls {
 				// do nothing, prevents nested if/else
 			} else if p2.GerritHost == "" {
 				diffP.Error = "no gerrit host"
@@ -251,7 +225,7 @@ func getDiff(jirix *jiri.X, snapshot1, snapshot2 string) (*Diff, error) {
 			} else {
 				g := gerrit.New(jirix, hostUrl)
 				revision := p2.Revision
-				for i := uint(0); i < diffFlags.maxCls && revision != p1.Revision; i++ {
+				for i := uint(0); i < c.maxCls && revision != p1.Revision; i++ {
 					cls, err := g.ListChangesByCommit(revision)
 					if err != nil {
 						diffP.Error = fmt.Sprintf("not able to get CL for revision %s: %s", revision, err)
@@ -312,4 +286,50 @@ func getDiff(jirix *jiri.X, snapshot1, snapshot2 string) (*Diff, error) {
 		diff.UpdatedProjects = append(diff.UpdatedProjects, diffP)
 	}
 	return diff.Sort(), nil
+}
+
+type DiffCl struct {
+	Commit  string `json:"commit"`
+	Number  int    `json:"number"`
+	Subject string `json:"subject"`
+	URL     string `json:"url"`
+}
+
+type DiffProject struct {
+	Name            string   `json:"name"`
+	Remote          string   `json:"remote"`
+	Path            string   `json:"path"`
+	RelativePath    string   `json:"relative_path"`
+	OldPath         string   `json:"old_path,omitempty"`
+	OldRelativePath string   `json:"old_relative_path,omitempty"`
+	Revision        string   `json:"revision"`
+	OldRevision     string   `json:"old_revision,omitempty"`
+	Cls             []DiffCl `json:"cls,omitempty"`
+	Error           string   `json:"error,omitempty"`
+	HasMoreCls      bool     `json:"has_more_cls,omitempty"`
+}
+
+type DiffProjectsByName []DiffProject
+
+func (p DiffProjectsByName) Len() int {
+	return len(p)
+}
+func (p DiffProjectsByName) Swap(i, j int) {
+	p[i], p[j] = p[j], p[i]
+}
+func (p DiffProjectsByName) Less(i, j int) bool {
+	return p[i].Name < p[j].Name
+}
+
+type Diff struct {
+	NewProjects     []DiffProject `json:"new_projects"`
+	DeletedProjects []DiffProject `json:"deleted_projects"`
+	UpdatedProjects []DiffProject `json:"updated_projects"`
+}
+
+func (d *Diff) Sort() *Diff {
+	sort.Sort(DiffProjectsByName(d.NewProjects))
+	sort.Sort(DiffProjectsByName(d.DeletedProjects))
+	sort.Sort(DiffProjectsByName(d.UpdatedProjects))
+	return d
 }
