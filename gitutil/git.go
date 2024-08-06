@@ -302,16 +302,22 @@ func (g *Git) IsRevAvailable(jirix *jiri.X, remote, rev string) bool {
 }
 
 // CheckoutBranch checks out the given branch.
-func (g *Git) CheckoutBranch(branch string, gitSubmodules, rebaseSubmodules bool, opts ...CheckoutOpt) error {
+func (g *Git) CheckoutBranch(branch string, opts ...CheckoutOpt) error {
 	args := []string{"checkout"}
 	var force ForceOpt = false
 	var detach DetachOpt = false
+	var recurseSubmodules RecurseSubmodulesOpt = false
+	var rebaseSubmodules RebaseSubmodulesOpt = false
 	for _, opt := range opts {
 		switch typedOpt := opt.(type) {
 		case ForceOpt:
 			force = typedOpt
 		case DetachOpt:
 			detach = typedOpt
+		case RecurseSubmodulesOpt:
+			recurseSubmodules = typedOpt
+		case RebaseSubmodulesOpt:
+			rebaseSubmodules = typedOpt
 		}
 	}
 	if force {
@@ -325,10 +331,10 @@ func (g *Git) CheckoutBranch(branch string, gitSubmodules, rebaseSubmodules bool
 	if err := g.run(args...); err != nil {
 		return err
 	}
-	// Update all submodules, both curent and new.
-	// Uninited submodules are updated one by one.
-	if gitSubmodules {
-		if mErr := g.SubmoduleUpdateAll(rebaseSubmodules); mErr != nil {
+	// Update all submodules, both current and new.
+	// Un-initialized submodules are updated one by one.
+	if recurseSubmodules {
+		if mErr := g.SubmoduleUpdateAll(bool(rebaseSubmodules)); mErr != nil {
 			err := errors.New(mErr.String())
 			return err
 		}
@@ -353,7 +359,7 @@ func (g *Git) SubmoduleUpdate(opts ...SubmoduleUpdateOpt) error {
 	args := []string{"submodule", "update"}
 	for _, opt := range opts {
 		switch typedOpt := opt.(type) {
-		case RebaseSubmodules:
+		case RebaseSubmodulesOpt:
 			if typedOpt {
 				args = append(args, "--rebase")
 			}
@@ -373,7 +379,7 @@ func (g *Git) SubmoduleUpdate(opts ...SubmoduleUpdateOpt) error {
 func (g *Git) SubmoduleUpdateAll(rebaseSubmodules bool) MultiError {
 	var multiErr MultiError
 	// Update submodules that are currently inited first.
-	if err := g.SubmoduleUpdate(InitOpt(false), RebaseSubmodules(rebaseSubmodules)); err != nil {
+	if err := g.SubmoduleUpdate(InitOpt(false), RebaseSubmodulesOpt(rebaseSubmodules)); err != nil {
 		multiErr = append(multiErr, err)
 	}
 	// Update un-inited submodules one by one with path.

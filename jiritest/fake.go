@@ -122,7 +122,7 @@ func (fake FakeJiriRoot) AddPackage(pkg project.Package) error {
 // repository.
 func (fake FakeJiriRoot) DisableRemoteManifestPush() error {
 	dir := gitutil.RootDirOpt(filepath.Join(fake.remote, ManifestProjectPath))
-	return gitutil.New(fake.X, dir).CheckoutBranch("main", false, false)
+	return gitutil.New(fake.X, dir).CheckoutBranch("main")
 }
 
 // EnableRemoteManifestPush enables pushes to the remote manifest
@@ -137,7 +137,7 @@ func (fake FakeJiriRoot) EnableRemoteManifestPush() error {
 	} else if err != nil {
 		return err
 	}
-	return scm.CheckoutBranch("non-main", false, false)
+	return scm.CheckoutBranch("non-main")
 }
 
 // CreateRemoteProject creates a new remote project.

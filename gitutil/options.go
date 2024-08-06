@@ -142,8 +142,9 @@ func (UpdateHeadOkOpt) fetchOpt() {}
 
 type RecurseSubmodulesOpt bool
 
-func (RecurseSubmodulesOpt) cloneOpt() {}
-func (RecurseSubmodulesOpt) fetchOpt() {}
+func (RecurseSubmodulesOpt) cloneOpt()    {}
+func (RecurseSubmodulesOpt) fetchOpt()    {}
+func (RecurseSubmodulesOpt) checkoutOpt() {}
 
 type InitOpt bool
 
@@ -165,6 +166,7 @@ type RemoveRedundantOpt bool
 
 func (RemoveRedundantOpt) repackOpt() {}
 
-type RebaseSubmodules bool
+type RebaseSubmodulesOpt bool
 
-func (RebaseSubmodules) submoduleUpdateOpt() {}
+func (RebaseSubmodulesOpt) submoduleUpdateOpt() {}
+func (RebaseSubmodulesOpt) checkoutOpt()        {}
