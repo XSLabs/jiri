@@ -5,6 +5,7 @@
 package subcommands
 
 import (
+	"context"
 	"fmt"
 
 	"go.fuchsia.dev/jiri"
@@ -20,7 +21,7 @@ var cmdSelfUpdate = &cmdline.Command{
 Updates jiri tool and replaces current one with the latest`,
 }
 
-func runSelfUpdate(env *cmdline.Env, args []string) error {
+func runSelfUpdate(ctx context.Context, args []string) error {
 	if len(args) > 0 {
 		return fmt.Errorf("unexpected number of arguments")
 	}

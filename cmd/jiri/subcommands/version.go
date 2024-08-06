@@ -6,6 +6,7 @@ package subcommands
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 
 	"go.fuchsia.dev/jiri/cmdline"
@@ -21,7 +22,7 @@ Print the Git commit revision jiri was built from and the build date.
 `,
 }
 
-func runVersion(env *cmdline.Env, args []string) error {
+func runVersion(ctx context.Context, args []string) error {
 	var versionString bytes.Buffer
 	fmt.Fprintf(&versionString, "Jiri")
 

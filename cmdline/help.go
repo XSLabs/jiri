@@ -6,6 +6,7 @@ package cmdline
 
 import (
 	"bytes"
+	"context"
 	"flag"
 	"fmt"
 	"go/doc"
@@ -47,16 +48,17 @@ type helpConfig struct {
 }
 
 // Run implements the Runner interface method.
-func (h helpRunner) Run(env *Env, args []string) error {
+func (h helpRunner) Run(ctx context.Context, args []string) error {
+	env := EnvFromContext(ctx)
 	w := textutil.NewUTF8WrapWriter(env.Stdout, h.width)
 	defer w.Flush()
-	return runHelp(w, env, args, h.path, h.helpConfig)
+	return runHelp(ctx, w, args, h.path, h.helpConfig)
 }
 
 // usageFunc is used as the implementation of the Env.Usage function.
-func (h helpRunner) usageFunc(env *Env, writer io.Writer) {
+func (h helpRunner) usageFunc(ctx context.Context, writer io.Writer) {
 	w := textutil.NewUTF8WrapWriter(writer, h.width)
-	usage(w, env, h.path, h.helpConfig, h.helpConfig.firstCall)
+	usage(ctx, w, h.path, h.helpConfig, h.helpConfig.firstCall)
 	w.Flush()
 }
 
@@ -104,13 +106,13 @@ the CMDLINE_WIDTH environment variable.
 }
 
 // runHelp implements the run-time behavior of the help command.
-func runHelp(w *textutil.WrapWriter, env *Env, args []string, path []*Command, config *helpConfig) error {
+func runHelp(ctx context.Context, w *textutil.WrapWriter, args []string, path []*Command, config *helpConfig) error {
 	if len(args) == 0 {
-		usage(w, env, path, config, config.firstCall)
+		usage(ctx, w, path, config, config.firstCall)
 		return nil
 	}
 	if args[0] == "..." {
-		usageAll(w, env, path, config, config.firstCall)
+		usageAll(ctx, w, path, config, config.firstCall)
 		return nil
 	}
 	// Look for matching children.
@@ -118,12 +120,12 @@ func runHelp(w *textutil.WrapWriter, env *Env, args []string, path []*Command, c
 	subName, subArgs := args[0], args[1:]
 	for _, child := range cmd.Children {
 		if child.Name == subName {
-			return runHelp(w, env, subArgs, append(path, child), config)
+			return runHelp(ctx, w, subArgs, append(path, child), config)
 		}
 	}
 	if helpName == subName {
 		help := helpRunner{path, config}.newCommand()
-		return runHelp(w, env, subArgs, append(path, help), config)
+		return runHelp(ctx, w, subArgs, append(path, help), config)
 	}
 	// Look for matching topic.
 	for _, topic := range cmd.Topics {
@@ -133,7 +135,7 @@ func runHelp(w *textutil.WrapWriter, env *Env, args []string, path []*Command, c
 		}
 	}
 	fn := helpRunner{path, config}.usageFunc
-	return usageErrorf(env, fn, "%s: unknown command or topic %q", cmdPath, subName)
+	return usageErrorf(ctx, fn, "%s: unknown command or topic %q", cmdPath, subName)
 }
 
 func godocHeader(path, short string) string {
@@ -203,15 +205,15 @@ func needsHelpChild(cmd *Command) bool {
 }
 
 // usageAll prints usage recursively via DFS from the path onward.
-func usageAll(w *textutil.WrapWriter, env *Env, path []*Command, config *helpConfig, firstCall bool) {
+func usageAll(ctx context.Context, w *textutil.WrapWriter, path []*Command, config *helpConfig, firstCall bool) {
 	cmd, cmdPath := path[len(path)-1], pathName(config.prefix, path)
-	usage(w, env, path, config, firstCall)
+	usage(ctx, w, path, config, firstCall)
 	for _, child := range cmd.Children {
-		usageAll(w, env, append(path, child), config, false)
+		usageAll(ctx, w, append(path, child), config, false)
 	}
 	if firstCall && needsHelpChild(cmd) {
 		help := helpRunner{path, config}.newCommand()
-		usageAll(w, env, append(path, help), config, false)
+		usageAll(ctx, w, append(path, help), config, false)
 	}
 	for _, topic := range cmd.Topics {
 		lineBreak(w, config.style)
@@ -226,8 +228,9 @@ func usageAll(w *textutil.WrapWriter, env *Env, path []*Command, config *helpCon
 // usage prints the usage of the last command in path to w.  The bool firstCall
 // is set to false when printing usage for multiple commands, and is used to
 // avoid printing redundant information (e.g. help command, global flags).
-func usage(w *textutil.WrapWriter, env *Env, path []*Command, config *helpConfig, firstCall bool) {
+func usage(ctx context.Context, w *textutil.WrapWriter, path []*Command, config *helpConfig, firstCall bool) {
 	cmd, cmdPath := path[len(path)-1], pathName(config.prefix, path)
+	env := EnvFromContext(ctx)
 	env.TimerPush("usage " + cmdPath)
 	defer env.TimerPop()
 	if config.style == styleShortOnly {
@@ -308,7 +311,7 @@ func usage(w *textutil.WrapWriter, env *Env, path []*Command, config *helpConfig
 			envCopy.Stderr = &buffer
 			envCopy.Vars["CMDLINE_STYLE"] = "shortonly"
 			short := missingDescription
-			if err := runner.Run(envCopy, []string{"-help"}); err == nil {
+			if err := runner.Run(AddEnvToContext(ctx, envCopy), []string{"-help"}); err == nil {
 				// The external child supports "-help".
 				short = buffer.String()
 			}

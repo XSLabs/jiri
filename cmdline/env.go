@@ -5,6 +5,7 @@
 package cmdline
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -14,6 +15,25 @@ import (
 	"go.fuchsia.dev/jiri/textutil"
 	"go.fuchsia.dev/jiri/timing"
 )
+
+type envContextKeyType string
+
+const (
+	envContextKey = envContextKeyType("env")
+)
+
+// AddEnvToContext returns a new Context with the `env` added to it.
+func AddEnvToContext(ctx context.Context, env *Env) context.Context {
+	return context.WithValue(ctx, envContextKey, env)
+}
+
+// EnvFromContext retrieves the Env from the given Context.
+func EnvFromContext(ctx context.Context) *Env {
+	if env, ok := ctx.Value(envContextKey).(*Env); ok && env != nil {
+		return env
+	}
+	return nil
+}
 
 // EnvFromOS returns a new environment based on the operating system.
 func EnvFromOS() *Env {
@@ -38,7 +58,7 @@ type Env struct {
 
 	// Usage is a function that prints usage information to w.  Typically set by
 	// calls to Main or Parse to print usage of the leaf command.
-	Usage func(env *Env, w io.Writer)
+	Usage func(ctx context.Context, w io.Writer)
 
 	// Comamnd name
 	CommandName string
@@ -61,7 +81,8 @@ func (e *Env) clone() *Env {
 // and args, followed by the output of the Usage function.  Returns ErrUsage to
 // make it easy to use from within the Runner.Run function.
 func (e *Env) UsageErrorf(format string, args ...any) error {
-	return usageErrorf(e, e.Usage, format, args...)
+	ctx := AddEnvToContext(context.Background(), e)
+	return usageErrorf(ctx, e.Usage, format, args...)
 }
 
 // TimerPush calls e.Timer.Push(name), only if the Timer is non-nil.
@@ -78,12 +99,13 @@ func (e *Env) TimerPop() {
 	}
 }
 
-func usageErrorf(env *Env, usage func(*Env, io.Writer), format string, args ...any) error {
+func usageErrorf(ctx context.Context, usage func(context.Context, io.Writer), format string, args ...any) error {
+	env := EnvFromContext(ctx)
 	fmt.Fprint(env.Stderr, "ERROR: ")
 	fmt.Fprintf(env.Stderr, format, args...)
 	fmt.Fprint(env.Stderr, "\n\n")
 	if usage != nil {
-		usage(env, env.Stderr)
+		usage(ctx, env.Stderr)
 	} else {
 		fmt.Fprint(env.Stderr, "usage error\n")
 	}

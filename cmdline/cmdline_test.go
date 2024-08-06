@@ -6,6 +6,7 @@ package cmdline
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"flag"
 	"fmt"
@@ -28,7 +29,8 @@ var (
 )
 
 // runEcho is used to implement commands for our tests.
-func runEcho(env *Env, args []string) error {
+func runEcho(ctx context.Context, args []string) error {
+	env := EnvFromContext(ctx)
 	if len(args) == 1 {
 		if args[0] == "error" {
 			return errors.New(errEchoStr)
@@ -51,7 +53,8 @@ func runEcho(env *Env, args []string) error {
 }
 
 // runHello is another function for test commands.
-func runHello(env *Env, args []string) error {
+func runHello(ctx context.Context, args []string) error {
+	env := EnvFromContext(ctx)
 	if flagTopLevelExtra {
 		args = append(args, "tlextra")
 	}
@@ -109,14 +112,14 @@ func runTestCases(t *testing.T, cmd *Command, tests []testCase) {
 
 		// Parse and run the command and check against expected results.
 		parseOK := false
-		env := &Env{
+		ctx := AddEnvToContext(context.Background(), &Env{
 			Stdout: &stdout,
 			Stderr: &stderr,
 			Vars:   envvar.MergeMaps(baseVars, test.Vars),
-		}
-		runner, args, err := Parse(cmd, env, test.Args)
+		})
+		runner, args, err := Parse(ctx, cmd, test.Args)
 		if err == nil {
-			err = runner.Run(env, args)
+			err = runner.Run(ctx, args)
 			parseOK = true
 		}
 		if got, want := errString(err), test.Err; got != want {
@@ -2443,8 +2446,9 @@ func TestRootCommandFlags(t *testing.T) {
 	rb := root.Flags.Bool("rbool", false, "rbool desc")
 	rs := root.Flags.String("rstring", "abc", "rstring desc")
 	origFlags := flag.CommandLine
+	ctx := AddEnvToContext(context.Background(), EnvFromOS())
 	// Parse and make sure the flags get set appropriately.
-	_, _, err := Parse(root, EnvFromOS(), []string{"-rbool=true", "-rstring=XYZ"})
+	_, _, err := Parse(ctx, root, []string{"-rbool=true", "-rstring=XYZ"})
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
@@ -2491,12 +2495,12 @@ func TestParsedFlags(t *testing.T) {
 		Runner: RunnerFunc(runHello),
 	}
 	var v1, v2 bool
-	env := EnvFromOS()
+	ctx := AddEnvToContext(context.Background(), EnvFromOS())
 	root.Flags.BoolVar(&v1, "a", false, "bool")
 	root.Flags.BoolVar(&v2, "b", false, "bool")
 
 	// ParsedFlags should be nil if Parse fails.
-	_, _, err := Parse(root, env, []string{"-xx"})
+	_, _, err := Parse(ctx, root, []string{"-xx"})
 	if err == nil {
 		t.Errorf("expected an error")
 	}
@@ -2507,7 +2511,7 @@ func TestParsedFlags(t *testing.T) {
 
 	// ParsedFlags should be set and Parsed returns true if
 	// the command line is successfully parsed.
-	_, _, err = Parse(root, env, nil)
+	_, _, err = Parse(ctx, root, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2524,7 +2528,7 @@ func TestParsedFlags(t *testing.T) {
 		t.Errorf("got %v, want %v", got, want)
 	}
 
-	_, _, err = Parse(root, env, []string{"-a"})
+	_, _, err = Parse(ctx, root, []string{"-a"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2549,7 +2553,8 @@ type fc struct {
 
 func TestFlagPropagation(t *testing.T) {
 	var err error
-	env := EnvFromOS()
+
+	ctx := AddEnvToContext(context.Background(), EnvFromOS())
 
 	tests := []struct {
 		flagConfigs []fc
@@ -2603,7 +2608,7 @@ func TestFlagPropagation(t *testing.T) {
 		root := commands[0]
 		leaf := commands[len(commands)-1]
 
-		_, _, err = Parse(root, env, test.args)
+		_, _, err = Parse(ctx, root, test.args)
 		if err != nil {
 			t.Fatal(err)
 		}

@@ -5,6 +5,7 @@
 package subcommands
 
 import (
+	"context"
 	"crypto/rand"
 	"fmt"
 	"io"
@@ -88,7 +89,7 @@ func init() {
 	cmdInit.Flags.Var(&initFlags.excludeDirs, "exclude-dirs", "Directories to skip when searching for local projects (Default: out).")
 }
 
-func runInit(env *cmdline.Env, args []string) error {
+func runInit(ctx context.Context, args []string) error {
 	if len(args) > 1 {
 		return fmt.Errorf("wrong number of arguments")
 	}

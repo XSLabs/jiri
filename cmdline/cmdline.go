@@ -39,6 +39,7 @@
 package cmdline
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"io"
@@ -108,15 +109,15 @@ type Command struct {
 // Runner is the interface for running commands.  Return ErrExitCode to indicate
 // the command should exit with a specific exit code.
 type Runner interface {
-	Run(env *Env, args []string) error
+	Run(context context.Context, args []string) error
 }
 
 // RunnerFunc is an adapter that turns regular functions into Runners.
-type RunnerFunc func(*Env, []string) error
+type RunnerFunc func(context.Context, []string) error
 
-// Run implements the Runner interface method by calling f(env, args).
-func (f RunnerFunc) Run(env *Env, args []string) error {
-	return f(env, args)
+// Run implements the Runner interface method by calling f(ctx, args).
+func (f RunnerFunc) Run(ctx context.Context, args []string) error {
+	return f(ctx, args)
 }
 
 // Topic represents a help topic that is accessed via the help command.
@@ -214,7 +215,9 @@ var flagTimeFile = flag.String("timefile", "", "File to dump timing information 
 //
 // Parse merges root flags into flag.CommandLine and sets ContinueOnError, so
 // that subsequent calls to flag.Parsed return true.
-func Parse(root *Command, env *Env, args []string) (Runner, []string, error) {
+func Parse(ctx context.Context, root *Command, args []string) (Runner, []string, error) {
+	env := EnvFromContext(ctx)
+
 	env.TimerPush("cmdline parse")
 	defer env.TimerPop()
 	if globalFlags == nil {
@@ -232,7 +235,7 @@ func Parse(root *Command, env *Env, args []string) (Runner, []string, error) {
 	if err := checkTreeInvariants(path, env); err != nil {
 		return nil, nil, err
 	}
-	runner, args, err := root.parse(nil, env, args, make(map[string]string))
+	runner, args, err := root.parse(ctx, nil, args, make(map[string]string))
 	if err != nil {
 		return nil, nil, err
 	}
@@ -261,13 +264,14 @@ var globalFlags *flag.FlagSet
 // ParseAndRun is a convenience that calls Parse, and then calls Run on the
 // returned runner with the given env and parsed args.
 func ParseAndRun(root *Command, env *Env, args []string) error {
-	runner, args, err := Parse(root, env, args)
+	ctx := AddEnvToContext(context.Background(), env)
+	runner, args, err := Parse(ctx, root, args)
 	if err != nil {
 		return err
 	}
 	env.TimerPush("cmdline run")
 	defer env.TimerPop()
-	return runner.Run(env, args)
+	return runner.Run(ctx, args)
 }
 
 func trimSpace(s *string) { *s = strings.TrimSpace(*s) }
@@ -364,14 +368,15 @@ func pathName(prefix string, path []*Command) string {
 	return name
 }
 
-func (cmd *Command) parse(path []*Command, env *Env, args []string, setFlags map[string]string) (Runner, []string, error) {
+func (cmd *Command) parse(ctx context.Context, path []*Command, args []string, setFlags map[string]string) (Runner, []string, error) {
+	env := EnvFromContext(ctx)
 	path = append(path, cmd)
 	cmdPath := pathName(env.prefix(), path)
 	runHelp := makeHelpRunner(path, env)
 	env.Usage = runHelp.usageFunc
 	// Parse flags and retrieve the args remaining after the parse, as well as the
 	// flags that were set.
-	args, setF, err := parseFlags(path, env, args)
+	args, setF, err := parseFlags(ctx, path, args)
 	switch {
 	case err == flag.ErrHelp:
 		return runHelp, nil, nil
@@ -399,13 +404,13 @@ func (cmd *Command) parse(path []*Command, env *Env, args []string, setFlags map
 				} else {
 					env.CommandName = subName
 				}
-				return child.parse(path, env, subArgs, setFlags)
+				return child.parse(ctx, path, subArgs, setFlags)
 			}
 		}
 		// Every non-leaf command gets a default help command.
 		if helpName == subName {
 			env.CommandName = subName
-			return runHelp.newCommand().parse(path, env, subArgs, setFlags)
+			return runHelp.newCommand().parse(ctx, path, subArgs, setFlags)
 		}
 	}
 	// No matching subcommands, check various error cases.
@@ -428,7 +433,8 @@ func (cmd *Command) parse(path []*Command, env *Env, args []string, setFlags map
 
 // parseFlags parses the flags from args for the command with the given path and
 // env.  Returns the remaining non-flag args and the flags that were set.
-func parseFlags(path []*Command, env *Env, args []string) ([]string, map[string]string, error) {
+func parseFlags(ctx context.Context, path []*Command, args []string) ([]string, map[string]string, error) {
+	env := EnvFromContext(ctx)
 	cmd, isRoot := path[len(path)-1], len(path) == 1
 	// Parse the merged command-specific and global flags.
 	var flags *flag.FlagSet
@@ -460,7 +466,7 @@ func parseFlags(path []*Command, env *Env, args []string) ([]string, map[string]
 		defer func() {
 			flags.Init(cmd.Name, flag.ExitOnError)
 			flags.SetOutput(nil)
-			flags.Usage = func() { env.Usage(env, env.Stderr) }
+			flags.Usage = func() { env.Usage(ctx, env.Stderr) }
 		}()
 	}
 	if err := flags.Parse(args); err != nil {
@@ -580,12 +586,13 @@ type binaryRunner struct {
 	cmdPath string
 }
 
-func (b binaryRunner) Run(env *Env, args []string) error {
+func (b binaryRunner) Run(ctx context.Context, args []string) error {
+	env := EnvFromContext(ctx)
 	env.TimerPush("run " + filepath.Base(b.subCmd))
 	defer env.TimerPop()
 	vars := envvar.CopyMap(env.Vars)
 	vars["CMDLINE_PREFIX"] = b.cmdPath
-	cmd := exec.Command(b.subCmd, args...)
+	cmd := exec.CommandContext(ctx, b.subCmd, args...)
 	cmd.Stdin = env.Stdin
 	cmd.Stdout = env.Stdout
 	cmd.Stderr = env.Stderr

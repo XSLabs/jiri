@@ -5,6 +5,7 @@
 package subcommands
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -24,7 +25,7 @@ Bootstrap essential packages such as cipd.
 	ArgsLong: "<package ...> is a list of packages that can be bootstrapped by jiri. If the list is empty, jiri will list supported packages.",
 }
 
-func runBootstrap(env *cmdline.Env, args []string) error {
+func runBootstrap(ctx context.Context, args []string) error {
 	if len(args) == 0 {
 		// Currently it only supports cipd. We may add more packages from buildtools in the future.
 		fmt.Printf("Supported package(s):\n\tcipd\n")
@@ -33,7 +34,7 @@ func runBootstrap(env *cmdline.Env, args []string) error {
 	for _, v := range args {
 		switch strings.ToLower(v) {
 		case "cipd":
-			jirix, err := jiri.NewX(env)
+			jirix, err := jiri.NewXFromContext(ctx)
 			if err != nil {
 				return err
 			}

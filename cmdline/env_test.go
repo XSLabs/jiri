@@ -5,20 +5,21 @@ package cmdline
 
 import (
 	"bytes"
+	"context"
 	"io"
 	"os"
 	"testing"
 )
 
-func writeFunc(s string) func(*Env, io.Writer) {
-	return func(_ *Env, w io.Writer) { w.Write([]byte(s)) }
+func writeFunc(s string) func(context.Context, io.Writer) {
+	return func(_ context.Context, w io.Writer) { w.Write([]byte(s)) }
 }
 
 func TestEnvUsageErrorf(t *testing.T) {
 	tests := []struct {
 		format string
 		args   []any
-		usage  func(*Env, io.Writer)
+		usage  func(context.Context, io.Writer)
 		want   string
 	}{
 		{"", nil, nil, "ERROR: \n\nusage error\n"},

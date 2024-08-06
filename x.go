@@ -6,6 +6,7 @@
 package jiri
 
 import (
+	"context"
 	"encoding/xml"
 	"flag"
 	"fmt"
@@ -233,6 +234,10 @@ func init() {
 	flag.BoolVar(&quietVerboseFlag, "q", false, "Same as -quiet")
 	flag.BoolVar(&debugVerboseFlag, "v", false, "Print debug level output.")
 	flag.BoolVar(&traceVerboseFlag, "vv", false, "Print trace level output.")
+}
+
+func NewXFromContext(ctx context.Context) (*X, error) {
+	return NewX(cmdline.EnvFromContext(ctx))
 }
 
 // NewX returns a new execution environment, given a cmdline env.
@@ -581,7 +586,8 @@ func RunnerFunc(run func(*X, []string) error) cmdline.Runner {
 
 type runner func(*X, []string) error
 
-func (r runner) Run(env *cmdline.Env, args []string) error {
+func (r runner) Run(ctx context.Context, args []string) error {
+	env := cmdline.EnvFromContext(ctx)
 	x, err := NewX(env)
 	if err != nil {
 		return err
