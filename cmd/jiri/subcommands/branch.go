@@ -5,6 +5,8 @@
 package subcommands
 
 import (
+	"context"
+	"flag"
 	"fmt"
 	"net/url"
 	"path/filepath"
@@ -13,20 +15,12 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/google/subcommands"
 	"go.fuchsia.dev/jiri"
-	"go.fuchsia.dev/jiri/cmdline"
 	"go.fuchsia.dev/jiri/gerrit"
 	"go.fuchsia.dev/jiri/gitutil"
 	"go.fuchsia.dev/jiri/project"
 )
-
-var branchFlags struct {
-	deleteFlag                bool
-	deleteMergedClsFlag       bool
-	deleteMergedFlag          bool
-	forceDeleteFlag           bool
-	overrideProjectConfigFlag bool
-}
 
 type MultiError []error
 
@@ -44,27 +38,76 @@ func (m MultiError) String() string {
 	return m.Error()
 }
 
-var cmdBranch = &cmdline.Command{
-	Runner: jiri.RunnerFunc(runBranch),
-	Name:   "branch",
-	Short:  "Show or delete branches",
-	Long: `
-Show all the projects having branch <branch> .If -d or -D is passed, <branch>
-is deleted. if <branch> is not passed, show all projects which have branches other than "main"`,
-	ArgsName: "<branch>",
-	ArgsLong: "<branch> is the name branch",
-}
+// TODO(https://fxbug.dev/356134056): delete when finished migrating to
+// subcommands library.
+var (
+	branchFlags branchCmd
+	cmdBranch   = commandFromSubcommand(&branchFlags)
+)
 
+// TODO(https://fxbug.dev/356134056): delete when finished migrating to
+// subcommands library.
 func init() {
-	flags := &cmdBranch.Flags
-	flags.BoolVar(&branchFlags.deleteFlag, "d", false, "Delete branch from project. Similar to running 'git branch -d <branch-name>'")
-	flags.BoolVar(&branchFlags.forceDeleteFlag, "D", false, "Force delete branch from project. Similar to running 'git branch -D <branch-name>'")
-	flags.BoolVar(&branchFlags.overrideProjectConfigFlag, "override-pc", false, "Overrides project config's ignore and noupdate flag and deletes the branch.")
-	flags.BoolVar(&branchFlags.deleteMergedFlag, "delete-merged", false, "Delete merged branches. Merged branches are the tracked branches merged with their tracking remote or un-tracked branches merged with the branch specified in manifest(default main). If <branch> is provided, it will only delete branch <branch> if merged.")
-	flags.BoolVar(&branchFlags.deleteMergedClsFlag, "delete-merged-cl", false, "Implies -delete-merged. It also parses commit messages for ChangeID and checks with gerrit if those changes have been merged and deletes those branches. It will ignore a branch if it differs with remote by more than 10 commits.")
+	branchFlags.SetFlags(&cmdBranch.Flags)
 }
 
-func displayProjects(jirix *jiri.X, branch string) error {
+type branchCmd struct {
+	delete                bool
+	deleteMergedCLs       bool
+	deleteMerged          bool
+	forceDelete           bool
+	overrideProjectConfig bool
+}
+
+func (c *branchCmd) Name() string     { return "branch" }
+func (c *branchCmd) Synopsis() string { return "Show or delete branches" }
+func (c *branchCmd) Usage() string {
+	return `
+Show all the projects having branch <branch>. If -d or -D is passed, <branch>
+is deleted. if <branch> is not passed, show all projects which have branches other than "main"
+
+Usage:
+  jiri branch [flags] <branch>
+
+<branch> is the name of the branch.
+`
+}
+
+func (c *branchCmd) SetFlags(f *flag.FlagSet) {
+	f.BoolVar(&c.delete, "d", false, "Delete branch from project. Similar to running 'git branch -d <branch-name>'")
+	f.BoolVar(&c.forceDelete, "D", false, "Force delete branch from project. Similar to running 'git branch -D <branch-name>'")
+	f.BoolVar(&c.overrideProjectConfig, "override-pc", false, "Overrides project config's ignore and noupdate flag and deletes the branch.")
+	f.BoolVar(&c.deleteMerged, "delete-merged", false, "Delete merged branches. Merged branches are the tracked branches merged with their tracking remote or un-tracked branches merged with the branch specified in manifest(default main). If <branch> is provided, it will only delete branch <branch> if merged.")
+	f.BoolVar(&c.deleteMergedCLs, "delete-merged-cl", false, "Implies -delete-merged. It also parses commit messages for ChangeID and checks with gerrit if those changes have been merged and deletes those branches. It will ignore a branch if it differs with remote by more than 10 commits.")
+}
+
+func (c *branchCmd) Execute(ctx context.Context, _ *flag.FlagSet, args ...any) subcommands.ExitStatus {
+	return executeWrapper(ctx, c.run, args)
+}
+
+func (c *branchCmd) run(jirix *jiri.X, args []string) error {
+	branch := ""
+	if len(args) > 1 {
+		return jirix.UsageErrorf("Please provide only one branch")
+	} else if len(args) == 1 {
+		branch = args[0]
+	}
+	if c.delete || c.forceDelete {
+		if branch == "" {
+			return jirix.UsageErrorf("Please provide branch to delete")
+		}
+		return c.deleteBranches(jirix, branch)
+	}
+	if c.deleteMergedCLs {
+		return c.deleteMergedBranches(jirix, branch, true)
+	}
+	if c.deleteMerged {
+		return c.deleteMergedBranches(jirix, branch, false)
+	}
+	return c.displayProjects(jirix, branch)
+}
+
+func (c *branchCmd) displayProjects(jirix *jiri.X, branch string) error {
 	localProjects, err := project.LocalProjects(jirix, project.FastScan)
 	if err != nil {
 		return err
@@ -122,33 +165,11 @@ func displayProjects(jirix *jiri.X, branch string) error {
 	return nil
 }
 
-func runBranch(jirix *jiri.X, args []string) error {
-	branch := ""
-	if len(args) > 1 {
-		return jirix.UsageErrorf("Please provide only one branch")
-	} else if len(args) == 1 {
-		branch = args[0]
-	}
-	if branchFlags.deleteFlag || branchFlags.forceDeleteFlag {
-		if branch == "" {
-			return jirix.UsageErrorf("Please provide branch to delete")
-		}
-		return deleteBranches(jirix, branch)
-	}
-	if branchFlags.deleteMergedClsFlag {
-		return deleteMergedBranches(jirix, branch, true)
-	}
-	if branchFlags.deleteMergedFlag {
-		return deleteMergedBranches(jirix, branch, false)
-	}
-	return displayProjects(jirix, branch)
-}
-
 var (
 	changeIDRE = regexp.MustCompile("Change-Id: (I[0123456789abcdefABCDEF]{40})")
 )
 
-func deleteMergedBranches(jirix *jiri.X, branchToDelete string, deleteMergedCls bool) error {
+func (c *branchCmd) deleteMergedBranches(jirix *jiri.X, branchToDelete string, deleteMergedCls bool) error {
 	localProjects, err := project.LocalProjects(jirix, project.FastScan)
 	if err != nil {
 		return err
@@ -176,7 +197,7 @@ func deleteMergedBranches(jirix *jiri.X, branchToDelete string, deleteMergedCls 
 		if err != nil {
 			relativePath = state.Project.Path
 		}
-		if !branchFlags.overrideProjectConfigFlag && (state.Project.LocalConfig.Ignore || state.Project.LocalConfig.NoUpdate) {
+		if !c.overrideProjectConfig && (state.Project.LocalConfig.Ignore || state.Project.LocalConfig.NoUpdate) {
 			jirix.Logger.Warningf(" Not processing project %s(%s) due to its local-config. Use '-override-pc' flag\n\n", state.Project.Name, state.Project.Path)
 			return
 		}
@@ -185,9 +206,9 @@ func deleteMergedBranches(jirix *jiri.X, branchToDelete string, deleteMergedCls 
 			return
 		}
 
-		deletedBranches, mErr := deleteProjectMergedBranches(jirix, state.Project, remote, relativePath, branchToDelete)
+		deletedBranches, mErr := c.deleteProjectMergedBranches(jirix, state.Project, remote, relativePath, branchToDelete)
 		if deleteMergedCls {
-			deletedBranches2, err2 := deleteProjectMergedClsBranches(jirix, state.Project, remote, relativePath, branchToDelete)
+			deletedBranches2, err2 := c.deleteProjectMergedClsBranches(jirix, state.Project, remote, relativePath, branchToDelete)
 			for b, h := range deletedBranches2 {
 				deletedBranches[b] = h
 			}
@@ -243,18 +264,18 @@ func deleteMergedBranches(jirix *jiri.X, branchToDelete string, deleteMergedCls 
 	return nil
 }
 
-func deleteProjectMergedClsBranches(jirix *jiri.X, local project.Project, remote project.Project, relativePath, branchToDelete string) (map[string]string, MultiError) {
+func (c *branchCmd) deleteProjectMergedClsBranches(jirix *jiri.X, local project.Project, remote project.Project, relativePath, branchToDelete string) (map[string]string, MultiError) {
 	deletedBranches := make(map[string]string)
 	var retErr MultiError
 	if remote.GerritHost == "" {
 		return nil, nil
 	}
-	hostUrl, err := url.Parse(remote.GerritHost)
+	hostURL, err := url.Parse(remote.GerritHost)
 	if err != nil {
 		retErr = append(retErr, err)
 		return nil, retErr
 	}
-	gerrit := gerrit.New(jirix, hostUrl)
+	gerrit := gerrit.New(jirix, hostURL)
 	scm := gitutil.New(jirix, gitutil.RootDirOpt(local.Path))
 	branches, err := scm.GetAllBranchesInfo()
 	if err != nil {
@@ -368,7 +389,7 @@ func deleteProjectMergedClsBranches(jirix *jiri.X, local project.Project, remote
 	return deletedBranches, retErr
 }
 
-func deleteProjectMergedBranches(jirix *jiri.X, local project.Project, remote project.Project, relativePath, branchToDelete string) (map[string]string, MultiError) {
+func (c *branchCmd) deleteProjectMergedBranches(jirix *jiri.X, local project.Project, remote project.Project, relativePath, branchToDelete string) (map[string]string, MultiError) {
 	deletedBranches := make(map[string]string)
 	var retErr MultiError
 	var mergedBranches map[string]bool
@@ -455,7 +476,7 @@ func deleteProjectMergedBranches(jirix *jiri.X, local project.Project, remote pr
 	return deletedBranches, retErr
 }
 
-func deleteBranches(jirix *jiri.X, branchToDelete string) error {
+func (c *branchCmd) deleteBranches(jirix *jiri.X, branchToDelete string) error {
 	localProjects, err := project.LocalProjects(jirix, project.FastScan)
 	if err != nil {
 		return err
@@ -484,14 +505,14 @@ func deleteBranches(jirix *jiri.X, branchToDelete string) error {
 				if err != nil {
 					return err
 				}
-				if !branchFlags.overrideProjectConfigFlag && (localProject.LocalConfig.Ignore || localProject.LocalConfig.NoUpdate) {
+				if !c.overrideProjectConfig && (localProject.LocalConfig.Ignore || localProject.LocalConfig.NoUpdate) {
 					jirix.Logger.Warningf("Project %s(%s): branch %q won't be deleted due to its local-config. Use '-override-pc' flag\n\n", localProject.Name, localProject.Path, branchToDelete)
 					break
 				}
 				fmt.Fprintf(jirix.Stdout(), "Project %s(%s): ", localProject.Name, relativePath)
 				scm := gitutil.New(jirix, gitutil.RootDirOpt(localProject.Path))
 
-				if err := scm.DeleteBranch(branchToDelete, gitutil.ForceOpt(branchFlags.forceDeleteFlag)); err != nil {
+				if err := scm.DeleteBranch(branchToDelete, gitutil.ForceOpt(c.forceDelete)); err != nil {
 					errors = true
 					fmt.Fprintf(jirix.Stdout(), jirix.Color.Red("Error while deleting branch: %s\n", err))
 				} else {
