@@ -107,6 +107,10 @@ func executeWrapper(ctx context.Context, f func(jirix *jiri.X, args []string) er
 		}
 		return f(jirix, strArgs)
 	}()
+	return errToExitStatus(err)
+}
+
+func errToExitStatus(err error) subcommands.ExitStatus {
 	if err != nil {
 		var exitCodeErr *cmdline.ErrExitCode
 		if errors.As(err, &exitCodeErr) {
