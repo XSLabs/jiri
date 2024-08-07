@@ -52,6 +52,8 @@ func writeReadme(t *testing.T, jirix *jiri.X, projectDir, message string) {
 
 // TestSnapshot tests creating and checking out a snapshot.
 func TestSnapshot(t *testing.T) {
+	t.Parallel()
+
 	fake := jiritest.NewFakeJiriRoot(t)
 
 	// Setup the initial remote and local projects.
@@ -94,7 +96,7 @@ func TestSnapshot(t *testing.T) {
 	}
 	defer os.Remove(tmpfile.Name())
 
-	if err := runSnapshot(fake.X, []string{tmpfile.Name()}); err != nil {
+	if err := (&snapshotCmd{}).run(fake.X, []string{tmpfile.Name()}); err != nil {
 		t.Fatalf("%v", err)
 	}
 
@@ -118,6 +120,8 @@ func TestSnapshot(t *testing.T) {
 
 // TestCipdSnapshot tests creating cipd snapshot files.
 func TestCipdSnapshot(t *testing.T) {
+	t.Parallel()
+
 	fake := jiritest.NewFakeJiriRoot(t)
 
 	// Setup fake packages

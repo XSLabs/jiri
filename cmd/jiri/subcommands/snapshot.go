@@ -5,34 +5,56 @@
 package subcommands
 
 import (
+	"context"
+	"flag"
+
+	"github.com/google/subcommands"
 	"go.fuchsia.dev/jiri"
-	"go.fuchsia.dev/jiri/cmdline"
 	"go.fuchsia.dev/jiri/project"
 )
 
-var snapshotFlags struct {
+// TODO(https://fxbug.dev/356134056): delete when finished migrating to
+// subcommands library.
+var (
+	snapshotFlags snapshotCmd
+	cmdSnapshot   = commandFromSubcommand(&snapshotFlags)
+)
+
+// TODO(https://fxbug.dev/356134056): delete when finished migrating to
+// subcommands library.
+func init() {
+	snapshotFlags.SetFlags(&cmdSnapshot.Flags)
+}
+
+type snapshotCmd struct {
 	cipdEnsure bool
 }
 
-func init() {
-	cmdSnapshot.Flags.BoolVar(&snapshotFlags.cipdEnsure, "cipd", false, "Generate a cipd.ensure (packages only) snapshot.")
-}
-
-var cmdSnapshot = &cmdline.Command{
-	Runner: jiri.RunnerFunc(runSnapshot),
-	Name:   "snapshot",
-	Short:  "Create a new project snapshot",
-	Long: `
+func (c *snapshotCmd) Name() string     { return "snapshot" }
+func (c *snapshotCmd) Synopsis() string { return "Create a new project snapshot" }
+func (c *snapshotCmd) Usage() string {
+	return `
 The "jiri snapshot <snapshot>" command captures the current project state
 in a manifest.
-`,
-	ArgsName: "<snapshot>",
-	ArgsLong: "<snapshot> is the snapshot manifest file.",
+
+Usage:
+  jiri snapshot [flags] <snapshot>
+
+<snapshot> is the snapshot manifest file.
+`
 }
 
-func runSnapshot(jirix *jiri.X, args []string) error {
+func (c *snapshotCmd) SetFlags(f *flag.FlagSet) {
+	f.BoolVar(&c.cipdEnsure, "cipd", false, "Generate a cipd.ensure (packages only) snapshot.")
+}
+
+func (c *snapshotCmd) Execute(ctx context.Context, _ *flag.FlagSet, args ...any) subcommands.ExitStatus {
+	return executeWrapper(ctx, c.run, args)
+}
+
+func (c *snapshotCmd) run(jirix *jiri.X, args []string) error {
 	if len(args) != 1 {
 		return jirix.UsageErrorf("unexpected number of arguments")
 	}
-	return project.CreateSnapshot(jirix, args[0], nil, nil, true, snapshotFlags.cipdEnsure)
+	return project.CreateSnapshot(jirix, args[0], nil, nil, true, c.cipdEnsure)
 }

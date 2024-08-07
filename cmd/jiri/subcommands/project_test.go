@@ -61,28 +61,23 @@ func TestProjectIgnoresByAttribute(t *testing.T) {
 	fake.X.FetchingAttrs = ""
 	fake.UpdateUniverse(true)
 
-	file, err := os.CreateTemp("", "tmp")
-	if err != nil {
+	outputPath := filepath.Join(t.TempDir(), "output.json")
+
+	cmd := projectCmd{
+		jsonOutput:        outputPath,
+		useRemoteProjects: true,
+	}
+
+	if err := cmd.run(fake.X, []string{}); err != nil {
 		t.Fatal(err)
 	}
-	defer os.Remove(file.Name())
-
-	projectFlags.jsonOutput = file.Name()
-	projectFlags.useRemoteProjects = true
-
-	err = runProject(fake.X, []string{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	file.Close()
 
 	var projectInfo []projectInfoOutput
-	bytes, err := os.ReadFile(file.Name())
+	bytes, err := os.ReadFile(outputPath)
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = json.Unmarshal(bytes, &projectInfo)
-	if err != nil {
+	if err = json.Unmarshal(bytes, &projectInfo); err != nil {
 		t.Fatal(err)
 	}
 
@@ -96,21 +91,11 @@ func TestProjectIgnoresByAttribute(t *testing.T) {
 	fake.X.FetchingAttrs = "optional"
 	fake.UpdateUniverse(true)
 
-	file2, err := os.CreateTemp("", "tmp")
-	if err != nil {
+	if err := cmd.run(fake.X, []string{}); err != nil {
 		t.Fatal(err)
 	}
-	defer os.Remove(file2.Name())
 
-	projectFlags.jsonOutput = file2.Name()
-
-	err = runProject(fake.X, []string{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	file2.Close()
-
-	bytes, err = os.ReadFile(file2.Name())
+	bytes, err = os.ReadFile(outputPath)
 	if err != nil {
 		t.Fatal(err)
 	}

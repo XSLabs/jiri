@@ -15,10 +15,13 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	"go.fuchsia.dev/jiri/project"
 )
 
 func TestGitModules(t *testing.T) {
+	t.Parallel()
+
 	goldenScript := []byte(`#!/bin/sh
 git update-index --add --cacheinfo 160000 87326c54332e5be21eda2173bb001aaee73a9ab7 "manifest"
 git update-index --add --cacheinfo 160000 87f863bcbc7cd2177bac17c61e31093de6eeed28 "path-0"
@@ -70,8 +73,8 @@ path-2 manifest public
 
 	tempDir := t.TempDir()
 
-	genGitModuleFlags.genScript = path.Join(tempDir, "setup.sh")
-	err = runGenGitModule(fakeroot.X, []string{
+	flags := &genGitModuleCmd{genScript: path.Join(tempDir, "setup.sh")}
+	err = flags.run(fakeroot.X, []string{
 		path.Join(tempDir, ".gitmodules"),
 		path.Join(tempDir, ".gitattributes"),
 	})
@@ -80,11 +83,10 @@ path-2 manifest public
 	}
 
 	// Read and verify content of generated script
-	data, err := os.ReadFile(genGitModuleFlags.genScript)
+	data, err := os.ReadFile(flags.genScript)
 	if err != nil {
 		t.Errorf("reading generated script file failed due to error: %v", err)
 	}
-	t.Logf("generated script content \n%s\n", string(data))
 
 	if err := verifyScript(goldenScript, data); err != nil {
 		t.Errorf("verifying generated script failed due to error: %v", err)
@@ -95,7 +97,6 @@ path-2 manifest public
 	if err != nil {
 		t.Errorf("reading generated .gitmodules file failed due to error: %v", err)
 	}
-	t.Logf("generated gitmodule content \n%s\n", string(data))
 
 	if err := verifyModules(goldenModule, data); err != nil {
 		t.Errorf("verifying generated .gitmodules failed due to error: %v", err)
@@ -106,9 +107,8 @@ path-2 manifest public
 	if err != nil {
 		t.Errorf("reading generated .gitattributes file failed due to error: %v", err)
 	}
-	t.Logf("generated gitattributes content \n%s\n", string(data))
-	if bytes.Compare(data, goldenAttributes) != 0 {
-		t.Errorf("verfying generated .gitattributes failed. Expecting: %q, got %q", string(goldenAttributes), string(data))
+	if diff := cmp.Diff(goldenAttributes, data); diff != "" {
+		t.Errorf("Diff in generated .gitattributes failed (-want +got):\n%s", diff)
 	}
 }
 
@@ -139,7 +139,7 @@ func verifyModules(golden, tests []byte) error {
 		return err
 	}
 	if len(goldenLines) != len(testLines) {
-		return fmt.Errorf("expecting %q non-empty/non-comment lines from generated .gitmodules, got %q lines", len(goldenLines), len(testLines))
+		return fmt.Errorf("expecting %d non-empty/non-comment lines from generated .gitmodules, got %d lines", len(goldenLines), len(testLines))
 	}
 	for i := 0; i < len(goldenLines); i++ {
 		goldenLine := goldenLines[i]
@@ -192,7 +192,7 @@ func verifyScript(golden, tests []byte) error {
 		return err
 	}
 	if len(goldenLines) != len(testLines) {
-		return fmt.Errorf("expecting %q non-empty/non-comment lines from generated script, got %q lines", len(goldenLines), len(testLines))
+		return fmt.Errorf("expecting %d non-empty/non-comment lines from generated script, got %d lines", len(goldenLines), len(testLines))
 	}
 	for i := 0; i < len(goldenLines); i++ {
 		goldenLine := goldenLines[i]

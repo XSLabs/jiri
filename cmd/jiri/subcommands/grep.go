@@ -5,76 +5,95 @@
 package subcommands
 
 import (
+	"context"
+	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
 
+	"github.com/google/subcommands"
 	"go.fuchsia.dev/jiri"
-	"go.fuchsia.dev/jiri/cmdline"
 	"go.fuchsia.dev/jiri/gitutil"
 	"go.fuchsia.dev/jiri/project"
 )
 
-var cmdGrep = &cmdline.Command{
-	Runner: jiri.RunnerFunc(runGrep),
-	Name:   "grep",
-	Short:  "Search across projects.",
-	Long: `
-Run git grep across all projects.
-`,
-	ArgsName: "<query> [--] [<pathspec>...]",
-}
+// TODO(https://fxbug.dev/356134056): delete when finished migrating to
+// subcommands library.
+var (
+	grepFlags grepCmd
+	cmdGrep   = commandFromSubcommand(&grepFlags)
+)
 
-var grepFlags struct {
-	cwdRel bool
-	n      bool
-	h      bool
-	i      bool
-	e      string
-	l      bool
-	L      bool
-	w      bool
-}
-
+// TODO(https://fxbug.dev/356134056): delete when finished migrating to
+// subcommands library.
 func init() {
-	flags := &cmdGrep.Flags
-	flags.BoolVar(&grepFlags.n, "n", false, "Prefix the line number to matching lines")
-	flags.StringVar(&grepFlags.e, "e", "", "The next parameter is the pattern. This option has to be used for patterns starting with -")
-	flags.BoolVar(&grepFlags.h, "H", true, "Does nothing. Just makes this git grep compatible")
-	flags.BoolVar(&grepFlags.i, "i", false, "Ignore case differences between the patterns and the files")
-	flags.BoolVar(&grepFlags.l, "l", false, "Instead of showing every matched line, show only the names of files that contain matches")
-	flags.BoolVar(&grepFlags.w, "w", false, "Match the pattern only at word boundary")
-	flags.BoolVar(&grepFlags.l, "name-only", false, "same as -l")
-	flags.BoolVar(&grepFlags.l, "files-with-matches", false, "same as -l")
-	flags.BoolVar(&grepFlags.L, "L", false, "Instead of showing every matched line, show only the names of files that do not contain matches")
-	flags.BoolVar(&grepFlags.L, "files-without-match", false, "same as -L")
-	flags.BoolVar(&grepFlags.cwdRel, "cwd-rel", false, "Output paths relative to the current working directory (if available)")
+	grepFlags.SetFlags(&cmdGrep.Flags)
 }
 
-func buildFlags() []string {
+type grepCmd struct {
+	cwdRel                   bool
+	lineNumbers              bool
+	h                        bool
+	caseInsensitive          bool
+	pattern                  string
+	filenamesOnly            bool
+	nonmatchingFilenamesOnly bool
+	wordBoundaries           bool
+}
+
+func (c *grepCmd) Name() string     { return "grep" }
+func (c *grepCmd) Synopsis() string { return "Search across projects." }
+func (c *grepCmd) Usage() string {
+	return `
+Run git grep across all projects.
+
+Usage:
+  jiri grep [flags] <query> [--] [<pathspec>...]
+`
+}
+
+func (c *grepCmd) SetFlags(f *flag.FlagSet) {
+	f.BoolVar(&c.lineNumbers, "n", false, "Prefix the line number to matching lines")
+	f.StringVar(&c.pattern, "e", "", "The next parameter is the pattern. This option has to be used for patterns starting with -")
+	f.BoolVar(&c.h, "H", true, "Does nothing. Just makes this git grep compatible")
+	f.BoolVar(&c.caseInsensitive, "i", false, "Ignore case differences between the patterns and the files")
+	f.BoolVar(&c.filenamesOnly, "l", false, "Instead of showing every matched line, show only the names of files that contain matches")
+	f.BoolVar(&c.wordBoundaries, "w", false, "Match the pattern only at word boundary")
+	f.BoolVar(&c.filenamesOnly, "name-only", false, "same as -l")
+	f.BoolVar(&c.filenamesOnly, "files-with-matches", false, "same as -l")
+	f.BoolVar(&c.nonmatchingFilenamesOnly, "L", false, "Instead of showing every matched line, show only the names of files that do not contain matches")
+	f.BoolVar(&c.nonmatchingFilenamesOnly, "files-without-match", false, "same as -L")
+	f.BoolVar(&c.cwdRel, "cwd-rel", false, "Output paths relative to the current working directory (if available)")
+}
+
+func (c *grepCmd) Execute(ctx context.Context, _ *flag.FlagSet, args ...any) subcommands.ExitStatus {
+	return executeWrapper(ctx, c.run, args)
+}
+
+func (c *grepCmd) buildFlags() []string {
 	var args []string
-	if grepFlags.n {
+	if c.lineNumbers {
 		args = append(args, "-n")
 	}
-	if grepFlags.e != "" {
-		args = append(args, "-e", grepFlags.e)
+	if c.pattern != "" {
+		args = append(args, "-e", c.pattern)
 	}
-	if grepFlags.i {
+	if c.caseInsensitive {
 		args = append(args, "-i")
 	}
-	if grepFlags.l {
+	if c.filenamesOnly {
 		args = append(args, "-l")
 	}
-	if grepFlags.L {
+	if c.nonmatchingFilenamesOnly {
 		args = append(args, "-L")
 	}
-	if grepFlags.w {
+	if c.wordBoundaries {
 		args = append(args, "-w")
 	}
 	return args
 }
 
-func doGrep(jirix *jiri.X, args []string) ([]string, error) {
+func (c *grepCmd) doGrep(jirix *jiri.X, args []string) ([]string, error) {
 	var pathSpecs []string
 	lenArgs := len(args)
 	if lenArgs > 0 {
@@ -98,9 +117,9 @@ func doGrep(jirix *jiri.X, args []string) ([]string, error) {
 		}
 	}
 
-	if grepFlags.e != "" && lenArgs > 0 {
+	if c.pattern != "" && lenArgs > 0 {
 		return nil, jirix.UsageErrorf("No additional argument allowed with flag -e")
-	} else if grepFlags.e == "" && lenArgs != 1 {
+	} else if c.pattern == "" && lenArgs != 1 {
 		return nil, jirix.UsageErrorf("grep requires one argument")
 	}
 
@@ -112,7 +131,7 @@ func doGrep(jirix *jiri.X, args []string) ([]string, error) {
 	// TODO(ianloic): run in parallel rather than serially.
 	// TODO(ianloic): only run grep on projects under the cwd.
 	var results []string
-	flags := buildFlags()
+	flags := c.buildFlags()
 	if jirix.Color.Enabled() {
 		flags = append(flags, "--color=always")
 	}
@@ -122,7 +141,7 @@ func doGrep(jirix *jiri.X, args []string) ([]string, error) {
 	}
 
 	cwd := jirix.Root
-	if grepFlags.cwdRel {
+	if c.cwdRel {
 		cwd = jirix.Cwd
 	}
 
@@ -146,8 +165,8 @@ func doGrep(jirix *jiri.X, args []string) ([]string, error) {
 	return results, nil
 }
 
-func runGrep(jirix *jiri.X, args []string) error {
-	lines, err := doGrep(jirix, args)
+func (c *grepCmd) run(jirix *jiri.X, args []string) error {
+	lines, err := c.doGrep(jirix, args)
 	if err != nil {
 		return err
 	}

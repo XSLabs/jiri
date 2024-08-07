@@ -5,7 +5,9 @@
 package subcommands
 
 import (
+	"context"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"os"
 	"path"
@@ -13,24 +15,26 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/google/subcommands"
 	"go.fuchsia.dev/jiri"
-	"go.fuchsia.dev/jiri/cmdline"
 	"go.fuchsia.dev/jiri/gitutil"
 	"go.fuchsia.dev/jiri/project"
 )
 
-type arrayFlag []string
+// TODO(https://fxbug.dev/356134056): delete when finished migrating to
+// subcommands library.
+var (
+	editFlags editCmd
+	cmdEdit   = commandFromSubcommand(&editFlags)
+)
 
-func (i *arrayFlag) String() string {
-	return strings.Join(*i, ", ")
+// TODO(https://fxbug.dev/356134056): delete when finished migrating to
+// subcommands library.
+func init() {
+	editFlags.SetFlags(&cmdEdit.Flags)
 }
 
-func (i *arrayFlag) Set(value string) error {
-	*i = append(*i, value)
-	return nil
-}
-
-var editFlags struct {
+type editCmd struct {
 	projects   arrayFlag
 	imports    arrayFlag
 	packages   arrayFlag
@@ -44,90 +48,52 @@ const (
 	both     = "both"
 )
 
-type projectChanges struct {
-	Name   string `json:"name"`
-	Remote string `json:"remote"`
-	Path   string `json:"path"`
-	OldRev string `json:"old_revision"`
-	NewRev string `json:"new_revision"`
+func (c *editCmd) Name() string     { return "edit" }
+func (c *editCmd) Synopsis() string { return "Edit manifest file" }
+func (c *editCmd) Usage() string {
+	return `
+Edit manifest file by rolling the revision of provided projects, imports or packages.
+
+Usage:
+  jiri edit [flags] <manifest>
+
+<manifest> is path of the manifest
+`
 }
 
-type importChanges struct {
-	Name   string `json:"name"`
-	Remote string `json:"remote"`
-	OldRev string `json:"old_revision"`
-	NewRev string `json:"new_revision"`
+func (c *editCmd) SetFlags(f *flag.FlagSet) {
+	f.Var(&c.projects, "project", "List of projects to update. It is of form <project-name>=<revision> where revision is optional. It can be specified multiple times.")
+	f.Var(&c.imports, "import", "List of imports to update. It is of form <import-name>=<revision> where revision is optional. It can be specified multiple times.")
+	f.Var(&c.packages, "package", "List of packages to update. It is of form <package-name>=<version>. It can be specified multiple times.")
+	f.StringVar(&c.jsonOutput, "json-output", "", "File to print changes to, in json format.")
+	f.StringVar(&c.editMode, "edit-mode", "both", "Edit mode. It can be 'manifest' for updating project revisions in manifest only, 'lockfile' for updating project revisions in lockfile only or 'both' for updating project revisions in both files.")
 }
 
-type packageChanges struct {
-	Name   string `json:"name"`
-	OldVer string `json:"old_version"`
-	NewVer string `json:"new_version"`
+func (c *editCmd) Execute(ctx context.Context, _ *flag.FlagSet, args ...any) subcommands.ExitStatus {
+	return executeWrapper(ctx, c.run, args)
 }
 
-type editChanges struct {
-	Projects []projectChanges `json:"projects"`
-	Imports  []importChanges  `json:"imports"`
-	Packages []packageChanges `json:"packages"`
-}
-
-func (ec *editChanges) toFile(filename string) error {
-	if err := os.MkdirAll(filepath.Dir(filename), 0755); err != nil {
-		return err
-	}
-	out, err := json.MarshalIndent(ec, "", "  ")
-	if err != nil {
-		return fmt.Errorf("failed to serialize JSON output: %s\n", err)
-	}
-
-	err = os.WriteFile(filename, out, 0600)
-	if err != nil {
-		return fmt.Errorf("failed write JSON output to %s: %s\n", filename, err)
-	}
-
-	return nil
-}
-
-// TODO(IN-361): Make this a subcommand of 'manifest'
-var cmdEdit = &cmdline.Command{
-	Runner:   jiri.RunnerFunc(runEdit),
-	Name:     "edit",
-	Short:    "Edit manifest file",
-	Long:     `Edit manifest file by rolling the revision of provided projects, imports or packages`,
-	ArgsName: "<manifest>",
-	ArgsLong: "<manifest> is path of the manifest",
-}
-
-func init() {
-	flags := &cmdEdit.Flags
-	flags.Var(&editFlags.projects, "project", "List of projects to update. It is of form <project-name>=<revision> where revision is optional. It can be specified multiple times.")
-	flags.Var(&editFlags.imports, "import", "List of imports to update. It is of form <import-name>=<revision> where revision is optional. It can be specified multiple times.")
-	flags.Var(&editFlags.packages, "package", "List of packages to update. It is of form <package-name>=<version>. It can be specified multiple times.")
-	flags.StringVar(&editFlags.jsonOutput, "json-output", "", "File to print changes to, in json format.")
-	flags.StringVar(&editFlags.editMode, "edit-mode", "both", "Edit mode. It can be 'manifest' for updating project revisions in manifest only, 'lockfile' for updating project revisions in lockfile only or 'both' for updating project revisions in both files.")
-}
-
-func runEdit(jirix *jiri.X, args []string) error {
+func (c *editCmd) run(jirix *jiri.X, args []string) error {
 	if len(args) != 1 {
 		return jirix.UsageErrorf("Wrong number of args")
 	}
 
-	editFlags.editMode = strings.ToLower(editFlags.editMode)
-	if editFlags.editMode != manifest && editFlags.editMode != lockfile && editFlags.editMode != both {
-		return fmt.Errorf("unsupported edit-mode: %q", editFlags.editMode)
+	c.editMode = strings.ToLower(c.editMode)
+	if c.editMode != manifest && c.editMode != lockfile && c.editMode != both {
+		return fmt.Errorf("unsupported edit-mode: %q", c.editMode)
 	}
 
 	manifestPath, err := filepath.Abs(args[0])
 	if err != nil {
 		return err
 	}
-	if len(editFlags.projects) == 0 && len(editFlags.imports) == 0 && len(editFlags.packages) == 0 {
+	if len(c.projects) == 0 && len(c.imports) == 0 && len(c.packages) == 0 {
 		return jirix.UsageErrorf("Please provide -project, -import and/or -package flag")
 	}
 	projects := make(map[string]string)
 	imports := make(map[string]string)
 	packages := make(map[string]string)
-	for _, p := range editFlags.projects {
+	for _, p := range c.projects {
 		s := strings.SplitN(p, "=", 2)
 		if len(s) == 1 {
 			projects[s[0]] = ""
@@ -135,7 +101,7 @@ func runEdit(jirix *jiri.X, args []string) error {
 			projects[s[0]] = s[1]
 		}
 	}
-	for _, i := range editFlags.imports {
+	for _, i := range c.imports {
 		s := strings.SplitN(i, "=", 2)
 		if len(s) == 1 {
 			imports[s[0]] = ""
@@ -143,7 +109,7 @@ func runEdit(jirix *jiri.X, args []string) error {
 			imports[s[0]] = s[1]
 		}
 	}
-	for _, p := range editFlags.packages {
+	for _, p := range c.packages {
 		// The package name may contain "=" characters; so we split the string from the rightmost "=".
 		separatorPos := strings.LastIndex(p, "=")
 		if separatorPos == -1 || separatorPos == 0 || separatorPos == len(p)-1 {
@@ -155,10 +121,10 @@ func runEdit(jirix *jiri.X, args []string) error {
 		}
 	}
 
-	return updateManifest(jirix, manifestPath, projects, imports, packages)
+	return c.updateManifest(jirix, manifestPath, projects, imports, packages)
 }
 
-func writeManifest(jirix *jiri.X, manifestPath, manifestContent string, projects map[string]string) error {
+func (c *editCmd) writeManifest(jirix *jiri.X, manifestPath, manifestContent string, projects map[string]string) error {
 	// Create a temp dir to save backedup lockfiles
 	tempDir, err := os.MkdirTemp("", "jiri_lockfile")
 	if err != nil {
@@ -186,7 +152,7 @@ func writeManifest(jirix *jiri.X, manifestPath, manifestContent string, projects
 		return true
 	}
 
-	if len(projects) != 0 && (editFlags.editMode == lockfile || editFlags.editMode == both) {
+	if len(projects) != 0 && (c.editMode == lockfile || c.editMode == both) {
 		// Search lockfiles and update
 		dir := manifestPath
 		for ; isLockfileDir(jirix, dir); dir = path.Dir(dir) {
@@ -320,7 +286,7 @@ func updateRevisionOrVersionAttr(manifestContent, tag, newAttrValue, name, attr 
 	return strings.Replace(manifestContent, s, rs, 1), nil
 }
 
-func updateManifest(jirix *jiri.X, manifestPath string, projects, imports, packages map[string]string) error {
+func (c *editCmd) updateManifest(jirix *jiri.X, manifestPath string, projects, imports, packages map[string]string) error {
 	ec := &editChanges{
 		Projects: []projectChanges{},
 		Imports:  []importChanges{},
@@ -359,7 +325,7 @@ func updateManifest(jirix *jiri.X, manifestPath string, projects, imports, packa
 		if p.Revision == newRevision {
 			continue
 		}
-		if editFlags.editMode == manifest || editFlags.editMode == both {
+		if c.editMode == manifest || c.editMode == both {
 			manifestContent, err = updateRevision(manifestContent, "project", p.Revision, newRevision, p.Name)
 			if err != nil {
 				return err
@@ -429,11 +395,66 @@ func updateManifest(jirix *jiri.X, manifestPath string, projects, imports, packa
 		}
 		ec.Packages = append(ec.Packages, pc)
 	}
-	if editFlags.jsonOutput != "" {
-		if err := ec.toFile(editFlags.jsonOutput); err != nil {
+	if c.jsonOutput != "" {
+		if err := ec.toFile(c.jsonOutput); err != nil {
 			return err
 		}
 	}
 
-	return writeManifest(jirix, manifestPath, manifestContent, editedProjects)
+	return c.writeManifest(jirix, manifestPath, manifestContent, editedProjects)
+}
+
+type arrayFlag []string
+
+func (i *arrayFlag) String() string {
+	return strings.Join(*i, ", ")
+}
+
+func (i *arrayFlag) Set(value string) error {
+	*i = append(*i, value)
+	return nil
+}
+
+type projectChanges struct {
+	Name   string `json:"name"`
+	Remote string `json:"remote"`
+	Path   string `json:"path"`
+	OldRev string `json:"old_revision"`
+	NewRev string `json:"new_revision"`
+}
+
+type importChanges struct {
+	Name   string `json:"name"`
+	Remote string `json:"remote"`
+	OldRev string `json:"old_revision"`
+	NewRev string `json:"new_revision"`
+}
+
+type packageChanges struct {
+	Name   string `json:"name"`
+	OldVer string `json:"old_version"`
+	NewVer string `json:"new_version"`
+}
+
+type editChanges struct {
+	Projects []projectChanges `json:"projects"`
+	Imports  []importChanges  `json:"imports"`
+	Packages []packageChanges `json:"packages"`
+}
+
+func (ec *editChanges) toFile(filename string) error {
+	if err := os.MkdirAll(filepath.Dir(filename), 0755); err != nil {
+		return err
+	}
+	out, err := json.MarshalIndent(ec, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to serialize JSON output: %s\n", err)
+	}
+
+	err = os.WriteFile(filename, out, 0600)
+	if err != nil {
+		return fmt.Errorf("failed write JSON output to %s: %s\n", filename, err)
+	}
+
+	return nil
 }

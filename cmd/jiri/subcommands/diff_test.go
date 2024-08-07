@@ -151,6 +151,8 @@ func TestDiffLocalSnapshots(t *testing.T) {
 }
 
 func TestDiffSnapshotsURL(t *testing.T) {
+	t.Parallel()
+
 	fake := jiritest.NewFakeJiriRoot(t)
 
 	s1, s2, d := setUpSnapshots(t, fake.X.Root)

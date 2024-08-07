@@ -5,12 +5,28 @@
 package subcommands
 
 import (
+	"context"
+	"flag"
+
+	"github.com/google/subcommands"
 	"go.fuchsia.dev/jiri"
-	"go.fuchsia.dev/jiri/cmdline"
 	"go.fuchsia.dev/jiri/project"
 )
 
-var fetchPkgsFlags struct {
+// TODO(https://fxbug.dev/356134056): delete when finished migrating to
+// subcommands library.
+var (
+	fetchPkgsFlags fetchPkgsCmd
+	cmdFetchPkgs   = commandFromSubcommand(&fetchPkgsFlags)
+)
+
+// TODO(https://fxbug.dev/356134056): delete when finished migrating to
+// subcommands library.
+func init() {
+	fetchPkgsFlags.SetFlags(&cmdFetchPkgs.Flags)
+}
+
+type fetchPkgsCmd struct {
 	localManifest     bool
 	fetchPkgsTimeout  uint
 	attempts          uint
@@ -18,53 +34,62 @@ var fetchPkgsFlags struct {
 	packagesToSkip    arrayFlag
 }
 
-var cmdFetchPkgs = &cmdline.Command{
-	Runner: jiri.RunnerFunc(runFetchPkgs),
-	Name:   "fetch-packages",
-	Short:  "Fetch cipd packages using JIRI_HEAD version manifest",
-	Long: `
+func (c *fetchPkgsCmd) Name() string { return "fetch-packages" }
+func (c *fetchPkgsCmd) Synopsis() string {
+	return "Fetch cipd packages using JIRI_HEAD version manifest"
+}
+func (c *fetchPkgsCmd) Usage() string {
+	return `
 Fetch cipd packages using local manifest JIRI_HEAD version if -local-manifest flag is
 false, otherwise it fetches cipd packages using current manifest checkout version.
-`,
+
+Usage:
+  jiri fetch-packages [flags]
+`
 }
 
-func init() {
-	cmdFetchPkgs.Flags.BoolVar(&fetchPkgsFlags.localManifest, "local-manifest", false, "Use local checked out manifest.")
-	cmdFetchPkgs.Flags.UintVar(&fetchPkgsFlags.fetchPkgsTimeout, "fetch-packages-timeout", project.DefaultPackageTimeout, "Timeout in minutes for fetching prebuilt packages using cipd.")
-	cmdFetchPkgs.Flags.UintVar(&fetchPkgsFlags.attempts, "attempts", 1, "Number of attempts before failing.")
-	cmdFetchPkgs.Flags.BoolVar(&fetchPkgsFlags.skipLocalProjects, "skip-local-projects", false, "Skip checking local project state.")
-	cmdFetchPkgs.Flags.Var(&runHooksFlags.packagesToSkip, "package-to-skip", "Skip fetching this package. Repeatable.")
+func (c *fetchPkgsCmd) SetFlags(f *flag.FlagSet) {
+	f.BoolVar(&c.localManifest, "local-manifest", false, "Use local checked out manifest.")
+	f.UintVar(&c.fetchPkgsTimeout, "fetch-packages-timeout", project.DefaultPackageTimeout, "Timeout in minutes for fetching prebuilt packages using cipd.")
+	f.UintVar(&c.attempts, "attempts", 1, "Number of attempts before failing.")
+	f.BoolVar(&c.skipLocalProjects, "skip-local-projects", false, "Skip checking local project state.")
+	f.Var(&c.packagesToSkip, "package-to-skip", "Skip fetching this package. Repeatable.")
 }
 
-func runFetchPkgs(jirix *jiri.X, args []string) (err error) {
+func (c *fetchPkgsCmd) Execute(ctx context.Context, _ *flag.FlagSet, args ...any) subcommands.ExitStatus {
+	return executeWrapper(ctx, c.run, args)
+}
+
+func (c *fetchPkgsCmd) run(jirix *jiri.X, args []string) (err error) {
 	localProjects := project.Projects{}
-	if !fetchPkgsFlags.skipLocalProjects {
+	if !c.skipLocalProjects {
 		localProjects, err = project.LocalProjects(jirix, project.FastScan)
 		if err != nil {
 			return err
 		}
 	}
-	if fetchPkgsFlags.attempts < 1 {
+	if c.attempts < 1 {
 		return jirix.UsageErrorf("Number of attempts should be >= 1")
 	}
-	jirix.Attempts = fetchPkgsFlags.attempts
+	jirix.Attempts = c.attempts
 
 	// Get pkgs.
 	var pkgs project.Packages
-	if !fetchPkgsFlags.localManifest {
-		_, _, pkgs, err = project.LoadUpdatedManifest(jirix, localProjects, fetchPkgsFlags.localManifest)
+	if !c.localManifest {
+		_, _, pkgs, err = project.LoadUpdatedManifest(jirix, localProjects, c.localManifest)
 	} else {
-		_, _, pkgs, err = project.LoadManifestFile(jirix, jirix.JiriManifestFile(), localProjects, fetchPkgsFlags.localManifest)
+		_, _, pkgs, err = project.LoadManifestFile(jirix, jirix.JiriManifestFile(), localProjects, c.localManifest)
 	}
 	if err != nil {
 		return err
 	}
 	if err := project.FilterOptionalProjectsPackages(jirix, jirix.FetchingAttrs, nil, pkgs); err != nil {
 		return err
+
 	}
-	project.FilterPackagesByName(jirix, pkgs, fetchPkgsFlags.packagesToSkip)
+	project.FilterPackagesByName(jirix, pkgs, c.packagesToSkip)
 	if len(pkgs) > 0 {
-		return project.FetchPackages(jirix, pkgs, fetchPkgsFlags.fetchPkgsTimeout)
+		return project.FetchPackages(jirix, pkgs, c.fetchPkgsTimeout)
 	}
 	return nil
 }

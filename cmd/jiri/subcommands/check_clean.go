@@ -5,36 +5,57 @@
 package subcommands
 
 import (
+	"context"
+	"flag"
 	"fmt"
 	"path/filepath"
 	"sort"
 
+	"github.com/google/subcommands"
 	"go.fuchsia.dev/jiri"
-	"go.fuchsia.dev/jiri/cmdline"
 	"go.fuchsia.dev/jiri/gitutil"
 	"go.fuchsia.dev/jiri/project"
 )
 
-var cmdCheckClean = &cmdline.Command{
-	Runner: jiri.RunnerFunc(runCheckClean),
-	Name:   "check-clean",
-	Short:  "Checks if the checkout is clean",
-	Long: `
-Exits non-zero and prints repositories (and their status) if they contain
-uncommitted changes.
-`,
+// TODO(https://fxbug.dev/356134056): delete when finished migrating to
+// subcommands library.
+var (
+	checkCleanFlags checkCleanCmd
+	cmdCheckClean   = commandFromSubcommand(&checkCleanFlags)
+)
+
+// TODO(https://fxbug.dev/356134056): delete when finished migrating to
+// subcommands library.
+func init() {
+	checkCleanFlags.SetFlags(&cmdCheckClean.Flags)
 }
 
-func runCheckClean(jirix *jiri.X, args []string) error {
+type checkCleanCmd struct{}
+
+func (c *checkCleanCmd) Name() string     { return "check-clean" }
+func (c *checkCleanCmd) Synopsis() string { return "Checks if the checkout is clean" }
+func (c *checkCleanCmd) Usage() string {
+	return `
+Exits non-zero and prints repositories (and their status) if they contain
+uncommitted changes.
+
+Usage:
+  jiri check-clean
+`
+}
+
+func (c *checkCleanCmd) SetFlags(f *flag.FlagSet) {}
+
+func (c *checkCleanCmd) Execute(ctx context.Context, _ *flag.FlagSet, args ...any) subcommands.ExitStatus {
+	return executeWrapper(ctx, c.run, args)
+}
+
+func (c *checkCleanCmd) run(jirix *jiri.X, args []string) error {
 	localProjects, err := project.LocalProjects(jirix, project.FastScan)
 	if err != nil {
 		return err
 	}
 	cDir := jirix.Cwd
-	states, err := project.GetProjectStates(jirix, localProjects, false)
-	if err != nil {
-		return err
-	}
 	var keys project.ProjectKeys
 	for key := range localProjects {
 		keys = append(keys, key)
@@ -43,14 +64,6 @@ func runCheckClean(jirix *jiri.X, args []string) error {
 	dirtyProjects := make(map[string]string)
 	for _, key := range keys {
 		localProject := localProjects[key]
-		state, ok := states[key]
-		if !ok {
-			// this should not happen
-			panic(fmt.Sprintf("State not found for project %q", localProject.Name))
-		}
-		if statusFlags.branch != "" && (statusFlags.branch != state.CurrentBranch.Name) {
-			continue
-		}
 		relativePath, err := filepath.Rel(cDir, localProject.Path)
 		if err != nil {
 			return err

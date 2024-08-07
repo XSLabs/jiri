@@ -8,9 +8,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	"go.fuchsia.dev/jiri/jiritest/xtest"
 	"go.fuchsia.dev/jiri/project"
 )
@@ -23,21 +23,13 @@ type overrideTestCase struct {
 	WantJSONOutput string
 	Stdout         string
 	WantErr        string
-	SetFlags       func()
+	Flags          overrideCmd
 	runOnce        bool
 }
 
-func setDefaultOverrideFlags() {
-	overrideFlags.importManifest = ""
-	overrideFlags.path = ""
-	overrideFlags.revision = ""
-	overrideFlags.gerritHost = ""
-	overrideFlags.delete = false
-	overrideFlags.list = false
-	overrideFlags.JSONOutput = ""
-}
-
 func TestOverride(t *testing.T) {
+	t.Parallel()
+
 	tests := []overrideTestCase{
 		{
 			Name:    "no args",
@@ -69,8 +61,8 @@ func TestOverride(t *testing.T) {
 		},
 		{
 			Name: "path specified",
-			SetFlags: func() {
-				overrideFlags.path = "bar"
+			Flags: overrideCmd{
+				path: "bar",
 			},
 			Args: []string{"foo", "https://github.com/new.git"},
 			Want: `<manifest>
@@ -85,8 +77,8 @@ func TestOverride(t *testing.T) {
 		},
 		{
 			Name: "revision specified",
-			SetFlags: func() {
-				overrideFlags.revision = "bar"
+			Flags: overrideCmd{
+				revision: "bar",
 			},
 			Args: []string{"foo", "https://github.com/new.git"},
 			Want: `<manifest>
@@ -101,9 +93,9 @@ func TestOverride(t *testing.T) {
 		},
 		{
 			Name: "json output",
-			SetFlags: func() {
-				overrideFlags.list = true
-				overrideFlags.JSONOutput = filepath.Join(t.TempDir(), "file")
+			Flags: overrideCmd{
+				list:       true,
+				jsonOutput: filepath.Join(t.TempDir(), "file"),
 			},
 			Exist: `<manifest>
   <imports>
@@ -125,8 +117,8 @@ func TestOverride(t *testing.T) {
 		},
 		{
 			Name: "list",
-			SetFlags: func() {
-				overrideFlags.list = true
+			Flags: overrideCmd{
+				list: true,
 			},
 			Exist: `<manifest>
   <imports>
@@ -140,6 +132,7 @@ func TestOverride(t *testing.T) {
 			Stdout: `* override foo
   Name:        foo
   Remote:      https://github.com/new.git
+  Revision:    HEAD
 `,
 		},
 		{
@@ -168,16 +161,16 @@ func TestOverride(t *testing.T) {
 		// test delete flag
 		{
 			Name: "delete with too few args",
-			SetFlags: func() {
-				overrideFlags.delete = true
+			Flags: overrideCmd{
+				delete: true,
 			},
 			WantErr: `wrong number of arguments for the delete flag`,
 			runOnce: true,
 		},
 		{
 			Name: "delete with too many args",
-			SetFlags: func() {
-				overrideFlags.delete = true
+			Flags: overrideCmd{
+				delete: true,
 			},
 			Args:    []string{"a", "b", "c"},
 			WantErr: `wrong number of arguments for the delete flag`,
@@ -185,9 +178,9 @@ func TestOverride(t *testing.T) {
 		},
 		{
 			Name: "delete with list",
-			SetFlags: func() {
-				overrideFlags.delete = true
-				overrideFlags.list = true
+			Flags: overrideCmd{
+				delete: true,
+				list:   true,
 			},
 			Args:    []string{"a", "b"},
 			WantErr: `cannot use -delete and -list together`,
@@ -195,8 +188,8 @@ func TestOverride(t *testing.T) {
 		},
 		{
 			Name: "delete",
-			SetFlags: func() {
-				overrideFlags.delete = true
+			Flags: overrideCmd{
+				delete: true,
 			},
 			Args:    []string{"foo"},
 			runOnce: true,
@@ -222,8 +215,8 @@ func TestOverride(t *testing.T) {
 		},
 		{
 			Name: "ambiguous delete",
-			SetFlags: func() {
-				overrideFlags.delete = true
+			Flags: overrideCmd{
+				delete: true,
 			},
 			Args:    []string{"foo"},
 			runOnce: true,
@@ -241,8 +234,8 @@ func TestOverride(t *testing.T) {
 		},
 		{
 			Name: "delete specifying remote",
-			SetFlags: func() {
-				overrideFlags.delete = true
+			Flags: overrideCmd{
+				delete: true,
 			},
 			Args:    []string{"foo", "https://github.com/bar.git"},
 			runOnce: true,
@@ -268,9 +261,9 @@ func TestOverride(t *testing.T) {
 		},
 		{
 			Name: "override manifest with revision",
-			SetFlags: func() {
-				overrideFlags.importManifest = "manifest"
-				overrideFlags.revision = "eabeadae97b1e7f97ba93206066411adfe93a509"
+			Flags: overrideCmd{
+				importManifest: "manifest",
+				revision:       "eabeadae97b1e7f97ba93206066411adfe93a509",
 			},
 			Args:    []string{"orig", "https://github.com/orig.git"},
 			runOnce: true,
@@ -293,7 +286,9 @@ func TestOverride(t *testing.T) {
 	}
 
 	for _, test := range tests {
+		test := test
 		t.Run(test.Name, func(t *testing.T) {
+			t.Parallel()
 			if err := testOverride(t, test); err != nil {
 				t.Errorf("%v: %v", test.Args, err)
 			}
@@ -328,11 +323,7 @@ func testOverride(t *testing.T, test overrideTestCase) error {
 	}
 
 	run := func() error {
-		setDefaultOverrideFlags()
-		if test.SetFlags != nil {
-			test.SetFlags()
-		}
-		stdout, _, err := collectStdio(jirix, test.Args, runOverride)
+		stdout, _, err := collectStdio(jirix, test.Args, test.Flags.run)
 		if err != nil {
 			if test.WantErr == "" {
 				return err
@@ -341,8 +332,8 @@ func testOverride(t *testing.T, test overrideTestCase) error {
 				return fmt.Errorf("err got %q, want %q", got, want)
 			}
 		}
-		if got, want := stdout, test.Stdout; !strings.Contains(got, want) || (got != "" && want == "") {
-			return fmt.Errorf("stdout got %q, want substr %q", got, want)
+		if diff := cmp.Diff(test.Stdout, stdout); diff != "" {
+			return fmt.Errorf("Unexpected diff in stdout (-want +got):\n%s", diff)
 		}
 		return nil
 	}
@@ -363,19 +354,19 @@ func testOverride(t *testing.T, test overrideTestCase) error {
 		if err != nil {
 			return err
 		}
-		if got, want := string(data), test.Want; got != want {
-			return fmt.Errorf("GOT\n%s\nWANT\n%s", got, want)
+		if diff := cmp.Diff(test.Want, string(data)); diff != "" {
+			return fmt.Errorf("Unexpected diff in manifest (-want +got):\n%s", diff)
 		}
 	}
 
 	// Make sure the right file is generated.
 	if test.WantJSONOutput != "" {
-		data, err := os.ReadFile(overrideFlags.JSONOutput)
+		data, err := os.ReadFile(test.Flags.jsonOutput)
 		if err != nil {
 			return err
 		}
-		if got, want := string(data), test.WantJSONOutput; got != want {
-			return fmt.Errorf("GOT\n%s\nWANT\n%s", got, want)
+		if diff := cmp.Diff(test.WantJSONOutput, string(data)); diff != "" {
+			return fmt.Errorf("Unexpected diff in json output (-want +got):\n%s", diff)
 		}
 	}
 

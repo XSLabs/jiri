@@ -5,18 +5,20 @@
 package subcommands
 
 import (
-	"flag"
 	"os"
 	"strings"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	"go.fuchsia.dev/jiri/cipd"
 	"go.fuchsia.dev/jiri/jiritest"
 )
 
 func TestManifest(t *testing.T) {
+	t.Parallel()
+
 	// Create a test manifest file.
-	testManifestFile, err := os.CreateTemp("", "test_manifest")
+	testManifestFile, err := os.CreateTemp(t.TempDir(), "test_manifest")
 	if err != nil {
 		t.Fatalf("failed to create test manifest: %s", err)
 	}
@@ -49,45 +51,34 @@ func TestManifest(t *testing.T) {
 	</packages>
 </manifest>
 `))
+	if err := testManifestFile.Close(); err != nil {
+		t.Fatal(err)
+	}
 
-	runCommand := func(t *testing.T, args []string) (string, error) {
+	runCommand := func(t *testing.T, cmd manifestCmd, args []string) (string, error) {
 		t.Helper()
 
 		// Set up a fake Jiri root to pass to our command.
 		fake := jiritest.NewFakeJiriRoot(t)
 
-		// Initialize flags for the command.
-		flagSet := flag.NewFlagSet("manifest-test", flag.ContinueOnError)
-		setManifestFlags(flagSet)
-
-		// Make sure flags parse correctly.
-		if err := flagSet.Parse(args); err != nil {
-			t.Error(err)
-		}
-
-		stdout, _, err := collectStdio(fake.X, flagSet.Args(), runManifest)
+		stdout, _, err := collectStdio(fake.X, args, cmd.run)
 		return stdout, err
 	}
 
-	// Expects manifest to return a specific value when given args.
-	expectAttributeValue := func(t *testing.T, args []string, expectedValue string) {
-		stdout, err := runCommand(t, args)
+	attributeValue := func(t *testing.T, cmd manifestCmd, args ...string) string {
+		stdout, err := runCommand(t, cmd, args)
 
 		// If an error occurred, fail.
 		if err != nil {
-			t.Error(err)
-			return
+			t.Fatal(err)
 		}
 
-		// Compare stdout to the expected value.
-		if strings.Trim(stdout, " \n") != expectedValue {
-			t.Errorf("expected %q, got %q", expectedValue, stdout)
-		}
+		return strings.Trim(stdout, " \n")
 	}
 
 	// Expects manifest to error when given args.
-	expectError := func(t *testing.T, args []string) {
-		stdout, err := runCommand(t, args)
+	expectError := func(t *testing.T, cmd manifestCmd, args ...string) {
+		stdout, err := runCommand(t, cmd, args)
 
 		// Fail if no error was output.
 		if err == nil {
@@ -97,153 +88,132 @@ func TestManifest(t *testing.T) {
 	}
 
 	t.Run("should fail if manifest file is missing", func(t *testing.T) {
-		expectError(t, []string{
-			"-element=the_import",
-			"-template={{.Name}}",
+		t.Parallel()
+
+		expectError(t, manifestCmd{
+			ElementName: "the_import",
+			Template:    "{{.Name}}",
 		})
 
-		expectError(t, []string{
-			"-element=the_project",
-			"-template={{.Name}}",
+		expectError(t, manifestCmd{
+			ElementName: "the_project",
+			Template:    "{{.Name}}",
 		})
 	})
 
 	t.Run("should fail if -attribute is missing", func(t *testing.T) {
-		expectError(t, []string{
-			"-element=the_import",
-			testManifestFile.Name(),
-		})
+		t.Parallel()
 
-		expectError(t, []string{
-			"-element=the_project",
-			testManifestFile.Name(),
-		})
+		expectError(t,
+			manifestCmd{ElementName: "the_import"},
+			testManifestFile.Name())
+
+		expectError(t,
+			manifestCmd{ElementName: "the_project"},
+			testManifestFile.Name())
 	})
 
 	t.Run("should fail if -element is missing", func(t *testing.T) {
-		expectError(t, []string{
-			"-template={{.Name}}",
-			testManifestFile.Name(),
-		})
+		t.Parallel()
 
-		expectError(t, []string{
-			"-template={{.Name}}",
+		expectError(t,
+			manifestCmd{Template: "{{.Name}}"},
 			testManifestFile.Name(),
-		})
+		)
+
+		expectError(t,
+			manifestCmd{Template: "{{.Name}}"},
+			testManifestFile.Name(),
+		)
 	})
 
 	t.Run("should read <project> attributes", func(t *testing.T) {
-		expectAttributeValue(t, []string{
-			"-element=the_project",
-			"-template={{.Name}}",
-			testManifestFile.Name(),
-		},
-			"the_project")
+		t.Parallel()
 
-		expectAttributeValue(t, []string{
-			"-element=the_project",
-			"-template={{.Remote}}",
-			testManifestFile.Name(),
-		},
-			"https://fuchsia.googlesource.com/the_project")
-
-		expectAttributeValue(t, []string{
-			"-element=the_project",
-			"-template={{.Revision}}",
-			testManifestFile.Name(),
-		},
-			"the_project_revision")
-
-		expectAttributeValue(t, []string{
-			"-element=the_project",
-			"-template={{.RemoteBranch}}",
-			testManifestFile.Name(),
-		},
-			"the_project_remotebranch")
-
-		expectAttributeValue(t, []string{
-			"-element=the_project",
-			"-template={{.Path}}",
-			testManifestFile.Name(),
-		},
-			"path/to/the_project")
+		got := attributeValue(t, manifestCmd{
+			ElementName: "the_project",
+			Template: strings.Join([]string{
+				"{{.Name}}",
+				"{{.Remote}}",
+				"{{.Revision}}",
+				"{{.RemoteBranch}}",
+				"{{.Path}}",
+			}, "\n"),
+		}, testManifestFile.Name())
+		want := strings.Join(
+			[]string{
+				"the_project",
+				"https://fuchsia.googlesource.com/the_project",
+				"the_project_revision",
+				"the_project_remotebranch",
+				"path/to/the_project",
+			}, "\n")
+		if diff := cmp.Diff(want, got); diff != "" {
+			t.Errorf("Unexpected diff (-want +got):\n%s", diff)
+		}
 	})
 
 	t.Run("should read <import> attributes", func(t *testing.T) {
-		expectAttributeValue(t, []string{
-			"-element=the_import",
-			"-template={{.Name}}",
-			testManifestFile.Name(),
-		},
-			"the_import")
+		t.Parallel()
 
-		expectAttributeValue(t, []string{
-			"-element=the_import",
-			"-template={{.Remote}}",
-			testManifestFile.Name(),
-		},
-			"https://fuchsia.googlesource.com/the_import")
+		got := attributeValue(t, manifestCmd{
+			ElementName: "the_import",
+			Template: strings.Join(
+				[]string{
+					"{{.Name}}",
+					"{{.Remote}}",
+					"{{.Manifest}}",
+					"{{.Revision}}",
+					"{{.RemoteBranch}}",
+				}, "\n",
+			),
+		}, testManifestFile.Name())
+		want := strings.Join(
+			[]string{
+				"the_import",
+				"https://fuchsia.googlesource.com/the_import",
+				"the_import_manifest",
+				"the_import_revision",
+				"the_import_remotebranch",
+			}, "\n",
+		)
 
-		expectAttributeValue(t, []string{
-			"-element=the_import",
-			"-template={{.Manifest}}",
-			testManifestFile.Name(),
-		},
-			"the_import_manifest")
-
-		expectAttributeValue(t, []string{
-			"-element=the_import",
-			"-template={{.Revision}}",
-			testManifestFile.Name(),
-		},
-			"the_import_revision")
-
-		expectAttributeValue(t, []string{
-			"-element=the_import",
-			"-template={{.RemoteBranch}}",
-			testManifestFile.Name(),
-		},
-			"the_import_remotebranch")
+		if diff := cmp.Diff(want, got); diff != "" {
+			t.Errorf("Unexpected diff (-want +got):\n%s", diff)
+		}
 	})
 
 	t.Run("should read <package> attributes", func(t *testing.T) {
-		expectAttributeValue(t, []string{
-			"-element=the_package/${platform}",
-			"-template={{.Name}}",
-			testManifestFile.Name(),
-		},
-			"the_package/${platform}")
+		t.Parallel()
 
-		expectAttributeValue(t, []string{
-			"-element=the_package/${platform}",
-			"-template={{.Version}}",
-			testManifestFile.Name(),
-		},
-			"the_package_version")
-
-		expectAttributeValue(t, []string{
-			"-element=the_package/${platform}",
-			"-template={{.Path}}",
-			testManifestFile.Name(),
-		},
-			"path/to/the_package")
+		got := attributeValue(t, manifestCmd{
+			ElementName: "the_package/${platform}",
+			Template: strings.Join(
+				[]string{
+					"{{.Name}}",
+					"{{.Version}}",
+					"{{.Path}}",
+					"{{.Platforms}}",
+					"{{.Internal}}",
+				}, "\n",
+			),
+		}, testManifestFile.Name())
 
 		var defaultPlatforms []string
 		for _, p := range cipd.DefaultPlatforms() {
 			defaultPlatforms = append(defaultPlatforms, p.String())
 		}
-		expectAttributeValue(t, []string{
-			"-element=the_package/${platform}",
-			"-template={{.Platforms}}",
-			testManifestFile.Name(),
-		},
-			strings.Join(defaultPlatforms, ","))
+		want := strings.Join(
+			[]string{
+				"the_package/${platform}",
+				"the_package_version",
+				"path/to/the_package",
+				strings.Join(defaultPlatforms, ","),
+				"false",
+			}, "\n")
 
-		expectAttributeValue(t, []string{
-			"-element=the_package/${platform}",
-			"-template={{.Internal}}",
-			testManifestFile.Name(),
-		},
-			"false")
+		if diff := cmp.Diff(want, got); diff != "" {
+			t.Errorf("Unexpected diff (-want +got):\n%s", diff)
+		}
 	})
 }

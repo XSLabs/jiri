@@ -118,7 +118,7 @@ func (c *diffCmd) run(jirix *jiri.X, args []string) error {
 		return err
 	}
 	e := json.NewEncoder(jirix.Stdout())
-	if diffFlags.indentOutput {
+	if c.indentOutput {
 		e.SetIndent("", " ")
 	}
 	return e.Encode(d)

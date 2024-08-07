@@ -10,20 +10,12 @@ import (
 	"sort"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"go.fuchsia.dev/jiri/gitutil"
 	"go.fuchsia.dev/jiri/jiritest"
 	"go.fuchsia.dev/jiri/project"
 )
-
-func setDefaultGrepFlags() {
-	grepFlags.n = false
-	grepFlags.e = ""
-	grepFlags.h = true
-	grepFlags.i = false
-	grepFlags.l = false
-	grepFlags.L = false
-	grepFlags.w = false
-}
 
 func makeProjects(t *testing.T, fake *jiritest.FakeJiriRoot) []*project.Project {
 	projects := []*project.Project{}
@@ -56,20 +48,16 @@ func makeProjects(t *testing.T, fake *jiritest.FakeJiriRoot) []*project.Project 
 	return projects
 }
 
-func expectGrep(t *testing.T, fake *jiritest.FakeJiriRoot, args []string, expected []string) {
-	results, err := doGrep(fake.X, args)
+func expectGrep(t *testing.T, fake *jiritest.FakeJiriRoot, cmd grepCmd, args []string, expected []string) {
+	cmd.h = true
+	results, err := cmd.doGrep(fake.X, args)
 	if err != nil {
 		t.Fatal(err)
 	}
 	sort.Strings(results)
 	sort.Strings(expected)
-	if len(results) != len(expected) {
-		t.Fatalf("grep %v, expected %d matches, got %d matches", args, len(expected), len(results))
-	}
-	for i, result := range results {
-		if result != expected[i] {
-			t.Fatalf("grep %v, expected:\n%s\ngot:\n%s", args, expected[i], result)
-		}
+	if diff := cmp.Diff(expected, results, cmpopts.EquateEmpty()); diff != "" {
+		t.Errorf("Unexpected grep output (-want +got):\n%s", diff)
 	}
 }
 func setup(t *testing.T, fake *jiritest.FakeJiriRoot) {
@@ -98,83 +86,94 @@ func setup(t *testing.T, fake *jiritest.FakeJiriRoot) {
 	}
 }
 func TestGrep(t *testing.T) {
-	fake := jiritest.NewFakeJiriRoot(t)
+	t.Parallel()
 
+	fake := jiritest.NewFakeJiriRoot(t)
 	setup(t, fake)
-	setDefaultGrepFlags()
-	expectGrep(t, fake, []string{"too"}, []string{
+
+	cmd := grepCmd{}
+	expectGrep(t, fake, cmd, []string{"too"}, []string{
 		"r.c/file.txt:And summer's lease hath all too short a date:",
 		"sub/r.t1/file.txt:Sometime too hot the eye of heaven shines,",
 	})
 
-	expectGrep(t, fake, []string{"supercalifragilisticexpialidocious"}, []string{})
+	expectGrep(t, fake, cmd, []string{"supercalifragilisticexpialidocious"}, []string{})
 }
 
 func TestNFlagGrep(t *testing.T) {
-	fake := jiritest.NewFakeJiriRoot(t)
+	t.Parallel()
 
+	fake := jiritest.NewFakeJiriRoot(t)
 	setup(t, fake)
-	setDefaultGrepFlags()
-	grepFlags.n = true
-	expectGrep(t, fake, []string{"too"}, []string{
+
+	cmd := grepCmd{lineNumbers: true}
+	expectGrep(t, fake, cmd, []string{"too"}, []string{
 		"r.c/file.txt:1:And summer's lease hath all too short a date:",
 		"sub/r.t1/file.txt:1:Sometime too hot the eye of heaven shines,",
 	})
 }
 
 func TestWFlagGrep(t *testing.T) {
-	fake := jiritest.NewFakeJiriRoot(t)
+	t.Parallel()
 
+	fake := jiritest.NewFakeJiriRoot(t)
 	setup(t, fake)
-	setDefaultGrepFlags()
-	grepFlags.w = true
-	grepFlags.i = true
-	expectGrep(t, fake, []string{"i"}, []string{
+
+	cmd := grepCmd{
+		wordBoundaries:  true,
+		caseInsensitive: true,
+	}
+	expectGrep(t, fake, cmd, []string{"i"}, []string{
 		"r.a/file.txt:Shall I compare thee to a summer's day?",
 	})
 }
 
 func TestEFlagGrep(t *testing.T) {
-	fake := jiritest.NewFakeJiriRoot(t)
+	t.Parallel()
 
+	fake := jiritest.NewFakeJiriRoot(t)
 	setup(t, fake)
-	setDefaultGrepFlags()
-	grepFlags.e = "-hyp"
-	expectGrep(t, fake, []string{}, []string{
+
+	cmd := grepCmd{
+		pattern: "-hyp",
+	}
+	expectGrep(t, fake, cmd, []string{}, []string{
 		"sub/sub2/r.t2/file.txt:line with -hyphen",
 	})
 }
 
 func TestIFlagGrep(t *testing.T) {
-	fake := jiritest.NewFakeJiriRoot(t)
+	t.Parallel()
 
+	fake := jiritest.NewFakeJiriRoot(t)
 	setup(t, fake)
-	setDefaultGrepFlags()
-	expectGrep(t, fake, []string{"and"}, []string{
+
+	cmd := grepCmd{}
+	expectGrep(t, fake, cmd, []string{"and"}, []string{
 		"r.b/file.txt:Thou art more lovely and more temperate:",
 	})
 
-	grepFlags.i = true
-	expectGrep(t, fake, []string{"and"}, []string{
+	cmd.caseInsensitive = true
+	expectGrep(t, fake, cmd, []string{"and"}, []string{
 		"r.b/file.txt:Thou art more lovely and more temperate:",
 		"r.c/file.txt:And summer's lease hath all too short a date:",
 	})
 }
 
 func TestLFlagGrep(t *testing.T) {
-	fake := jiritest.NewFakeJiriRoot(t)
+	t.Parallel()
 
+	fake := jiritest.NewFakeJiriRoot(t)
 	setup(t, fake)
-	setDefaultGrepFlags()
-	grepFlags.l = true
-	expectGrep(t, fake, []string{"too"}, []string{
+
+	cmd := grepCmd{filenamesOnly: true}
+	expectGrep(t, fake, cmd, []string{"too"}, []string{
 		"r.c/file.txt",
 		"sub/r.t1/file.txt",
 	})
 
-	setDefaultGrepFlags()
-	grepFlags.L = true
-	expectGrep(t, fake, []string{"too"}, []string{
+	cmd = grepCmd{nonmatchingFilenamesOnly: true}
+	expectGrep(t, fake, cmd, []string{"too"}, []string{
 		"manifest/public",
 		"r.a/file.txt",
 		"r.b/file.txt",

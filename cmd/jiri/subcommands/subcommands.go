@@ -7,7 +7,6 @@ package subcommands
 import (
 	"context"
 	"errors"
-	"fmt"
 
 	"github.com/google/subcommands"
 	"go.fuchsia.dev/jiri"
@@ -43,7 +42,7 @@ Command jiri is a multi-purpose tool for multi-repo development.
 			cmdOverride,
 			cmdResolve,
 			cmdRunHooks,
-			cmdRunP,
+			cmdRunp,
 			cmdSelfUpdate,
 			cmdSnapshot,
 			cmdSourceManifest,
@@ -97,17 +96,18 @@ func executeWrapper(ctx context.Context, f func(jirix *jiri.X, args []string) er
 		if err != nil {
 			return err
 		}
-		var strArgs []string
-		for _, arg := range args {
-			s, ok := arg.(string)
-			if !ok {
-				return fmt.Errorf("cannot cast arg to string: %v", arg)
-			}
-			strArgs = append(strArgs, s)
-		}
-		return f(jirix, strArgs)
+		return f(jirix, argsToStrings(args))
 	}()
 	return errToExitStatus(err)
+}
+
+func argsToStrings(args []any) []string {
+	var strArgs []string
+	for _, arg := range args {
+		s := arg.(string)
+		strArgs = append(strArgs, s)
+	}
+	return strArgs
 }
 
 func errToExitStatus(err error) subcommands.ExitStatus {

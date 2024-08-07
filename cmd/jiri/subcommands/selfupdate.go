@@ -6,22 +6,46 @@ package subcommands
 
 import (
 	"context"
+	"flag"
 	"fmt"
 
+	"github.com/google/subcommands"
 	"go.fuchsia.dev/jiri"
 	"go.fuchsia.dev/jiri/cmdline"
 )
 
-// cmdSelfUpdate represents the "jiri update" command.
-var cmdSelfUpdate = &cmdline.Command{
-	Runner: cmdline.RunnerFunc(runSelfUpdate),
-	Name:   "selfupdate",
-	Short:  "Update jiri tool",
-	Long: `
-Updates jiri tool and replaces current one with the latest`,
+// TODO(https://fxbug.dev/356134056): delete when finished migrating to
+// subcommands library.
+var (
+	selfUpdateFlags selfUpdateCmd
+	cmdSelfUpdate   = &cmdline.Command{
+		Runner: cmdline.RunnerFunc(selfUpdateFlags.run),
+		Name:   selfUpdateFlags.Name(),
+		Short:  selfUpdateFlags.Synopsis(),
+		Long:   selfUpdateFlags.Usage(),
+	}
+)
+
+type selfUpdateCmd struct{}
+
+func (c *selfUpdateCmd) Name() string     { return "selfupdate" }
+func (c *selfUpdateCmd) Synopsis() string { return "Update jiri tool" }
+func (c *selfUpdateCmd) Usage() string {
+	return `
+Updates jiri tool and replaces current one with the latest
+
+Usage:
+  jiri selfupdate
+`
 }
 
-func runSelfUpdate(ctx context.Context, args []string) error {
+func (c *selfUpdateCmd) SetFlags(f *flag.FlagSet) {}
+
+func (c *selfUpdateCmd) Execute(ctx context.Context, _ *flag.FlagSet, args ...any) subcommands.ExitStatus {
+	return errToExitStatus(c.run(ctx, argsToStrings(args)))
+}
+
+func (c *selfUpdateCmd) run(ctx context.Context, args []string) error {
 	if len(args) > 0 {
 		return fmt.Errorf("unexpected number of arguments")
 	}

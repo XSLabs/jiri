@@ -6,7 +6,9 @@ package subcommands
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -14,12 +16,25 @@ import (
 	"sort"
 	"text/template"
 
+	"github.com/google/subcommands"
 	"go.fuchsia.dev/jiri"
-	"go.fuchsia.dev/jiri/cmdline"
 	"go.fuchsia.dev/jiri/project"
 )
 
-var projectFlags struct {
+// TODO(https://fxbug.dev/356134056): delete when finished migrating to
+// subcommands library.
+var (
+	projectFlags projectCmd
+	cmdProject   = commandFromSubcommand(&projectFlags)
+)
+
+// TODO(https://fxbug.dev/356134056): delete when finished migrating to
+// subcommands library.
+func init() {
+	projectFlags.SetFlags(&cmdProject.Flags)
+}
+
+type projectCmd struct {
 	cleanAll          bool
 	cleanup           bool
 	jsonOutput        string
@@ -29,49 +44,57 @@ var projectFlags struct {
 	useRemoteProjects bool
 }
 
-func init() {
-	cmdProject.Flags.BoolVar(&projectFlags.cleanAll, "clean-all", false, "Restore jiri projects to their pristine state and delete all branches.")
-	cmdProject.Flags.BoolVar(&projectFlags.cleanup, "clean", false, "Restore jiri projects to their pristine state.")
-	cmdProject.Flags.StringVar(&projectFlags.jsonOutput, "json-output", "", "Path to write operation results to.")
-	cmdProject.Flags.BoolVar(&projectFlags.regexp, "regexp", false, "Use argument as regular expression.")
-	cmdProject.Flags.StringVar(&projectFlags.template, "template", "", "The template for the fields to display.")
-	cmdProject.Flags.BoolVar(&projectFlags.useLocalManifest, "local-manifest", false, "List project status  based on local manifest.")
-	cmdProject.Flags.BoolVar(&projectFlags.useRemoteProjects, "list-remote-projects", false, "List remote projects instead of local projects.")
+func (c *projectCmd) Name() string     { return "project" }
+func (c *projectCmd) Synopsis() string { return "Manage the jiri projects" }
+func (c *projectCmd) Usage() string {
+	return `
+Cleans all projects if -clean flag is provided else inspect
+the local filesystem and provide structured info on the existing
+projects and branches. Projects are specified using either names or
+regular expressions that are matched against project names. If no
+command line arguments are provided the project that the contains the
+current directory is used, or if run from outside of a given project,
+all projects will be used. The information to be displayed can be
+specified using a Go template, supplied via
+the -template flag.
+
+Usage:
+  jiri project [flags] <project ...>
+
+<project ...> is a list of projects to clean up or give info about.
+`
 }
 
-// cmdProject represents the "jiri project" command.
-var cmdProject = &cmdline.Command{
-	Runner: jiri.RunnerFunc(runProject),
-	Name:   "project",
-	Short:  "Manage the jiri projects",
-	Long: `Cleans all projects if -clean projectFlags. is provided else inspect
-	the local filesystem and provide structured info on the existing
-	projects and branches. Projects are specified using either names or
-	regular expressions that are matched against project names. If no
-	command line arguments are provided the project that the contains the
-	current directory is used, or if run from outside of a given project,
-	all projects will be used. The information to be displayed can be
-	specified using a Go template, supplied via
-the -template projectFlags..`,
-	ArgsName: "<project ...>",
-	ArgsLong: "<project ...> is a list of projects to clean up or give info about.",
+func (c *projectCmd) SetFlags(f *flag.FlagSet) {
+	f.BoolVar(&c.cleanAll, "clean-all", false, "Restore jiri projects to their pristine state and delete all branches.")
+	f.BoolVar(&c.cleanup, "clean", false, "Restore jiri projects to their pristine state.")
+	f.StringVar(&c.jsonOutput, "json-output", "", "Path to write operation results to.")
+	f.BoolVar(&c.regexp, "regexp", false, "Use argument as regular expression.")
+	f.StringVar(&c.template, "template", "", "The template for the fields to display.")
+	f.BoolVar(&c.useLocalManifest, "local-manifest", false, "List project status based on local manifest.")
+	f.BoolVar(&c.useRemoteProjects, "list-remote-projects", false, "List remote projects instead of local projects.")
 }
 
-func runProject(jirix *jiri.X, args []string) (e error) {
-	if projectFlags.cleanup || projectFlags.cleanAll {
-		return runProjectClean(jirix, args)
+func (c *projectCmd) Execute(ctx context.Context, _ *flag.FlagSet, args ...any) subcommands.ExitStatus {
+	return executeWrapper(ctx, c.run, args)
+}
+
+func (c *projectCmd) run(jirix *jiri.X, args []string) (e error) {
+	if c.cleanup || c.cleanAll {
+		return c.runProjectClean(jirix, args)
 	} else {
-		return runProjectInfo(jirix, args)
+		return c.runProjectInfo(jirix, args)
 	}
 }
-func runProjectClean(jirix *jiri.X, args []string) (e error) {
+
+func (c *projectCmd) runProjectClean(jirix *jiri.X, args []string) (e error) {
 	localProjects, err := project.LocalProjects(jirix, project.FullScan)
 	if err != nil {
 		return err
 	}
 	projects := make(project.Projects)
 	if len(args) > 0 {
-		if projectFlags.regexp {
+		if c.regexp {
 			for _, a := range args {
 				re, err := regexp.Compile(a)
 				if err != nil {
@@ -96,7 +119,7 @@ func runProjectClean(jirix *jiri.X, args []string) (e error) {
 	} else {
 		projects = localProjects
 	}
-	if err := project.CleanupProjects(jirix, projects, projectFlags.cleanAll); err != nil {
+	if err := project.CleanupProjects(jirix, projects, c.cleanAll); err != nil {
 		return err
 	}
 	return nil
@@ -119,18 +142,18 @@ type projectInfoOutput struct {
 }
 
 // runProjectInfo provides structured info on local projects.
-func runProjectInfo(jirix *jiri.X, args []string) error {
+func (c *projectCmd) runProjectInfo(jirix *jiri.X, args []string) error {
 	var tmpl *template.Template
 	var err error
-	if projectFlags.template != "" {
-		tmpl, err = template.New("info").Parse(projectFlags.template)
+	if c.template != "" {
+		tmpl, err = template.New("info").Parse(c.template)
 		if err != nil {
-			return fmt.Errorf("failed to parse template %q: %v", projectFlags.template, err)
+			return fmt.Errorf("failed to parse template %q: %v", c.template, err)
 		}
 	}
 
 	regexps := []*regexp.Regexp{}
-	if len(args) > 0 && projectFlags.regexp {
+	if len(args) > 0 && c.regexp {
 		regexps = make([]*regexp.Regexp, len(args), len(args))
 		for i, a := range args {
 			re, err := regexp.Compile(a)
@@ -147,13 +170,13 @@ func runProjectInfo(jirix *jiri.X, args []string) error {
 	if err != nil {
 		return err
 	}
-	if projectFlags.useLocalManifest {
-		projects, _, _, err = project.LoadUpdatedManifest(jirix, projects, projectFlags.useLocalManifest)
+	if c.useLocalManifest {
+		projects, _, _, err = project.LoadUpdatedManifest(jirix, projects, c.useLocalManifest)
 		if err := project.FilterOptionalProjectsPackages(jirix, jirix.FetchingAttrs, projects, nil); err != nil {
 			return err
 		}
 	}
-	if projectFlags.useRemoteProjects {
+	if c.useRemoteProjects {
 		projects, _, _, err = project.LoadManifestFile(jirix, jirix.JiriManifestFile(), projects, false)
 		if err != nil {
 			return err
@@ -204,7 +227,7 @@ func runProjectInfo(jirix *jiri.X, args []string) error {
 			return err
 		}
 		for key, state := range states {
-			if projectFlags.regexp {
+			if c.regexp {
 				for _, re := range regexps {
 					if re.MatchString(state.Project.Name) {
 						keys = append(keys, key)
@@ -248,7 +271,7 @@ func runProjectInfo(jirix *jiri.X, args []string) error {
 	}
 
 	for _, i := range info {
-		if projectFlags.template != "" {
+		if c.template != "" {
 			out := &bytes.Buffer{}
 			if err := tmpl.Execute(out, i); err != nil {
 				return jirix.UsageErrorf("invalid format")
@@ -262,7 +285,7 @@ func runProjectInfo(jirix *jiri.X, args []string) error {
 			if i.GitSubmoduleOf != "" {
 				fmt.Fprintf(jirix.Stdout(), "  GitSubmoduleOf: %s\n", i.GitSubmoduleOf)
 			}
-			if projectFlags.useRemoteProjects {
+			if c.useRemoteProjects {
 				fmt.Fprintf(jirix.Stdout(), "  Manifest: %s\n", i.Manifest)
 			}
 			if len(i.Branches) != 0 {
@@ -286,8 +309,8 @@ func runProjectInfo(jirix *jiri.X, args []string) error {
 		}
 	}
 
-	if projectFlags.jsonOutput != "" {
-		if err := writeJSONOutput(projectFlags.jsonOutput, info); err != nil {
+	if c.jsonOutput != "" {
+		if err := writeJSONOutput(c.jsonOutput, info); err != nil {
 			return err
 		}
 	}

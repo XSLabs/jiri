@@ -6,6 +6,7 @@ package subcommands
 
 import (
 	"os"
+	"path/filepath"
 	"testing"
 
 	"go.fuchsia.dev/jiri/jiritest"
@@ -13,29 +14,33 @@ import (
 )
 
 func TestResolveProjects(t *testing.T) {
+	t.Parallel()
+
 	_, fakeroot := setupUniverse(t)
 
 	if err := fakeroot.UpdateUniverse(false); err != nil {
-		t.Errorf("%v", err)
+		t.Fatalf("%v", err)
 	}
 	localProjects, err := project.LocalProjects(fakeroot.X, project.FastScan)
 	projects, _, _, err := project.LoadManifestFile(fakeroot.X, fakeroot.X.JiriManifestFile(), localProjects, false)
-	lockPath := fakeroot.X.Root + "/jiri.lock"
-	resolveFlag.lockFilePath = lockPath
-	resolveFlag.enablePackageLock = true
-	resolveFlag.enableProjectLock = true
+	lockPath := filepath.Join(fakeroot.X.Root, "jiri.lock")
+	cmd := resolveCmd{
+		lockFilePath:      lockPath,
+		enablePackageLock: true,
+		enableProjectLock: true,
+	}
 	args := []string{}
-	if err := runResolve(fakeroot.X, args); err != nil {
-		t.Errorf("resolve failed due to error %v", err)
+	if err := cmd.run(fakeroot.X, args); err != nil {
+		t.Fatalf("resolve failed due to error %v", err)
 	}
 	data, err := os.ReadFile(lockPath)
 	if err != nil {
-		t.Errorf("%+v", err)
+		t.Fatalf("%+v", err)
 	}
 
 	projLocks, _, err := project.UnmarshalLockEntries(data)
 	if err != nil {
-		t.Errorf("parse generated lockfile failed due to error: %v", err)
+		t.Fatalf("parse generated lockfile failed due to error: %v", err)
 	}
 
 	if len(projects) != len(projLocks) {
@@ -54,6 +59,8 @@ func TestResolveProjects(t *testing.T) {
 }
 
 func TestResolvePackages(t *testing.T) {
+	t.Parallel()
+
 	fakeroot := jiritest.NewFakeJiriRoot(t)
 
 	// Replace the .jiri_manifest with package declarations
@@ -94,24 +101,26 @@ func TestResolvePackages(t *testing.T) {
 		},
 	}
 	if err := os.WriteFile(fakeroot.X.JiriManifestFile(), pkgData, 0644); err != nil {
-		t.Errorf("failed to write package information into .jiri_manifest due to error: %v", err)
+		t.Fatalf("failed to write package information into .jiri_manifest due to error: %v", err)
 	}
-	lockPath := fakeroot.X.Root + "/jiri.lock"
-	resolveFlag.lockFilePath = lockPath
-	resolveFlag.enablePackageLock = true
-	resolveFlag.enableProjectLock = true
-	resolveFlag.enablePackageVersion = true
+	lockPath := filepath.Join(fakeroot.X.Root, "jiri.lock")
+	cmd := resolveCmd{
+		lockFilePath:         lockPath,
+		enablePackageLock:    true,
+		enableProjectLock:    true,
+		enablePackageVersion: true,
+	}
 	args := []string{}
-	if err := runResolve(fakeroot.X, args); err != nil {
-		t.Errorf("resolve failed due to error: %v", err)
+	if err := cmd.run(fakeroot.X, args); err != nil {
+		t.Fatalf("resolve failed due to error: %v", err)
 	}
 	data, err := os.ReadFile(lockPath)
 	if err != nil {
-		t.Errorf("read generated lockfile failed due to error: %v", err)
+		t.Fatalf("read generated lockfile failed due to error: %v", err)
 	}
 	_, pkgLocks, err := project.UnmarshalLockEntries(data)
 	if err != nil {
-		t.Errorf("parse generated lockfile failed due to error: %v", err)
+		t.Fatalf("parse generated lockfile failed due to error: %v", err)
 	}
 	if len(expectedLocks) != len(pkgLocks) {
 		t.Errorf("expecting %v locks, got %v", len(expectedLocks), len(pkgLocks))
@@ -128,6 +137,8 @@ func TestResolvePackages(t *testing.T) {
 }
 
 func TestResolvePackagesPartial(t *testing.T) {
+	t.Parallel()
+
 	fakeroot := jiritest.NewFakeJiriRoot(t)
 
 	// Replace the .jiri_manifest with package declarations
@@ -192,28 +203,30 @@ func TestResolvePackagesPartial(t *testing.T) {
 		},
 	}
 	if err := os.WriteFile(fakeroot.X.JiriManifestFile(), pkgData, 0644); err != nil {
-		t.Errorf("failed to write package information into .jiri_manifest due to error: %v", err)
+		t.Fatalf("failed to write package information into .jiri_manifest due to error: %v", err)
 	}
-	lockPath := fakeroot.X.Root + "/jiri.lock"
+	lockPath := filepath.Join(fakeroot.X.Root, "jiri.lock")
 	if err := os.WriteFile(lockPath, lockData, 0644); err != nil {
-		t.Errorf("failed to write lockfile information into jiri.lock due to error: %v", err)
+		t.Fatalf("failed to write lockfile information into jiri.lock due to error: %v", err)
 	}
-	resolveFlag.lockFilePath = lockPath
-	resolveFlag.enablePackageLock = true
-	resolveFlag.enableProjectLock = true
-	resolveFlag.enablePackageVersion = true
-	resolveFlag.fullResolve = false
+	cmd := resolveCmd{
+		lockFilePath:         lockPath,
+		enablePackageLock:    true,
+		enableProjectLock:    true,
+		enablePackageVersion: true,
+		fullResolve:          false,
+	}
 	args := []string{}
-	if err := runResolve(fakeroot.X, args); err != nil {
-		t.Errorf("resolve failed due to error: %v", err)
+	if err := cmd.run(fakeroot.X, args); err != nil {
+		t.Fatalf("resolve failed due to error: %v", err)
 	}
 	data, err := os.ReadFile(lockPath)
 	if err != nil {
-		t.Errorf("read generated lockfile failed due to error: %v", err)
+		t.Fatalf("read generated lockfile failed due to error: %v", err)
 	}
 	_, pkgLocks, err := project.UnmarshalLockEntries(data)
 	if err != nil {
-		t.Errorf("parse generated lockfile failed due to error: %v", err)
+		t.Fatalf("parse generated lockfile failed due to error: %v", err)
 	}
 	if len(expectedLocks) != len(pkgLocks) {
 		t.Errorf("expecting %v locks, got %v", len(expectedLocks), len(pkgLocks))

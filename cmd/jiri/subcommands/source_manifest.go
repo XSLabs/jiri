@@ -5,25 +5,44 @@
 package subcommands
 
 import (
+	"context"
+	"flag"
+
+	"github.com/google/subcommands"
 	"go.fuchsia.dev/jiri"
-	"go.fuchsia.dev/jiri/cmdline"
 	"go.fuchsia.dev/jiri/project"
 )
 
-var cmdSourceManifest = &cmdline.Command{
-	Runner: jiri.RunnerFunc(runSourceManifest),
-	Name:   "source-manifest",
-	Short:  "Create a new source-manifest from current checkout",
-	Long: `
+// TODO(https://fxbug.dev/356134056): delete when finished migrating to
+// subcommands library.
+var (
+	cmdSourceManifest = commandFromSubcommand(&sourceManifestCmd{})
+)
+
+type sourceManifestCmd struct{}
+
+func (c *sourceManifestCmd) Name() string { return "source-manifest" }
+func (c *sourceManifestCmd) Synopsis() string {
+	return "Create a new source-manifest from current checkout"
+}
+func (c *sourceManifestCmd) Usage() string {
+	return `
 This command captures the current project state in a source-manifest format.
-See https://github.com/luci/recipes-py/blob/main/recipe_engine/source_manifest.proto
-for its format.
-`,
-	ArgsName: "<source-manifest>",
-	ArgsLong: "<source-manifest> is the source-manifest file.",
+
+Usage:
+  jiri source-manifest <source-manifest>
+
+<source-manifest> is the source-manifest file.
+`
 }
 
-func runSourceManifest(jirix *jiri.X, args []string) error {
+func (c *sourceManifestCmd) SetFlags(f *flag.FlagSet) {}
+
+func (c *sourceManifestCmd) Execute(ctx context.Context, _ *flag.FlagSet, args ...any) subcommands.ExitStatus {
+	return executeWrapper(ctx, c.run, args)
+}
+
+func (c *sourceManifestCmd) run(jirix *jiri.X, args []string) error {
 	jirix.TimerPush("create source manifest")
 	defer jirix.TimerPop()
 

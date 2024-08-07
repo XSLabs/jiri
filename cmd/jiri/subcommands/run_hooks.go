@@ -5,12 +5,28 @@
 package subcommands
 
 import (
+	"context"
+	"flag"
+
+	"github.com/google/subcommands"
 	"go.fuchsia.dev/jiri"
-	"go.fuchsia.dev/jiri/cmdline"
 	"go.fuchsia.dev/jiri/project"
 )
 
-var runHooksFlags struct {
+// TODO(https://fxbug.dev/356134056): delete when finished migrating to
+// subcommands library.
+var (
+	runHooksFlags runHooksCmd
+	cmdRunHooks   = commandFromSubcommand(&runHooksFlags)
+)
+
+// TODO(https://fxbug.dev/356134056): delete when finished migrating to
+// subcommands library.
+func init() {
+	runHooksFlags.SetFlags(&cmdRunHooks.Flags)
+}
+
+type runHooksCmd struct {
 	localManifest  bool
 	hookTimeout    uint
 	attempts       uint
@@ -18,56 +34,62 @@ var runHooksFlags struct {
 	packagesToSkip arrayFlag
 }
 
-var cmdRunHooks = &cmdline.Command{
-	Runner: jiri.RunnerFunc(runHooks),
-	Name:   "run-hooks",
-	Short:  "Run hooks using local manifest",
-	Long: `
+func (c *runHooksCmd) Name() string     { return "run-hooks" }
+func (c *runHooksCmd) Synopsis() string { return "Run hooks using local manifest" }
+func (c *runHooksCmd) Usage() string {
+	return `
 Run hooks using local manifest JIRI_HEAD version if -local-manifest flag is
 false, else it runs hooks using current manifest checkout version.
-`,
+
+Usage:
+  jiri run-hooks [flags]
+`
 }
 
-func init() {
-	cmdRunHooks.Flags.BoolVar(&runHooksFlags.localManifest, "local-manifest", false, "Use local checked out manifest.")
-	cmdRunHooks.Flags.UintVar(&runHooksFlags.hookTimeout, "hook-timeout", project.DefaultHookTimeout, "Timeout in minutes for running the hooks operation.")
-	cmdRunHooks.Flags.UintVar(&runHooksFlags.attempts, "attempts", 1, "Number of attempts before failing.")
-	cmdRunHooks.Flags.BoolVar(&runHooksFlags.fetchPackages, "fetch-packages", true, "Use fetching packages using jiri.")
-	cmdRunHooks.Flags.Var(&runHooksFlags.packagesToSkip, "package-to-skip", "Skip fetching this package. Repeatable.")
+func (c *runHooksCmd) SetFlags(f *flag.FlagSet) {
+	f.BoolVar(&c.localManifest, "local-manifest", false, "Use local checked out manifest.")
+	f.UintVar(&c.hookTimeout, "hook-timeout", project.DefaultHookTimeout, "Timeout in minutes for running the hooks operation.")
+	f.UintVar(&c.attempts, "attempts", 1, "Number of attempts before failing.")
+	f.BoolVar(&c.fetchPackages, "fetch-packages", true, "Use fetching packages using jiri.")
+	f.Var(&c.packagesToSkip, "package-to-skip", "Skip fetching this package. Repeatable.")
 }
 
-func runHooks(jirix *jiri.X, args []string) (err error) {
+func (c *runHooksCmd) Execute(ctx context.Context, _ *flag.FlagSet, args ...any) subcommands.ExitStatus {
+	return executeWrapper(ctx, c.run, args)
+}
+
+func (c *runHooksCmd) run(jirix *jiri.X, args []string) (err error) {
 	localProjects, err := project.LocalProjects(jirix, project.FastScan)
 	if err != nil {
 		return err
 	}
-	if runHooksFlags.attempts < 1 {
+	if c.attempts < 1 {
 		return jirix.UsageErrorf("Number of attempts should be >= 1")
 	}
-	jirix.Attempts = runHooksFlags.attempts
+	jirix.Attempts = c.attempts
 
 	// Get hooks.
 	var hooks project.Hooks
 	var pkgs project.Packages
-	if !runHooksFlags.localManifest {
-		_, hooks, pkgs, err = project.LoadUpdatedManifest(jirix, localProjects, runHooksFlags.localManifest)
+	if !c.localManifest {
+		_, hooks, pkgs, err = project.LoadUpdatedManifest(jirix, localProjects, c.localManifest)
 	} else {
-		_, hooks, pkgs, err = project.LoadManifestFile(jirix, jirix.JiriManifestFile(), localProjects, runHooksFlags.localManifest)
+		_, hooks, pkgs, err = project.LoadManifestFile(jirix, jirix.JiriManifestFile(), localProjects, c.localManifest)
 	}
 	if err != nil {
 		return err
 	}
-	if err = project.RunHooks(jirix, hooks, runHooksFlags.hookTimeout); err != nil {
+	if err = project.RunHooks(jirix, hooks, c.hookTimeout); err != nil {
 		return err
 	}
 	if err := project.FilterOptionalProjectsPackages(jirix, jirix.FetchingAttrs, nil, pkgs); err != nil {
 		return err
 	}
-	project.FilterPackagesByName(jirix, pkgs, runHooksFlags.packagesToSkip)
+	project.FilterPackagesByName(jirix, pkgs, c.packagesToSkip)
 	// Get packages if the fetchPackages is true
-	if runHooksFlags.fetchPackages && len(pkgs) > 0 {
+	if c.fetchPackages && len(pkgs) > 0 {
 		// Extend timeout for packages to be 5 times the timeout of a single hook.
-		return project.FetchPackages(jirix, pkgs, runHooksFlags.hookTimeout*5)
+		return project.FetchPackages(jirix, pkgs, c.hookTimeout*5)
 	}
 	return nil
 }

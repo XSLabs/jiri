@@ -11,27 +11,11 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	"go.fuchsia.dev/jiri/gitutil"
 	"go.fuchsia.dev/jiri/jiritest"
 	"go.fuchsia.dev/jiri/project"
 )
-
-func setDefaultRunpFlags() {
-	runpFlags.projectKeys = ""
-	runpFlags.verbose = false
-	runpFlags.interactive = false
-	runpFlags.uncommitted = false
-	runpFlags.untracked = false
-	runpFlags.noUncommitted = false
-	runpFlags.noUntracked = false
-	runpFlags.showNamePrefix = false
-	runpFlags.showPathPrefix = false
-	runpFlags.showKeyPrefix = false
-	runpFlags.exitOnError = false
-	runpFlags.collateOutput = true
-	runpFlags.branch = ""
-	runpFlags.remote = ""
-}
 
 func addProjects(t *testing.T, fake *jiritest.FakeJiriRoot) []*project.Project {
 	projects := []*project.Project{}
@@ -63,8 +47,8 @@ func addProjects(t *testing.T, fake *jiritest.FakeJiriRoot) []*project.Project {
 	return projects
 }
 
-func executeRunp(t *testing.T, fake *jiritest.FakeJiriRoot, args ...string) string {
-	stdout, stderr, err := collectStdio(fake.X, args, runRunp)
+func executeRunp(t *testing.T, fake *jiritest.FakeJiriRoot, cmd runpCmd, args ...string) string {
+	stdout, stderr, err := collectStdio(fake.X, args, cmd.run)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -72,6 +56,8 @@ func executeRunp(t *testing.T, fake *jiritest.FakeJiriRoot, args ...string) stri
 }
 
 func TestRunP(t *testing.T) {
+	t.Parallel()
+
 	fake := jiritest.NewFakeJiriRoot(t)
 
 	projects := addProjects(t, fake)
@@ -90,10 +76,12 @@ func TestRunP(t *testing.T) {
 	}
 
 	fake.X.Cwd = projects[0].Path
-	setDefaultRunpFlags()
-	runpFlags.showNamePrefix = true
-	runpFlags.verbose = true
-	got := executeRunp(t, fake, "echo")
+	cmd := runpCmd{
+		collateOutput:  true,
+		showNamePrefix: true,
+		verbose:        true,
+	}
+	got := executeRunp(t, fake, cmd, "echo")
 	hdr := "Project Names: manifest r.a r.b r.c sub/r.t1 sub/sub2/r.t2\n"
 	hdr += "Project Keys: " + strings.Join(keys, " ") + "\n"
 
@@ -101,26 +89,23 @@ func TestRunP(t *testing.T) {
 		t.Errorf("got %q, want %q", got, want)
 	}
 
-	setDefaultRunpFlags()
-	runpFlags.interactive = false
-	got = executeRunp(t, fake, "git", "rev-parse", "--abbrev-ref", "HEAD")
+	cmd = runpCmd{collateOutput: true}
+	got = executeRunp(t, fake, cmd, "git", "rev-parse", "--abbrev-ref", "HEAD")
 	if want := "HEAD\nHEAD\nHEAD\nHEAD\nHEAD\nHEAD"; got != want {
 		t.Errorf("got %q, want %q", got, want)
 	}
 
-	setDefaultRunpFlags()
-	runpFlags.showKeyPrefix = true
-	runpFlags.interactive = false
-	got = executeRunp(t, fake, "git", "rev-parse", "--abbrev-ref", "HEAD")
+	cmd = runpCmd{showKeyPrefix: true, collateOutput: true}
+	got = executeRunp(t, fake, cmd, "git", "rev-parse", "--abbrev-ref", "HEAD")
 	if want := strings.Join(keys, ": HEAD\n") + ": HEAD"; got != want {
 		t.Errorf("got %q, want %q", got, want)
 	}
 
-	setDefaultRunpFlags()
-	runpFlags.showNamePrefix = true
-	runpFlags.interactive = false
-	runpFlags.collateOutput = false
-	uncollated := executeRunp(t, fake, "git", "rev-parse", "--abbrev-ref", "HEAD")
+	cmd = runpCmd{
+		showNamePrefix: true,
+		collateOutput:  true,
+	}
+	uncollated := executeRunp(t, fake, cmd, "git", "rev-parse", "--abbrev-ref", "HEAD")
 	split := strings.Split(uncollated, "\n")
 	sort.Strings(split)
 	got = strings.TrimSpace(strings.Join(split, "\n"))
@@ -128,17 +113,21 @@ func TestRunP(t *testing.T) {
 		t.Errorf("got %q, want %q", got, want)
 	}
 
-	setDefaultRunpFlags()
-	runpFlags.showPathPrefix = true
-	got = executeRunp(t, fake, "git", "rev-parse", "--abbrev-ref", "HEAD")
-	if want := strings.Join(paths, ": HEAD\n") + ": HEAD"; got != want {
-		t.Errorf("got %q, want %q", got, want)
+	cmd = runpCmd{
+		showPathPrefix: true,
+		collateOutput:  true,
+	}
+	got = executeRunp(t, fake, cmd, "git", "rev-parse", "--abbrev-ref", "HEAD")
+	if diff := cmp.Diff(strings.Join(paths, ": HEAD\n")+": HEAD", got); diff != "" {
+		t.Errorf("Unexpected diff (-want +got):\n%s", diff)
 	}
 
-	setDefaultRunpFlags()
-	runpFlags.projectKeys = "r.t[12]"
-	runpFlags.showNamePrefix = true
-	got = executeRunp(t, fake, "echo")
+	cmd = runpCmd{
+		projectKeys:    "r.t[12]",
+		showNamePrefix: true,
+		collateOutput:  true,
+	}
+	got = executeRunp(t, fake, cmd, "echo")
 	if want := "sub/r.t1: \nsub/sub2/r.t2:"; got != want {
 		t.Errorf("got %q, want %q", got, want)
 	}
@@ -160,18 +149,23 @@ func TestRunP(t *testing.T) {
 	}
 
 	newfile(rb, "untracked.go")
-	setDefaultRunpFlags()
-	runpFlags.untracked = true
-	runpFlags.showNamePrefix = true
-	got = executeRunp(t, fake, "echo")
+
+	cmd = runpCmd{
+		untracked:      true,
+		showNamePrefix: true,
+		collateOutput:  true,
+	}
+	got = executeRunp(t, fake, cmd, "echo")
 	if want := "r.b:"; got != want {
 		t.Errorf("got %q, want %q", got, want)
 	}
 
-	setDefaultRunpFlags()
-	runpFlags.noUntracked = true
-	runpFlags.showNamePrefix = true
-	got = executeRunp(t, fake, "echo")
+	cmd = runpCmd{
+		noUntracked:    true,
+		showNamePrefix: true,
+		collateOutput:  true,
+	}
+	got = executeRunp(t, fake, cmd, "echo")
 	if want := "manifest: \nr.a: \nr.c: \nsub/r.t1: \nsub/sub2/r.t2:"; got != want {
 		t.Errorf("got %q, want %q", got, want)
 	}
@@ -182,28 +176,35 @@ func TestRunP(t *testing.T) {
 		t.Error(err)
 	}
 
-	setDefaultRunpFlags()
-	runpFlags.uncommitted = true
-	runpFlags.showNamePrefix = true
-	got = executeRunp(t, fake, "echo")
+	cmd = runpCmd{
+		uncommitted:    true,
+		showNamePrefix: true,
+		collateOutput:  true,
+	}
+	got = executeRunp(t, fake, cmd, "echo")
 	if want := "r.c:"; got != want {
 		t.Errorf("got %q, want %q", got, want)
 	}
 
-	setDefaultRunpFlags()
-	runpFlags.noUncommitted = true
-	runpFlags.showNamePrefix = true
-	got = executeRunp(t, fake, "echo")
+	cmd = runpCmd{
+		noUncommitted:  true,
+		showNamePrefix: true,
+		collateOutput:  true,
+	}
+	got = executeRunp(t, fake, cmd, "echo")
 	if want := "manifest: \nr.a: \nr.b: \nsub/r.t1: \nsub/sub2/r.t2:"; got != want {
 		t.Errorf("got %q, want %q", got, want)
 	}
 
 	newfile(rc, "untracked.go")
-	setDefaultRunpFlags()
-	runpFlags.uncommitted = true
-	runpFlags.untracked = true
-	runpFlags.showNamePrefix = true
-	got = executeRunp(t, fake, "echo")
+
+	cmd = runpCmd{
+		uncommitted:    true,
+		untracked:      true,
+		showNamePrefix: true,
+		collateOutput:  true,
+	}
+	got = executeRunp(t, fake, cmd, "echo")
 	if want := "r.c:"; got != want {
 		t.Errorf("got %q, want %q", got, want)
 	}
@@ -215,28 +216,34 @@ func TestRunP(t *testing.T) {
 
 	fake.X.Cwd = rc
 
-	setDefaultRunpFlags()
 	// Just the projects with branch b2.
-	runpFlags.showNamePrefix = true
-	runpFlags.branch = "b2"
-	got = executeRunp(t, fake, "echo")
+	cmd = runpCmd{
+		showNamePrefix: true,
+		branch:         "b2",
+		collateOutput:  true,
+	}
+	got = executeRunp(t, fake, cmd, "echo")
 	if want := "r.b: \nr.c:"; got != want {
 		t.Errorf("got %q, want %q", got, want)
 	}
 
-	setDefaultRunpFlags()
 	// Show all projects even though current project is on b2
-	runpFlags.showNamePrefix = true
-	got = executeRunp(t, fake, "echo")
+	cmd = runpCmd{
+		showNamePrefix: true,
+		collateOutput:  true,
+	}
+	got = executeRunp(t, fake, cmd, "echo")
 	if want := "manifest: \nr.a: \nr.b: \nr.c: \nsub/r.t1: \nsub/sub2/r.t2:"; got != want {
 		t.Errorf("got %q, want %q", got, want)
 	}
 
-	setDefaultRunpFlags()
 	// All projects since --projects takes precedence over branches.
-	runpFlags.projectKeys = ".*"
-	runpFlags.showNamePrefix = true
-	got = executeRunp(t, fake, "echo")
+	cmd = runpCmd{
+		projectKeys:    ".*",
+		showNamePrefix: true,
+		collateOutput:  true,
+	}
+	got = executeRunp(t, fake, cmd, "echo")
 	if want := "manifest: \nr.a: \nr.b: \nr.c: \nsub/r.t1: \nsub/sub2/r.t2:"; got != want {
 		t.Errorf("got %q, want %q", got, want)
 	}
@@ -245,11 +252,13 @@ func TestRunP(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	setDefaultRunpFlags()
 	// Just the projects with remotes containing "sub".
-	runpFlags.remote = "sub"
-	runpFlags.showNamePrefix = true
-	got = executeRunp(t, fake, "echo")
+	cmd = runpCmd{
+		remote:         "sub",
+		showNamePrefix: true,
+		collateOutput:  true,
+	}
+	got = executeRunp(t, fake, cmd, "echo")
 	if want := "sub/r.t1: \nsub/sub2/r.t2:"; got != want {
 		t.Errorf("got %q, want %q", got, want)
 	}

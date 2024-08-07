@@ -5,52 +5,74 @@
 package subcommands
 
 import (
+	"context"
+	"flag"
 	"fmt"
 	"strconv"
 
+	"github.com/google/subcommands"
 	"go.fuchsia.dev/jiri"
-	"go.fuchsia.dev/jiri/cmdline"
 	"go.fuchsia.dev/jiri/project"
 )
 
-var cmdProjectConfig = &cmdline.Command{
-	Runner: jiri.RunnerFunc(runProjectConfig),
-	Name:   "project-config",
-	Short:  "Prints/sets project's local config",
-	Long: `
-Prints/Manages local project config. This command should be run from inside a
-project. It will print config if no flags are provided otherwise set it.`,
+// TODO(https://fxbug.dev/356134056): delete when finished migrating to
+// subcommands library.
+var (
+	projectConfigFlags projectConfigCmd
+	cmdProjectConfig   = commandFromSubcommand(&projectConfigFlags)
+)
+
+// TODO(https://fxbug.dev/356134056): delete when finished migrating to
+// subcommands library.
+func init() {
+	projectConfigFlags.SetFlags(&cmdProjectConfig.Flags)
 }
 
-var projectConfigFlags struct {
+type projectConfigCmd struct {
 	ignore   string
 	noUpdate string
 	noRebase string
 }
 
-func init() {
-	cmdProjectConfig.Flags.StringVar(&projectConfigFlags.ignore, "ignore", "", `This can be true or false. If set to true project would be completely ignored while updating`)
-	cmdProjectConfig.Flags.StringVar(&projectConfigFlags.noUpdate, "no-update", "", `This can be true or false. If set to true project won't be updated`)
-	cmdProjectConfig.Flags.StringVar(&projectConfigFlags.noRebase, "no-rebase", "", `This can be true or false. If set to true local branch won't be rebased or merged.`)
+func (c *projectConfigCmd) Name() string     { return "project-config" }
+func (c *projectConfigCmd) Synopsis() string { return "Prints/sets project's local config" }
+func (c *projectConfigCmd) Usage() string {
+	return `
+Prints/Manages local project config. This command should be run from inside a
+project. It will print config if no flags are provided otherwise set it.
+
+Usage:
+  jiri project-config [flags]
+`
 }
 
-func runProjectConfig(jirix *jiri.X, args []string) error {
+func (c *projectConfigCmd) SetFlags(f *flag.FlagSet) {
+	f.StringVar(&c.ignore, "ignore", "", `This can be true or false. If set to true project would be completely ignored while updating`)
+	f.StringVar(&c.noUpdate, "no-update", "", `This can be true or false. If set to true project won't be updated`)
+	f.StringVar(&c.noRebase, "no-rebase", "", `This can be true or false. If set to true local branch won't be rebased or merged.`)
+}
+
+func (c *projectConfigCmd) Execute(ctx context.Context, _ *flag.FlagSet, args ...any) subcommands.ExitStatus {
+	return executeWrapper(ctx, c.run, args)
+}
+
+func (c *projectConfigCmd) run(jirix *jiri.X, args []string) error {
 	p, err := currentProject(jirix)
 	if err != nil {
 		return err
 	}
-	if projectConfigFlags.ignore == "" && projectConfigFlags.noUpdate == "" && projectConfigFlags.noRebase == "" {
+	if c.ignore == "" && c.noUpdate == "" && c.noRebase == "" {
 		displayConfig(jirix, p.LocalConfig)
 		return nil
 	}
 	lc := p.LocalConfig
-	if err := setBoolVar(projectConfigFlags.ignore, &lc.Ignore, "ignore"); err != nil {
+	if err := setBoolVar(c.ignore, &lc.Ignore, "ignore"); err != nil {
 		return err
 	}
-	if err := setBoolVar(projectConfigFlags.noUpdate, &lc.NoUpdate, "no-update"); err != nil {
+	if err := setBoolVar(c.noUpdate, &lc.NoUpdate, "no-update"); err != nil {
 		return err
 	}
-	if err := setBoolVar(projectConfigFlags.noRebase, &lc.NoRebase, "no-rebase"); err != nil {
+	if err := setBoolVar(c.noRebase, &lc.NoRebase, "no-rebase"); err != nil {
 		return err
 	}
 	return project.WriteLocalConfig(jirix, p, lc)

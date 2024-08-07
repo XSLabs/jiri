@@ -12,6 +12,8 @@ import (
 )
 
 func TestUpdateVersion(t *testing.T) {
+	t.Parallel()
+
 	manifestContent := `
 <?xml version="1.0" encoding="UTF-8"?>
 <manifest>
@@ -93,6 +95,8 @@ func TestUpdateVersion(t *testing.T) {
 }
 
 func TestUpdateRevision(t *testing.T) {
+	t.Parallel()
+
 	mainifestContent := `
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- See README.dart.md for instructions on how to update this -->
@@ -188,6 +192,8 @@ func TestUpdateRevision(t *testing.T) {
 }
 
 func TestUpdateDuplicateRevision(t *testing.T) {
+	t.Parallel()
+
 	manifestContent := `
 <?xml version="1.0" encoding="UTF-8"?>
 <manifest>
@@ -305,6 +311,7 @@ func TestUpdateDuplicateRevision(t *testing.T) {
 
 	for k, v := range tests {
 		t.Run(fmt.Sprintf("%v", k), func(t *testing.T) {
+			t.Parallel()
 			if res, err := updateRevision(manifestContent, "project", k.OldRev, k.NewRev, k.Name); err != nil {
 				t.Errorf("test updateRevision failed due to error: %v", err)
 			} else if res != v {

@@ -20,6 +20,8 @@ import (
 
 // TestSourceManifest tests creation of source manifest.
 func TestSourceManifest(t *testing.T) {
+	t.Parallel()
+
 	fake := jiritest.NewFakeJiriRoot(t)
 
 	// Setup the initial remote and local projects.
@@ -89,7 +91,7 @@ func TestSourceManifest(t *testing.T) {
 	}
 	defer os.Remove(smTmpfile.Name())
 
-	if err := runSourceManifest(fake.X, []string{smTmpfile.Name()}); err != nil {
+	if err := (&sourceManifestCmd{}).run(fake.X, []string{smTmpfile.Name()}); err != nil {
 		t.Fatalf("%s", err)
 	}
 

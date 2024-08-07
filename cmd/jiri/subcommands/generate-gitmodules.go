@@ -6,53 +6,64 @@ package subcommands
 
 import (
 	"bytes"
+	"context"
+	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 
+	"github.com/google/subcommands"
 	"go.fuchsia.dev/jiri"
-	"go.fuchsia.dev/jiri/cmdline"
 	"go.fuchsia.dev/jiri/project"
 )
 
-var cmdGenGitModule = &cmdline.Command{
-	Runner: jiri.RunnerFunc(runGenGitModule),
-	Name:   "generate-gitmodules",
-	Short:  "Create a .gitmodule and a .gitattributes files for git submodule repository",
-	Long: `
-The "jiri generate-gitmodules command captures the current project state and
-create a .gitmodules file and an optional .gitattributes file for building
-a git submodule based super repository.
-`,
-	ArgsName: "<.gitmodule path> [<.gitattributes path>]",
-	ArgsLong: `
-<.gitmodule path> is the path to the output .gitmodule file.
-<.gitattributes path> is the path to the output .gitattribute file, which is optional.`,
+// TODO(https://fxbug.dev/356134056): delete when finished migrating to
+// subcommands library.
+var (
+	genGitModuleFlags genGitModuleCmd
+	cmdGenGitModule   = commandFromSubcommand(&genGitModuleFlags)
+)
+
+// TODO(https://fxbug.dev/356134056): delete when finished migrating to
+// subcommands library.
+func init() {
+	genGitModuleFlags.SetFlags(&cmdGenGitModule.Flags)
 }
 
-var genGitModuleFlags struct {
+type genGitModuleCmd struct {
 	genScript    string
 	redirectRoot bool
 }
 
-func init() {
-	flags := &cmdGenGitModule.Flags
-	flags.StringVar(&genGitModuleFlags.genScript, "generate-script", "", "File to save generated git commands for seting up a superproject.")
-	flags.BoolVar(&genGitModuleFlags.redirectRoot, "redir-root", false, "When set to true, jiri will add the root repository as a submodule into {name}-mirror directory and create necessary setup commands in generated script.")
+func (c *genGitModuleCmd) Name() string { return "generate-gitmodules" }
+func (c *genGitModuleCmd) Synopsis() string {
+	return "Create a .gitmodule and a .gitattributes files for git submodule repository"
+}
+func (c *genGitModuleCmd) Usage() string {
+	return `
+The "jiri generate-gitmodules command captures the current project state and
+create a .gitmodules file and an optional .gitattributes file for building
+a git submodule based super repository.
+
+Usage:
+  jiri generate-gitmodules [flags] < .gitmodule path> [<.gitattributes path>]
+
+<.gitmodule path> is the path to the output .gitmodule file.
+<.gitattributes path> is the path to the output .gitattribute file, which is optional.
+`
 }
 
-type projectTree struct {
-	project  *project.Project
-	children map[string]*projectTree
+func (c *genGitModuleCmd) SetFlags(f *flag.FlagSet) {
+	f.StringVar(&c.genScript, "generate-script", "", "File to save generated git commands for seting up a superproject.")
+	f.BoolVar(&c.redirectRoot, "redir-root", false, "When set to true, jiri will add the root repository as a submodule into {name}-mirror directory and create necessary setup commands in generated script.")
 }
 
-type projectTreeRoot struct {
-	root    *projectTree
-	dropped project.Projects
+func (c *genGitModuleCmd) Execute(ctx context.Context, _ *flag.FlagSet, args ...any) subcommands.ExitStatus {
+	return executeWrapper(ctx, c.run, args)
 }
 
-func runGenGitModule(jirix *jiri.X, args []string) error {
+func (c *genGitModuleCmd) run(jirix *jiri.X, args []string) error {
 	gitmodulesPath := ".gitmodules"
 	gitattributesPath := ""
 	if len(args) >= 1 {
@@ -70,10 +81,10 @@ func runGenGitModule(jirix *jiri.X, args []string) error {
 	if err != nil {
 		return err
 	}
-	return writeGitModules(jirix, localProjects, gitmodulesPath, gitattributesPath)
+	return c.writeGitModules(jirix, localProjects, gitmodulesPath, gitattributesPath)
 }
 
-func writeGitModules(jirix *jiri.X, projects project.Projects, gitmodulesPath, gitattributesPath string) error {
+func (c *genGitModuleCmd) writeGitModules(jirix *jiri.X, projects project.Projects, gitmodulesPath, gitattributesPath string) error {
 	projEntries, treeRoot, err := project.GenerateSubmoduleTree(jirix, projects)
 	if err != nil {
 		return err
@@ -89,7 +100,7 @@ func writeGitModules(jirix *jiri.X, projects project.Projects, gitmodulesPath, g
 	// When -redir-root is set to true, fuchsia.git will be added as submodule
 	// to fuchsia-mirror directory
 	reRootRepoName := ""
-	if genGitModuleFlags.redirectRoot {
+	if c.redirectRoot {
 		// looking for root repository, there should be no more than 1
 		rIndex := -1
 		for i, v := range projEntries {
@@ -139,9 +150,9 @@ func writeGitModules(jirix *jiri.X, projects project.Projects, gitmodulesPath, g
 		return err
 	}
 
-	if genGitModuleFlags.genScript != "" {
+	if c.genScript != "" {
 		jirix.Logger.Debugf("generated set up script for gitmodule content \n%v\n", commandBuf.String())
-		if err := os.WriteFile(genGitModuleFlags.genScript, commandBuf.Bytes(), 0755); err != nil {
+		if err := os.WriteFile(c.genScript, commandBuf.Bytes(), 0755); err != nil {
 			return err
 		}
 	}
@@ -153,6 +164,16 @@ func writeGitModules(jirix *jiri.X, projects project.Projects, gitmodulesPath, g
 		}
 	}
 	return nil
+}
+
+type projectTree struct {
+	project  *project.Project
+	children map[string]*projectTree
+}
+
+type projectTreeRoot struct {
+	root    *projectTree
+	dropped project.Projects
 }
 
 func makePathRel(basepath, targpath string) (string, error) {

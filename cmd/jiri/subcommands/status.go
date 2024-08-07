@@ -5,44 +5,65 @@
 package subcommands
 
 import (
+	"context"
+	"flag"
 	"fmt"
 	"path/filepath"
 	"sort"
 	"strings"
 
+	"github.com/google/subcommands"
 	"go.fuchsia.dev/jiri"
-	"go.fuchsia.dev/jiri/cmdline"
 	"go.fuchsia.dev/jiri/gitutil"
 	"go.fuchsia.dev/jiri/project"
 )
 
-var statusFlags struct {
-	changes   bool
-	checkHead bool
-	branch    string
-	commits   bool
-	deleted   bool
+// TODO(https://fxbug.dev/356134056): delete when finished migrating to
+// subcommands library.
+var (
+	statusFlags statusCmd
+	cmdStatus   = commandFromSubcommand(&statusFlags)
+)
+
+// TODO(https://fxbug.dev/356134056): delete when finished migrating to
+// subcommands library.
+func init() {
+	statusFlags.SetFlags(&cmdStatus.Flags)
 }
 
-var cmdStatus = &cmdline.Command{
-	Runner: jiri.RunnerFunc(runStatus),
-	Name:   "status",
-	Short:  "Prints status of all the projects",
-	Long: `
+type statusCmd struct {
+	changes        bool
+	checkHead      bool
+	branch         string
+	commits        bool
+	deleted        bool
+	rebaseFailures uint32
+}
+
+func (c *statusCmd) Name() string     { return "status" }
+func (c *statusCmd) Synopsis() string { return "Prints status of all the projects" }
+func (c *statusCmd) Usage() string {
+	return `
 Prints status for the the projects. It runs git status -s across all the projects
 and prints it if there are some changes. It also shows status if the project is on
 a rev other then the one according to manifest(Named as JIRI_HEAD in git)
-`,
+
+Usage:
+  jiri status [flags]
+`
 }
 
-func init() {
-	flags := &cmdStatus.Flags
-	flags.BoolVar(&statusFlags.changes, "changes", true, "Display projects with tracked or un-tracked changes.")
-	flags.BoolVar(&statusFlags.checkHead, "check-head", true, "Display projects that are not on HEAD/pinned revisions.")
-	flags.BoolVar(&statusFlags.commits, "commits", true, "Display commits not merged with remote. This only works when project is on a local branch.")
-	flags.StringVar(&statusFlags.branch, "branch", "", "Display all projects only on this branch along with their status.")
-	flags.BoolVar(&statusFlags.deleted, "deleted", false, "List all deleted projects. Other flags would be ignored.")
-	flags.BoolVar(&statusFlags.deleted, "d", false, "Same as -deleted.")
+func (c *statusCmd) SetFlags(f *flag.FlagSet) {
+	f.BoolVar(&c.changes, "changes", true, "Display projects with tracked or un-tracked changes.")
+	f.BoolVar(&c.checkHead, "check-head", true, "Display projects that are not on HEAD/pinned revisions.")
+	f.BoolVar(&c.commits, "commits", true, "Display commits not merged with remote. This only works when project is on a local branch.")
+	f.StringVar(&c.branch, "branch", "", "Display all projects only on this branch along with their status.")
+	f.BoolVar(&c.deleted, "deleted", false, "List all deleted projects. Other flags would be ignored.")
+	f.BoolVar(&c.deleted, "d", false, "Same as -deleted.")
+}
+
+func (c *statusCmd) Execute(ctx context.Context, _ *flag.FlagSet, args ...any) subcommands.ExitStatus {
+	return executeWrapper(ctx, c.run, args)
 }
 
 func colorFormatGitLog(jirix *jiri.X, log string) string {
@@ -57,7 +78,7 @@ func colorFormatGitiStatusLog(jirix *jiri.X, log string) string {
 	return strings.Join(strs, " ")
 }
 
-func runStatus(jirix *jiri.X, args []string) error {
+func (c *statusCmd) run(jirix *jiri.X, args []string) error {
 	localProjects, err := project.LocalProjects(jirix, project.FastScan)
 	if err != nil {
 		return err
@@ -67,7 +88,7 @@ func runStatus(jirix *jiri.X, args []string) error {
 		return err
 	}
 	cwd := jirix.Cwd
-	if statusFlags.deleted {
+	if c.deleted {
 		for key, localProject := range localProjects {
 			if _, remoteOk := remoteProjects[key]; !remoteOk && !localProject.IsSubmodule {
 				relativePath, err := filepath.Rel(cwd, localProject.Path)
@@ -102,7 +123,7 @@ func runStatus(jirix *jiri.X, args []string) error {
 			// this should not happen
 			panic(fmt.Sprintf("State not found for project %q", localProject.Name))
 		}
-		if statusFlags.branch != "" && (statusFlags.branch != state.CurrentBranch.Name) {
+		if c.branch != "" && (c.branch != state.CurrentBranch.Name) {
 			continue
 		}
 		relativePath, err := filepath.Rel(cwd, localProject.Path)
@@ -110,7 +131,7 @@ func runStatus(jirix *jiri.X, args []string) error {
 			return err
 		}
 		errorMsg := fmt.Sprintf("getting status for project %s(%s)", localProject.Name, relativePath)
-		changes, headRev, extraCommits, err := getStatus(jirix, localProject, remoteProject, state.CurrentBranch)
+		changes, headRev, extraCommits, err := c.getStatus(jirix, localProject, remoteProject, state.CurrentBranch)
 		if err != nil {
 			jirix.Logger.Errorf("%s :%s\n\n", errorMsg, err)
 			jirix.IncrementFailures()
@@ -125,7 +146,7 @@ func runStatus(jirix *jiri.X, args []string) error {
 			continue
 		}
 		currentLog = colorFormatGitLog(jirix, currentLog)
-		if statusFlags.checkHead {
+		if c.checkHead {
 			if headRev != state.CurrentBranch.Revision {
 				headLog, err := git.OneLineLog(headRev)
 				if err != nil {
@@ -138,7 +159,7 @@ func runStatus(jirix *jiri.X, args []string) error {
 				revisionMessage = fmt.Sprintf("%s\n%s: %s", revisionMessage, jirix.Color.Yellow("Current Revision"), currentLog)
 			}
 		}
-		if statusFlags.branch != "" || changes != "" || revisionMessage != "" ||
+		if c.branch != "" || changes != "" || revisionMessage != "" ||
 			len(extraCommits) != 0 {
 			fmt.Fprintf(jirix.Stdout(), "%s: %s", jirix.Color.Yellow(relativePath), revisionMessage)
 			fmt.Fprintln(jirix.Stdout())
@@ -172,19 +193,19 @@ func runStatus(jirix *jiri.X, args []string) error {
 	return nil
 }
 
-func getStatus(jirix *jiri.X, local project.Project, remote project.Project, currentBranch project.BranchState) (string, string, []string, error) {
+func (c *statusCmd) getStatus(jirix *jiri.X, local project.Project, remote project.Project, currentBranch project.BranchState) (string, string, []string, error) {
 	var extraCommits []string
 	headRev := ""
 	changes := ""
 	scm := gitutil.New(jirix, gitutil.RootDirOpt(local.Path))
 	var err error
-	if statusFlags.changes {
+	if c.changes {
 		changes, err = scm.ShortStatus()
 		if err != nil {
 			return "", "", nil, err
 		}
 	}
-	if statusFlags.checkHead && (remote.Name != "" || local.IsSubmodule) {
+	if c.checkHead && (remote.Name != "" || local.IsSubmodule) {
 		// try getting JIRI_HEAD first
 		if r, err := scm.CurrentRevisionForRef("JIRI_HEAD"); err == nil {
 			headRev = r
@@ -201,7 +222,7 @@ func getStatus(jirix *jiri.X, local project.Project, remote project.Project, cur
 		}
 	}
 
-	if currentBranch.Name != "" && statusFlags.commits {
+	if currentBranch.Name != "" && c.commits {
 		remoteBranch := "remotes/origin/" + remote.RemoteBranch
 		if currentBranch.Tracking != nil {
 			remoteBranch = currentBranch.Tracking.Name

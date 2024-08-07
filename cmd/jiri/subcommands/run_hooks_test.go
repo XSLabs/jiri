@@ -17,9 +17,6 @@ import (
 	"go.fuchsia.dev/jiri/project"
 )
 
-func setDefaultRunHookFlags() {
-	runHooksFlags.localManifest = false
-}
 func createRunHookProjects(t *testing.T, fake *jiritest.FakeJiriRoot, numProjects int) []project.Project {
 	localProjects := []project.Project{}
 	for i := 0; i < numProjects; i++ {
@@ -45,7 +42,8 @@ func createRunHookProjects(t *testing.T, fake *jiritest.FakeJiriRoot, numProject
 }
 
 func TestRunHookSimple(t *testing.T) {
-	setDefaultRunHookFlags()
+	t.Parallel()
+
 	fake := jiritest.NewFakeJiriRoot(t)
 	projects := createRunHookProjects(t, fake, 1)
 	err := fake.AddHook(project.Hook{Name: "hook1",
@@ -59,13 +57,14 @@ func TestRunHookSimple(t *testing.T) {
 		t.Fatal("project update should throw error as there is no action.sh script")
 	}
 
-	if err := runHooks(fake.X, nil); err == nil {
+	if err := (&runHooksCmd{}).run(fake.X, nil); err == nil {
 		t.Fatal("runhooks should throw error as there is no action.sh script")
 	}
 }
 
 func TestRunHookLocalManifest(t *testing.T) {
-	setDefaultRunHookFlags()
+	t.Parallel()
+
 	fake := jiritest.NewFakeJiriRoot(t)
 	projects := createRunHookProjects(t, fake, 1)
 	err := fake.AddHook(project.Hook{Name: "hook1",
@@ -85,12 +84,13 @@ func TestRunHookLocalManifest(t *testing.T) {
 	}
 	manifest.Hooks[0].Action = "action1.sh"
 	manifest.ToFile(fake.X, filepath.Join(fake.X.Root, jiritest.ManifestProjectPath, jiritest.ManifestFileName))
-	runHooksFlags.localManifest = true
 	buf := bytes.NewBufferString("")
 	fake.X.Logger = log.NewLogger(fake.X.Logger.LoggerLevel, fake.X.Color, false, 0, 100, nil, buf)
-	if err := runHooks(fake.X, nil); err == nil {
+	cmd := &runHooksCmd{attempts: 1, localManifest: true, hookTimeout: project.DefaultHookTimeout}
+	if err := cmd.run(fake.X, nil); err == nil {
 		t.Fatal("runhooks should throw error as there is no action.sh script")
 	} else if !strings.Contains(buf.String(), "action1.sh") {
+		t.Log(err)
 		t.Fatalf("runhooks should throw error for action1.sh script, the error it threw: %s", buf.String())
 	}
 }

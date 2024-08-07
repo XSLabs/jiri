@@ -7,22 +7,46 @@ package subcommands
 import (
 	"bytes"
 	"context"
+	"flag"
 	"fmt"
 
+	"github.com/google/subcommands"
 	"go.fuchsia.dev/jiri/cmdline"
 	"go.fuchsia.dev/jiri/version"
 )
 
-var cmdVersion = &cmdline.Command{
-	Runner: cmdline.RunnerFunc(runVersion),
-	Name:   "version",
-	Short:  "Print the jiri version",
-	Long: `
+// TODO(https://fxbug.dev/356134056): delete when finished migrating to
+// subcommands library.
+var (
+	versionFlags versionCmd
+	cmdVersion   = &cmdline.Command{
+		Name:   versionFlags.Name(),
+		Short:  versionFlags.Synopsis(),
+		Long:   versionFlags.Usage(),
+		Runner: cmdline.RunnerFunc(versionFlags.run),
+	}
+)
+
+type versionCmd struct{}
+
+func (c *versionCmd) Name() string     { return "version" }
+func (c *versionCmd) Synopsis() string { return "Print the jiri version" }
+func (c *versionCmd) Usage() string {
+	return `
 Print the Git commit revision jiri was built from and the build date.
-`,
+
+Usage:
+  jiri version
+`
 }
 
-func runVersion(ctx context.Context, args []string) error {
+func (c *versionCmd) SetFlags(f *flag.FlagSet) {}
+
+func (c *versionCmd) Execute(ctx context.Context, _ *flag.FlagSet, args ...any) subcommands.ExitStatus {
+	return errToExitStatus(c.run(ctx, argsToStrings(args)))
+}
+
+func (c *versionCmd) run(ctx context.Context, args []string) error {
 	var versionString bytes.Buffer
 	fmt.Fprintf(&versionString, "Jiri")
 

@@ -6,57 +6,70 @@ package subcommands
 
 import (
 	"bytes"
+	"context"
+	"flag"
 	"fmt"
 	"path/filepath"
 	"regexp"
 	"sort"
 	"text/template"
 
+	"github.com/google/subcommands"
 	"go.fuchsia.dev/jiri"
 	"go.fuchsia.dev/jiri/cipd"
-	"go.fuchsia.dev/jiri/cmdline"
 	"go.fuchsia.dev/jiri/project"
 )
 
-var packageFlags struct {
+// TODO(https://fxbug.dev/356134056): delete when finished migrating to
+// subcommands library.
+var (
+	packageFlags packageCmd
+	cmdPackage   = commandFromSubcommand(&packageFlags)
+)
+
+// TODO(https://fxbug.dev/356134056): delete when finished migrating to
+// subcommands library.
+func init() {
+	packageFlags.SetFlags(&cmdPackage.Flags)
+}
+
+type packageCmd struct {
 	jsonOutput string
 	regexp     bool
 }
 
-// cmd represents the "jiri project" command.
-var cmdPackage = &cmdline.Command{
-	Runner: jiri.RunnerFunc(runPackageInfo),
-	Name:   "package",
-	Short:  "Display the jiri packages",
-	Long: `Display structured info on the existing
-	packages and branches. Packages are specified using either names or	regular
-	expressions that are matched against package names. If no command line
-	arguments are provided all projects will be used.`,
-	ArgsName: "<package ...>",
-	ArgsLong: "<package ...> is a list of packages to give info about.",
+func (c *packageCmd) Name() string     { return "package" }
+func (c *packageCmd) Synopsis() string { return "Display the jiri packages" }
+func (c *packageCmd) Usage() string {
+	return `
+Display structured info on the existing
+packages and branches. Packages are specified using either names or	regular
+expressions that are matched against package names. If no command line
+arguments are provided all projects will be used.
+
+Usage:
+  jiri package [flags] <package ...>
+
+<package ...> is a list of packages to give info about.
+`
 }
 
-// packageInfoOutput defines JSON format for 'project info' output.
-type packageInfoOutput struct {
-	Name      string   `json:"name"`
-	Path      string   `json:"path"`
-	Version   string   `json:"version"`
-	Manifest  string   `json:"manifest,omitempty"`
-	Platforms []string `json:"platforms,omitempty"`
+func (c *packageCmd) SetFlags(f *flag.FlagSet) {
+	f.StringVar(&c.jsonOutput, "json-output", "", "Path to write operation results to.")
+	f.BoolVar(&c.regexp, "regexp", false, "Use argument as regular expression.")
 }
 
-func init() {
-	cmdPackage.Flags.StringVar(&packageFlags.jsonOutput, "json-output", "", "Path to write operation results to.")
-	cmdPackage.Flags.BoolVar(&packageFlags.regexp, "regexp", false, "Use argument as regular expression.")
+func (c *packageCmd) Execute(ctx context.Context, _ *flag.FlagSet, args ...any) subcommands.ExitStatus {
+	return executeWrapper(ctx, c.run, args)
 }
 
 // runPackageInfo provides structured info on packages.
-func runPackageInfo(jirix *jiri.X, args []string) error {
+func (c *packageCmd) run(jirix *jiri.X, args []string) error {
 	var err error
 
 	regexps := make([]*regexp.Regexp, 0)
 	for _, arg := range args {
-		if !packageFlags.regexp {
+		if !c.regexp {
 			arg = "^" + regexp.QuoteMeta(arg) + "$"
 		}
 		if re, err := regexp.Compile(arg); err != nil {
@@ -141,4 +154,13 @@ func runPackageInfo(jirix *jiri.X, args []string) error {
 	}
 
 	return nil
+}
+
+// packageInfoOutput defines JSON format for 'project info' output.
+type packageInfoOutput struct {
+	Name      string   `json:"name"`
+	Path      string   `json:"path"`
+	Version   string   `json:"version"`
+	Manifest  string   `json:"manifest,omitempty"`
+	Platforms []string `json:"platforms,omitempty"`
 }

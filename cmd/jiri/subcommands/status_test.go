@@ -19,12 +19,12 @@ import (
 	"go.fuchsia.dev/jiri/project"
 )
 
-func setDefaultStatusFlags() {
-	statusFlags.changes = true
-	statusFlags.checkHead = true
-	statusFlags.branch = ""
-	statusFlags.commits = true
-	statusFlags.deleted = false
+func defaultStatusFlags() *statusCmd {
+	return &statusCmd{
+		changes:   true,
+		checkHead: true,
+		commits:   true,
+	}
 }
 
 func createCommits(t *testing.T, fake *jiritest.FakeJiriRoot, localProjects []project.Project) ([]string, []string, []string, []string) {
@@ -75,15 +75,15 @@ func createProjects(t *testing.T, fake *jiritest.FakeJiriRoot, numProjects int) 
 	return localProjects
 }
 
-func expectedOutput(t *testing.T, fake *jiritest.FakeJiriRoot, localProjects []project.Project,
+func expectedOutput(t *testing.T, fake *jiritest.FakeJiriRoot, cmd *statusCmd, localProjects []project.Project,
 	latestCommitRevs, currentCommits, changes, currentBranch, relativePaths []string, extraCommitLogs [][]string) string {
 	want := ""
 	for i, localProject := range localProjects {
-		includeForNotHead := statusFlags.checkHead && currentCommits[i] != latestCommitRevs[i]
-		includeForChanges := statusFlags.changes && changes[i] != ""
-		includeForCommits := statusFlags.commits && extraCommitLogs != nil && len(extraCommitLogs[i]) != 0
-		includeProject := (statusFlags.branch == "" && (includeForNotHead || includeForChanges || includeForCommits)) ||
-			(statusFlags.branch != "" && statusFlags.branch == currentBranch[i])
+		includeForNotHead := cmd.checkHead && currentCommits[i] != latestCommitRevs[i]
+		includeForChanges := cmd.changes && changes[i] != ""
+		includeForCommits := cmd.commits && extraCommitLogs != nil && len(extraCommitLogs[i]) != 0
+		includeProject := (cmd.branch == "" && (includeForNotHead || includeForChanges || includeForCommits)) ||
+			(cmd.branch != "" && cmd.branch == currentBranch[i])
 		if includeProject {
 			gitLocal := gitutil.New(fake.X, gitutil.RootDirOpt(localProject.Path))
 			currentLog, err := gitLocal.OneLineLog(currentCommits[i])
@@ -91,7 +91,7 @@ func expectedOutput(t *testing.T, fake *jiritest.FakeJiriRoot, localProjects []p
 				t.Error(err)
 			}
 			want = fmt.Sprintf("%s%s: ", want, relativePaths[i])
-			if currentCommits[i] != latestCommitRevs[i] && statusFlags.checkHead {
+			if currentCommits[i] != latestCommitRevs[i] && cmd.checkHead {
 				log, err := gitLocal.OneLineLog(latestCommitRevs[i])
 				if err != nil {
 					t.Error(err)
@@ -105,14 +105,14 @@ func expectedOutput(t *testing.T, fake *jiritest.FakeJiriRoot, localProjects []p
 				branchmsg = fmt.Sprintf("DETACHED-HEAD(%s)", currentLog)
 			}
 			want = fmt.Sprintf("%s%s", want, branchmsg)
-			if extraCommitLogs != nil && statusFlags.commits && len(extraCommitLogs[i]) != 0 {
+			if extraCommitLogs != nil && cmd.commits && len(extraCommitLogs[i]) != 0 {
 				want = fmt.Sprintf("%s\nCommits: %d commit(s) not merged to remote", want, len(extraCommitLogs[i]))
 				for _, commitLog := range extraCommitLogs[i] {
 					want = fmt.Sprintf("%s\n%s", want, commitLog)
 				}
 
 			}
-			if statusFlags.changes && changes[i] != "" {
+			if cmd.changes && changes[i] != "" {
 				want = fmt.Sprintf("%s\n%s", want, changes[i])
 			}
 			want = fmt.Sprintf("%s\n\n", want)
@@ -123,7 +123,8 @@ func expectedOutput(t *testing.T, fake *jiritest.FakeJiriRoot, localProjects []p
 }
 
 func TestStatus(t *testing.T) {
-	setDefaultStatusFlags()
+	t.Parallel()
+
 	fake := jiritest.NewFakeJiriRoot(t)
 
 	// Add projects
@@ -138,7 +139,8 @@ func TestStatus(t *testing.T) {
 		setDummyUser(t, fake.X, lp.Path)
 	}
 	// Test no changes
-	got := executeStatus(t, fake, "")
+	cmd := defaultStatusFlags()
+	got := executeStatus(t, fake, cmd, "")
 	want := ""
 	if got != want {
 		t.Errorf("got %s, want %s", got, want)
@@ -149,11 +151,11 @@ func TestStatus(t *testing.T) {
 	gitLocal.CheckoutBranch("HEAD~1")
 	gitLocal = gitutil.New(fake.X, gitutil.RootDirOpt(localProjects[2].Path))
 	gitLocal.CheckoutBranch("file-2")
-	got = executeStatus(t, fake, "")
+	got = executeStatus(t, fake, cmd, "")
 	currentCommits := []string{latestCommitRevs[0], file2CommitRevs[1], file1CommitRevs[2]}
 	currentBranch := []string{"", "", "file-2"}
 	changes := []string{"", "", ""}
-	want = expectedOutput(t, fake, localProjects, latestCommitRevs, currentCommits, changes, currentBranch, relativePaths, nil)
+	want = expectedOutput(t, fake, cmd, localProjects, latestCommitRevs, currentCommits, changes, currentBranch, relativePaths, nil)
 	if !equal(got, want) {
 		t.Errorf("got %s, want %s", got, want)
 	}
@@ -165,18 +167,19 @@ func TestStatus(t *testing.T) {
 	if err := gitLocal.Add("uncommitted.go"); err != nil {
 		t.Error(err)
 	}
-	got = executeStatus(t, fake, "")
+	got = executeStatus(t, fake, cmd, "")
 	currentCommits = []string{latestCommitRevs[0], file2CommitRevs[1], file1CommitRevs[2]}
 	currentBranch = []string{"", "", "file-2"}
 	changes = []string{"?? untracked1\n?? untracked2", "", "A  uncommitted.go"}
-	want = expectedOutput(t, fake, localProjects, latestCommitRevs, currentCommits, changes, currentBranch, relativePaths, nil)
+	want = expectedOutput(t, fake, cmd, localProjects, latestCommitRevs, currentCommits, changes, currentBranch, relativePaths, nil)
 	if !equal(got, want) {
 		t.Errorf("got %s, want %s", got, want)
 	}
 }
 
 func TestStatusWhenUserUpdatesGitTree(t *testing.T) {
-	setDefaultStatusFlags()
+	t.Parallel()
+
 	fake := jiritest.NewFakeJiriRoot(t)
 
 	// Add projects
@@ -194,7 +197,8 @@ func TestStatusWhenUserUpdatesGitTree(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	got := executeStatus(t, fake, "")
+	cmd := defaultStatusFlags()
+	got := executeStatus(t, fake, cmd, "")
 	want := "" // no change
 	if got != want {
 		t.Errorf("got %s, want %s", got, want)
@@ -202,7 +206,8 @@ func TestStatusWhenUserUpdatesGitTree(t *testing.T) {
 }
 
 func TestStatusDeleted(t *testing.T) {
-	setDefaultStatusFlags()
+	t.Parallel()
+
 	fake := jiritest.NewFakeJiriRoot(t)
 
 	// Add projects
@@ -226,9 +231,10 @@ func TestStatusDeleted(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	statusFlags.deleted = true
+	cmd := defaultStatusFlags()
+	cmd.deleted = true
 
-	got := executeStatus(t, fake, "")
+	got := executeStatus(t, fake, cmd, "")
 	numOfLines := len(strings.Split(got, "\n"))
 	if numOfLines != 3 {
 		t.Errorf("got %s, wanted 3 deleted projects", got)
@@ -243,7 +249,9 @@ func TestStatusDeleted(t *testing.T) {
 	}
 }
 
-func statusFlagsTest(t *testing.T) {
+func statusFlagsTest(t *testing.T, cmd *statusCmd) {
+	t.Parallel()
+
 	fake := jiritest.NewFakeJiriRoot(t)
 
 	// Add projects
@@ -294,71 +302,87 @@ func statusFlagsTest(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	got := executeStatus(t, fake, "")
+	got := executeStatus(t, fake, cmd, "")
 	currentCommits := []string{file2CommitRevs[0], file1CommitRevs[1], latestCommitRevs[2], file1CommitRevs[3], latestCommitRevs[4], currentCommit5}
 	extraCommitLogs := [][]string{nil, nil, nil, nil, nil, extraCommits5}
 	currentBranch := []string{"", "file-2", "", "", "main", "main"}
 	changes := []string{"?? untracked1\n?? untracked2", "A  uncommitted.go", "A  uncommitted.go\n?? untracked1", "", "", ""}
-	want := expectedOutput(t, fake, localProjects, latestCommitRevs, currentCommits, changes, currentBranch, relativePaths, extraCommitLogs)
+	want := expectedOutput(t, fake, cmd, localProjects, latestCommitRevs, currentCommits, changes, currentBranch, relativePaths, extraCommitLogs)
 	if !equal(got, want) {
-		printStatusFlags()
 		t.Errorf("got %s, want %s", got, want)
 	}
 }
 
-func printStatusFlags() {
-	fmt.Printf("changes=%t, check-head=%t, commits=%t\n", statusFlags.changes, statusFlags.checkHead, statusFlags.commits)
-}
-
 func TestStatusFlags(t *testing.T) {
-	setDefaultStatusFlags()
-	statusFlagsTest(t)
+	t.Parallel()
 
-	setDefaultStatusFlags()
-	statusFlags.changes = false
-	statusFlagsTest(t)
+	t.Run("default flags", func(t *testing.T) {
+		statusFlagsTest(t, defaultStatusFlags())
+	})
 
-	setDefaultStatusFlags()
-	statusFlags.changes = false
-	statusFlags.checkHead = false
-	statusFlagsTest(t)
+	t.Run("no changes", func(t *testing.T) {
+		cmd := defaultStatusFlags()
+		cmd.changes = false
+		statusFlagsTest(t, cmd)
+	})
 
-	setDefaultStatusFlags()
-	statusFlags.checkHead = false
-	statusFlagsTest(t)
+	t.Run("no changes, no check head", func(t *testing.T) {
+		cmd := defaultStatusFlags()
+		cmd.changes = false
+		cmd.checkHead = false
+		statusFlagsTest(t, cmd)
+	})
 
-	setDefaultStatusFlags()
-	statusFlags.changes = false
-	statusFlags.checkHead = false
-	statusFlags.branch = "main"
-	statusFlagsTest(t)
+	t.Run("no check head", func(t *testing.T) {
+		cmd := defaultStatusFlags()
+		cmd.checkHead = false
+		statusFlagsTest(t, cmd)
+	})
 
-	setDefaultStatusFlags()
-	statusFlags.checkHead = false
-	statusFlags.branch = "main"
-	statusFlags.commits = false
-	statusFlagsTest(t)
+	t.Run("no changes, no check head, branch", func(t *testing.T) {
+		cmd := defaultStatusFlags()
+		cmd.changes = false
+		cmd.checkHead = false
+		cmd.branch = "main"
+		statusFlagsTest(t, cmd)
+	})
 
-	setDefaultStatusFlags()
-	statusFlags.changes = false
-	statusFlags.branch = "main"
-	statusFlagsTest(t)
+	t.Run("no check head, no commits, branch", func(t *testing.T) {
+		cmd := defaultStatusFlags()
+		cmd.checkHead = false
+		cmd.branch = "main"
+		cmd.commits = false
+		statusFlagsTest(t, cmd)
+	})
 
-	setDefaultStatusFlags()
-	statusFlags.changes = false
-	statusFlags.checkHead = false
-	statusFlags.branch = "file-2"
-	statusFlagsTest(t)
+	t.Run("no changes, branch", func(t *testing.T) {
+		cmd := defaultStatusFlags()
+		cmd.changes = false
+		cmd.branch = "main"
+		statusFlagsTest(t, cmd)
+	})
 
-	setDefaultStatusFlags()
-	statusFlags.checkHead = false
-	statusFlags.branch = "file-2"
-	statusFlagsTest(t)
+	t.Run("no changes, no check head, branch", func(t *testing.T) {
+		cmd := defaultStatusFlags()
+		cmd.changes = false
+		cmd.checkHead = false
+		cmd.branch = "file-2"
+		statusFlagsTest(t, cmd)
+	})
 
-	setDefaultStatusFlags()
-	statusFlags.changes = false
-	statusFlags.branch = "file-2"
-	statusFlagsTest(t)
+	t.Run("no check head, branch", func(t *testing.T) {
+		cmd := defaultStatusFlags()
+		cmd.checkHead = false
+		cmd.branch = "file-2"
+		statusFlagsTest(t, cmd)
+	})
+
+	t.Run("no changes, branch", func(t *testing.T) {
+		cmd := defaultStatusFlags()
+		cmd.changes = false
+		cmd.branch = "file-2"
+		statusFlagsTest(t, cmd)
+	})
 }
 
 func equal(first, second string) bool {
@@ -377,8 +401,8 @@ func equal(first, second string) bool {
 	return true
 }
 
-func executeStatus(t *testing.T, fake *jiritest.FakeJiriRoot, args ...string) string {
-	stdout, _, err := collectStdio(fake.X, args, runStatus)
+func executeStatus(t *testing.T, fake *jiritest.FakeJiriRoot, cmd *statusCmd, args ...string) string {
+	stdout, _, err := collectStdio(fake.X, args, cmd.run)
 	if err != nil {
 		t.Fatal(err)
 	}

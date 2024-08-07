@@ -12,19 +12,13 @@ import (
 	"go.fuchsia.dev/jiri/project"
 )
 
-func setDefaultConfigFlags() {
-	projectConfigFlags.ignore = ""
-	projectConfigFlags.noUpdate = ""
-	projectConfigFlags.noRebase = ""
-}
-
-func testConfig(t *testing.T, fake *jiritest.FakeJiriRoot, localProjects []project.Project) {
+func testConfig(t *testing.T, fake *jiritest.FakeJiriRoot, localProjects []project.Project, cmd projectConfigCmd) {
 	p, err := project.ProjectAtPath(fake.X, localProjects[1].Path)
 	if err != nil {
 		t.Fatal(err)
 	}
 	oldConfig := p.LocalConfig
-	if err := runProjectConfig(fake.X, []string{}); err != nil {
+	if err := cmd.run(fake.X, []string{}); err != nil {
 		t.Fatal(err)
 	}
 	if p, err = project.ProjectAtPath(fake.X, localProjects[1].Path); err != nil {
@@ -33,8 +27,8 @@ func testConfig(t *testing.T, fake *jiritest.FakeJiriRoot, localProjects []proje
 	newConfig := p.LocalConfig
 
 	expectedOutput := oldConfig.Ignore
-	if projectConfigFlags.ignore != "" {
-		if expectedOutput, err = strconv.ParseBool(projectConfigFlags.ignore); err != nil {
+	if cmd.ignore != "" {
+		if expectedOutput, err = strconv.ParseBool(cmd.ignore); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -43,8 +37,8 @@ func testConfig(t *testing.T, fake *jiritest.FakeJiriRoot, localProjects []proje
 	}
 
 	expectedOutput = oldConfig.NoUpdate
-	if projectConfigFlags.noUpdate != "" {
-		if expectedOutput, err = strconv.ParseBool(projectConfigFlags.noUpdate); err != nil {
+	if cmd.noUpdate != "" {
+		if expectedOutput, err = strconv.ParseBool(cmd.noUpdate); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -53,8 +47,8 @@ func testConfig(t *testing.T, fake *jiritest.FakeJiriRoot, localProjects []proje
 	}
 
 	expectedOutput = oldConfig.NoRebase
-	if projectConfigFlags.noRebase != "" {
-		if expectedOutput, err = strconv.ParseBool(projectConfigFlags.noRebase); err != nil {
+	if cmd.noRebase != "" {
+		if expectedOutput, err = strconv.ParseBool(cmd.noRebase); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -70,31 +64,30 @@ func TestConfig(t *testing.T) {
 	}
 	fake.X.Cwd = localProjects[1].Path
 
-	setDefaultConfigFlags()
-	projectConfigFlags.ignore = "true"
-	testConfig(t, fake, localProjects)
+	testConfig(t, fake, localProjects, projectConfigCmd{
+		ignore: "true",
+	})
 
-	setDefaultConfigFlags()
-	projectConfigFlags.noUpdate = "true"
-	projectConfigFlags.noRebase = "true"
-	testConfig(t, fake, localProjects)
+	testConfig(t, fake, localProjects, projectConfigCmd{
+		noUpdate: "true",
+		noRebase: "true",
+	})
 
-	setDefaultConfigFlags()
-	testConfig(t, fake, localProjects)
+	testConfig(t, fake, localProjects, projectConfigCmd{})
 
-	setDefaultConfigFlags()
-	projectConfigFlags.noRebase = "false"
-	projectConfigFlags.ignore = "true"
-	testConfig(t, fake, localProjects)
+	testConfig(t, fake, localProjects, projectConfigCmd{
+		noRebase: "false",
+		ignore:   "true",
+	})
 
-	setDefaultConfigFlags()
-	projectConfigFlags.noRebase = "false"
-	projectConfigFlags.noUpdate = "false"
-	testConfig(t, fake, localProjects)
+	testConfig(t, fake, localProjects, projectConfigCmd{
+		noRebase: "false",
+		noUpdate: "false",
+	})
 
-	setDefaultConfigFlags()
-	projectConfigFlags.noRebase = "false"
-	projectConfigFlags.noUpdate = "false"
-	projectConfigFlags.ignore = "false"
-	testConfig(t, fake, localProjects)
+	testConfig(t, fake, localProjects, projectConfigCmd{
+		noRebase: "false",
+		noUpdate: "false",
+		ignore:   "false",
+	})
 }

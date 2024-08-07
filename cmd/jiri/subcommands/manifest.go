@@ -5,90 +5,110 @@
 package subcommands
 
 import (
+	"context"
 	"errors"
 	"flag"
 	"fmt"
 	"strings"
 	"text/template"
 
+	"github.com/google/subcommands"
 	"go.fuchsia.dev/jiri"
-	"go.fuchsia.dev/jiri/cmdline"
 	"go.fuchsia.dev/jiri/project"
 )
 
-// Flags for cmdManifest.
-var manifestFlags struct {
+// TODO(https://fxbug.dev/356134056): delete when finished migrating to
+// subcommands library.
+var (
+	manifestFlags manifestCmd
+	cmdManifest   = commandFromSubcommand(&manifestFlags)
+)
+
+// TODO(https://fxbug.dev/356134056): delete when finished migrating to
+// subcommands library.
+func init() {
+	manifestFlags.SetFlags(&cmdManifest.Flags)
+}
+
+// manifestCmd defines the command-line flags for the manifest command.
+type manifestCmd struct {
 	// ElementName is a flag specifying the name= of the <import> or <project>
 	// to search for in the manifest file.
 	ElementName string
 
 	// Template is a string template from pkg/text/template specifying which
-	// fields to display.  The invoker of Jiri is expected to form this template
+	// fields to display.
+	// The invoker of Jiri is expected to form this template
 	// themselves.
 	Template string
 }
 
-var cmdManifest = &cmdline.Command{
-	Runner: jiri.RunnerFunc(runManifest),
-	Name:   "manifest",
-	Short:  "Reads <import>, <project> or <package> information from a manifest file",
-	Long: `Reads <import>, <project> or <package> information from a manifest file.
-	A template matching the schema defined in pkg/text/template is used to fill
-	in the requested information.  Some examples:
+func (c *manifestCmd) Name() string { return "manifest" }
+func (c *manifestCmd) Synopsis() string {
+	return "Reads <import>, <project> or <package> information from a manifest file"
+}
+func (c *manifestCmd) Usage() string {
+	return `
+Reads <import>, <project> or <package> information from a manifest file.
+A template matching the schema defined in pkg/text/template is used to fill
+in the requested information.
 
-	    Read project's 'remote' attribute:
-	        manifest -element=$PROJECT_NAME -template="{{.Remote}}"
+Some examples:
 
-	    Read import's 'path' attribute:
-	        manifest -element=$IMPORT_NAME -template="{{.Path}}"
+Read project's 'remote' attribute:
+manifest -element=$PROJECT_NAME -template="{{.Remote}}"
 
-	    Read packages's 'version' attribute:
-	        manifest -element=$PACKAGE_NAME -template="{{.Version}}"
-	`,
-	ArgsName: "<manifest>",
-	ArgsLong: "<manifest> is the manifest file.",
+Read import's 'path' attribute:
+manifest -element=$IMPORT_NAME -template="{{.Path}}"
+
+Read packages's 'version' attribute:
+manifest -element=$PACKAGE_NAME -template="{{.Version}}"
+
+Usage:
+  jiri manifest [flags] <manifest>
+
+<manifest> is the manifest file.
+`
 }
 
-func init() {
-	setManifestFlags(&cmdManifest.Flags)
+func (c *manifestCmd) SetFlags(f *flag.FlagSet) {
+	f.StringVar(&c.ElementName, "element", "", "Name of the <project>, <import> or <package>.")
+	f.StringVar(&c.Template, "template", "", "The template for the fields to display.")
 }
 
-// setManifestFlags sets command-line flags for the manifest command.
-func setManifestFlags(f *flag.FlagSet) {
-	f.StringVar(&manifestFlags.ElementName, "element", "", "Name of the <project>, <import> or <package>.")
-	f.StringVar(&manifestFlags.Template, "template", "", "The template for the fields to display.")
+func (c *manifestCmd) Execute(ctx context.Context, _ *flag.FlagSet, args ...any) subcommands.ExitStatus {
+	return executeWrapper(ctx, c.run, args)
 }
 
-// Run executes the ManifestCommand.
-func runManifest(jirix *jiri.X, args []string) error {
+func (c *manifestCmd) run(jirix *jiri.X, args []string) error {
 	if len(args) != 1 {
 		return jirix.UsageErrorf("Wrong number of args")
 	}
 	manifestPath := args[0]
 
-	if manifestFlags.ElementName == "" {
+	if c.ElementName == "" {
 		return errors.New("-element is required")
 	}
-	if manifestFlags.Template == "" {
+	if c.Template == "" {
 		return errors.New("-template is required")
 	}
 
 	// Create the template to fill in.
-	tmpl, err := template.New("").Parse(manifestFlags.Template)
+	tmpl, err := template.New("").Parse(c.Template)
 	if err != nil {
 		return fmt.Errorf("failed to parse -template: %s", err)
 	}
 
-	return readManifest(jirix, manifestPath, tmpl)
+	return c.readManifest(jirix, manifestPath, tmpl)
 }
 
-func readManifest(jirix *jiri.X, manifestPath string, tmpl *template.Template) error {
+func (c *manifestCmd) readManifest(jirix *jiri.X, manifestPath string, tmpl *template.Template) error {
 	manifest, err := project.ManifestFromFile(jirix, manifestPath)
 	if err != nil {
 		return err
 	}
 
-	elementName := strings.ToLower(manifestFlags.ElementName)
+	elementName := strings.ToLower(c.ElementName)
 
 	// Check if any <project> elements match the given element name.
 	for _, project := range manifest.Projects {

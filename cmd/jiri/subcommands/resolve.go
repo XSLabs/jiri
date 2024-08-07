@@ -5,14 +5,29 @@
 package subcommands
 
 import (
+	"context"
+	"flag"
 	"strings"
 
+	"github.com/google/subcommands"
 	"go.fuchsia.dev/jiri"
-	"go.fuchsia.dev/jiri/cmdline"
 	"go.fuchsia.dev/jiri/project"
 )
 
-type resolveFlags struct {
+// TODO(https://fxbug.dev/356134056): delete when finished migrating to
+// subcommands library.
+var (
+	resolveFlags resolveCmd
+	cmdResolve   = commandFromSubcommand(&resolveFlags)
+)
+
+// TODO(https://fxbug.dev/356134056): delete when finished migrating to
+// subcommands library.
+func init() {
+	resolveFlags.SetFlags(&cmdResolve.Flags)
+}
+
+type resolveCmd struct {
 	lockFilePath         string
 	localManifestFlag    bool
 	enablePackageLock    bool
@@ -23,29 +38,29 @@ type resolveFlags struct {
 	hostnameAllowList    string
 }
 
-func (r *resolveFlags) AllowFloatingRefs() bool {
-	return r.allowFloatingRefs
+func (c *resolveCmd) AllowFloatingRefs() bool {
+	return c.allowFloatingRefs
 }
 
-func (r *resolveFlags) LockFilePath() string {
-	return r.lockFilePath
+func (c *resolveCmd) LockFilePath() string {
+	return c.lockFilePath
 }
 
-func (r *resolveFlags) LocalManifest() bool {
-	return r.localManifestFlag
+func (c *resolveCmd) LocalManifest() bool {
+	return c.localManifestFlag
 }
 
-func (r *resolveFlags) EnablePackageLock() bool {
-	return r.enablePackageLock
+func (c *resolveCmd) EnablePackageLock() bool {
+	return c.enablePackageLock
 }
 
-func (r *resolveFlags) EnableProjectLock() bool {
-	return r.enableProjectLock
+func (c *resolveCmd) EnableProjectLock() bool {
+	return c.enableProjectLock
 }
 
-func (r *resolveFlags) HostnameAllowList() []string {
+func (c *resolveCmd) HostnameAllowList() []string {
 	ret := make([]string, 0)
-	hosts := strings.Split(r.hostnameAllowList, ",")
+	hosts := strings.Split(c.hostnameAllowList, ",")
 	for _, item := range hosts {
 		item = strings.TrimSpace(item)
 		if item == "" {
@@ -56,36 +71,39 @@ func (r *resolveFlags) HostnameAllowList() []string {
 	return ret
 }
 
-func (r *resolveFlags) FullResolve() bool {
-	return r.fullResolve
+func (c *resolveCmd) FullResolve() bool {
+	return c.fullResolve
 }
 
-var resolveFlag resolveFlags
-
-var cmdResolve = &cmdline.Command{
-	Runner: jiri.RunnerFunc(runResolve),
-	Name:   "resolve",
-	Short:  "Generate jiri lockfile",
-	Long: `
+func (c *resolveCmd) Name() string     { return "resolve" }
+func (c *resolveCmd) Synopsis() string { return "Generate jiri lockfile" }
+func (c *resolveCmd) Usage() string {
+	return `
 Generate jiri lockfile in json format for <manifest ...>. If no manifest
 provided, jiri will use .jiri_manifest by default.
-`,
-	ArgsName: "<manifest ...>",
-	ArgsLong: "<manifest ...> is a list of manifest files for lockfile generation",
+
+Usage:
+  jiri resolve [flags] <manifest ...>
+
+<manifest ...> is a list of manifest files for lockfile generation
+`
 }
 
-func init() {
-	flags := &cmdResolve.Flags
-	flags.StringVar(&resolveFlag.lockFilePath, "output", "jiri.lock", "Path to the generated lockfile")
-	flags.BoolVar(&resolveFlag.localManifestFlag, "local-manifest", false, "Use local manifest")
-	flags.BoolVar(&resolveFlag.enablePackageLock, "enable-package-lock", true, "Enable resolving packages in lockfile")
-	flags.BoolVar(&resolveFlag.enableProjectLock, "enable-project-lock", false, "Enable resolving projects in lockfile")
-	flags.BoolVar(&resolveFlag.allowFloatingRefs, "allow-floating-refs", false, "Allow packages to be pinned to floating refs such as \"latest\"")
-	flags.StringVar(&resolveFlag.hostnameAllowList, "allow-hosts", "", "List of hostnames that can be used in the url of a repository, separated by comma. It will not be enforced if it is left empty.")
-	flags.BoolVar(&resolveFlag.fullResolve, "full-resolve", false, "Resolve all project and packages, not just those are changed.")
+func (c *resolveCmd) SetFlags(f *flag.FlagSet) {
+	f.StringVar(&c.lockFilePath, "output", "jiri.lock", "Path to the generated lockfile")
+	f.BoolVar(&c.localManifestFlag, "local-manifest", false, "Use local manifest")
+	f.BoolVar(&c.enablePackageLock, "enable-package-lock", true, "Enable resolving packages in lockfile")
+	f.BoolVar(&c.enableProjectLock, "enable-project-lock", false, "Enable resolving projects in lockfile")
+	f.BoolVar(&c.allowFloatingRefs, "allow-floating-refs", false, "Allow packages to be pinned to floating refs such as \"latest\"")
+	f.StringVar(&c.hostnameAllowList, "allow-hosts", "", "List of hostnames that can be used in the url of a repository, separated by comma. It will not be enforced if it is left empty.")
+	f.BoolVar(&c.fullResolve, "full-resolve", false, "Resolve all project and packages, not just those are changed.")
 }
 
-func runResolve(jirix *jiri.X, args []string) error {
+func (c *resolveCmd) Execute(ctx context.Context, _ *flag.FlagSet, args ...any) subcommands.ExitStatus {
+	return executeWrapper(ctx, c.run, args)
+}
+
+func (c *resolveCmd) run(jirix *jiri.X, args []string) error {
 	manifestFiles := make([]string, 0)
 	if len(args) == 0 {
 		// Use .jiri_manifest if no manifest file path is present
@@ -103,5 +121,5 @@ func runResolve(jirix *jiri.X, args []string) error {
 	// Jiri will halt when detecting conflicts in locks. So to make it work,
 	// we need to temporarily disable the conflicts detection.
 	jirix.IgnoreLockConflicts = true
-	return project.GenerateJiriLockFile(jirix, manifestFiles, &resolveFlag)
+	return project.GenerateJiriLockFile(jirix, manifestFiles, c)
 }

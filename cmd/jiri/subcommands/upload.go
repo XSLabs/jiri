@@ -5,31 +5,47 @@
 package subcommands
 
 import (
+	"context"
+	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 
+	"github.com/google/subcommands"
 	"go.fuchsia.dev/jiri"
-	"go.fuchsia.dev/jiri/cmdline"
 	"go.fuchsia.dev/jiri/gerrit"
 	"go.fuchsia.dev/jiri/gitutil"
 	"go.fuchsia.dev/jiri/project"
 )
 
-var uploadFlags struct {
-	ccs          string
-	presubmit    string
-	reviewers    string
-	topic        string
-	verify       bool
-	rebase       bool
-	setTopic     bool
-	multipart    bool
-	branch       string
-	remoteBranch string
-	labels       string
-	gitOptions   string
+// TODO(https://fxbug.dev/356134056): delete when finished migrating to
+// subcommands library.
+var (
+	uploadFlags uploadCmd
+	cmdUpload   = commandFromSubcommand(&uploadFlags)
+)
+
+// TODO(https://fxbug.dev/356134056): delete when finished migrating to
+// subcommands library.
+func init() {
+	uploadFlags.SetFlags(&cmdUpload.Flags)
+}
+
+type uploadCmd struct {
+	ccs            string
+	presubmit      string
+	reviewers      string
+	topic          string
+	verify         bool
+	rebase         bool
+	setTopic       bool
+	multipart      bool
+	branch         string
+	remoteBranch   string
+	labels         string
+	gitOptions     string
+	rebaseFailures uint32
 }
 
 type uploadError string
@@ -40,44 +56,48 @@ func (e uploadError) Error() string {
 	return result
 }
 
-var cmdUpload = &cmdline.Command{
-	Runner:   jiri.RunnerFunc(runUpload),
-	Name:     "upload",
-	Short:    "Upload a changelist for review",
-	Long:     `Command "upload" uploads commits of a local branch to Gerrit.`,
-	ArgsName: "<ref>",
-	ArgsLong: `
+func (c *uploadCmd) Name() string     { return "upload" }
+func (c *uploadCmd) Synopsis() string { return "Upload a changelist for review" }
+func (c *uploadCmd) Usage() string {
+	return `Command "upload" uploads commits of a local branch to Gerrit.
+
+Usage:
+  jiri upload [flags] <ref>
+
 <ref> is the valid git ref to upload. It is optional and HEAD is used by
 default. This cannot be used with -multipart flag.
-`,
+`
 }
 
-func init() {
-	cmdUpload.Flags.StringVar(&uploadFlags.ccs, "cc", "", `Comma-separated list of emails or LDAPs to cc.`)
-	cmdUpload.Flags.StringVar(&uploadFlags.presubmit, "presubmit", string(gerrit.PresubmitTestTypeAll),
+func (c *uploadCmd) SetFlags(f *flag.FlagSet) {
+	f.StringVar(&c.ccs, "cc", "", `Comma-separated list of emails or LDAPs to cc.`)
+	f.StringVar(&c.presubmit, "presubmit", string(gerrit.PresubmitTestTypeAll),
 		fmt.Sprintf("The type of presubmit tests to run. Valid values: %s.", strings.Join(gerrit.PresubmitTestTypes(), ",")))
-	cmdUpload.Flags.StringVar(&uploadFlags.reviewers, "r", "", `Comma-separated list of emails or LDAPs to request review.`)
-	cmdUpload.Flags.StringVar(&uploadFlags.labels, "l", "", `Comma-separated list of review labels.`)
-	cmdUpload.Flags.StringVar(&uploadFlags.topic, "topic", "", `CL topic. Default is <username>-<branchname>. If this flag is set, upload will ignore -set-topic and will set a topic.`)
-	cmdUpload.Flags.BoolVar(&uploadFlags.setTopic, "set-topic", false, `Set topic. This flag would be ignored if -topic passed.`)
-	cmdUpload.Flags.BoolVar(&uploadFlags.verify, "verify", true, `Run pre-push git hooks.`)
-	cmdUpload.Flags.BoolVar(&uploadFlags.rebase, "rebase", false, `Run rebase before pushing.`)
-	cmdUpload.Flags.BoolVar(&uploadFlags.multipart, "multipart", false, `Send multipart CL.  Use -set-topic or -topic flag if you want to set a topic.`)
-	cmdUpload.Flags.StringVar(&uploadFlags.branch, "branch", "", `Used when multipart flag is true and this command is executed from root folder`)
-	cmdUpload.Flags.StringVar(&uploadFlags.remoteBranch, "remoteBranch", "", `Remote branch to upload change to. If this is not specified and branch is untracked,
-change would be uploaded to branch in project manifest`)
-	cmdUpload.Flags.StringVar(&uploadFlags.gitOptions, "git-options", "", `Passthrough git options`)
+	f.StringVar(&c.reviewers, "r", "", `Comma-separated list of emails or LDAPs to request review.`)
+	f.StringVar(&c.labels, "l", "", `Comma-separated list of review labels.`)
+	f.StringVar(&c.topic, "topic", "", `CL topic. Default is <username>-<branchname>. If this flag is set, upload will ignore -set-topic and will set a topic.`)
+	f.BoolVar(&c.setTopic, "set-topic", false, `Set topic. This flag would be ignored if -topic passed.`)
+	f.BoolVar(&c.verify, "verify", true, `Run pre-push git hooks.`)
+	f.BoolVar(&c.rebase, "rebase", false, `Run rebase before pushing.`)
+	f.BoolVar(&c.multipart, "multipart", false, `Send multipart CL. Use -set-topic or -topic flag if you want to set a topic.`)
+	f.StringVar(&c.branch, "branch", "", `Used when multipart flag is true and this command is executed from root folder`)
+	f.StringVar(&c.remoteBranch, "remoteBranch", "", `Remote branch to upload change to. If this is not specified and branch is untracked, change would be uploaded to branch in project manifest`)
+	f.StringVar(&c.gitOptions, "git-options", "", `Passthrough git options`)
+}
+
+func (c *uploadCmd) Execute(ctx context.Context, _ *flag.FlagSet, args ...any) subcommands.ExitStatus {
+	return executeWrapper(ctx, c.run, args)
 }
 
 // runUpload is a wrapper that pushes the changes to gerrit for review.
-func runUpload(jirix *jiri.X, args []string) error {
+func (c *uploadCmd) run(jirix *jiri.X, args []string) error {
 	refToUpload := "HEAD"
 	if len(args) == 1 {
 		refToUpload = args[0]
 	} else if len(args) > 1 {
 		return jirix.UsageErrorf("wrong number of arguments")
 	}
-	if uploadFlags.multipart && refToUpload != "HEAD" {
+	if c.multipart && refToUpload != "HEAD" {
 		return jirix.UsageErrorf("can only use HEAD as <ref> when using -multipart flag.")
 	}
 	cwd := jirix.Cwd
@@ -99,28 +119,28 @@ func runUpload(jirix *jiri.X, args []string) error {
 		break
 	}
 
-	setTopic := uploadFlags.setTopic
+	setTopic := c.setTopic
 
 	// Always set topic when either topic is passed.
-	if uploadFlags.topic != "" {
+	if c.topic != "" {
 		setTopic = true
 	}
 
 	currentBranch := ""
 	if p == nil {
-		if !uploadFlags.multipart {
+		if !c.multipart {
 			return fmt.Errorf("directory %q is not contained in a project", cwd)
-		} else if uploadFlags.branch == "" {
+		} else if c.branch == "" {
 			return fmt.Errorf("Please run with -branch flag")
 		}
-		currentBranch = uploadFlags.branch
+		currentBranch = c.branch
 	} else {
 		scm := gitutil.New(jirix, gitutil.RootDirOpt(p.Path))
 		if !scm.IsOnBranch() {
-			if uploadFlags.multipart {
+			if c.multipart {
 				return fmt.Errorf("Current project is not on any branch. Multipart uploads require project to be on a branch.")
 			}
-			if uploadFlags.topic == "" && setTopic {
+			if c.topic == "" && setTopic {
 				return fmt.Errorf("Current project is not on any branch. Either provide a topic or set flag \"-set-topic\" to false.")
 			}
 		} else {
@@ -134,7 +154,7 @@ func runUpload(jirix *jiri.X, args []string) error {
 	var projectsToProcess []project.Project
 	topic := ""
 	if setTopic {
-		if topic = uploadFlags.topic; topic == "" {
+		if topic = c.topic; topic == "" {
 			topic = fmt.Sprintf("%s-%s", os.Getenv("USER"), currentBranch) // use <username>-<branchname> as the default
 		}
 	}
@@ -142,7 +162,7 @@ func runUpload(jirix *jiri.X, args []string) error {
 	if err != nil {
 		return err
 	}
-	if uploadFlags.multipart {
+	if c.multipart {
 		for _, project := range localProjects {
 			scm := gitutil.New(jirix, gitutil.RootDirOpt(project.Path))
 			if scm.IsOnBranch() {
@@ -179,14 +199,14 @@ func runUpload(jirix *jiri.X, args []string) error {
 			// Just use the full path if an error occurred.
 			relativePath = project.Path
 		}
-		if uploadFlags.rebase {
+		if c.rebase {
 			if changes, err := gitutil.New(jirix, gitutil.RootDirOpt(project.Path)).HasUncommittedChanges(); err != nil {
 				return err
 			} else if changes {
 				return fmt.Errorf("Project %s(%s) has uncommitted changes, please commit them or stash them. Cannot rebase before pushing.", project.Name, relativePath)
 			}
 		}
-		remoteBranch := uploadFlags.remoteBranch
+		remoteBranch := c.remoteBranch
 		if remoteBranch == "" && currentBranch != "" {
 			remoteBranch, err = scm.RemoteBranchName()
 			if err != nil {
@@ -203,14 +223,14 @@ func runUpload(jirix *jiri.X, args []string) error {
 		}
 
 		opts := gerrit.CLOpts{
-			Ccs:          parseEmails(uploadFlags.ccs),
-			GitOptions:   uploadFlags.gitOptions,
-			Presubmit:    gerrit.PresubmitTestType(uploadFlags.presubmit),
+			Ccs:          parseEmails(c.ccs),
+			GitOptions:   c.gitOptions,
+			Presubmit:    gerrit.PresubmitTestType(c.presubmit),
 			RemoteBranch: remoteBranch,
 			Remote:       "origin",
-			Reviewers:    parseEmails(uploadFlags.reviewers),
-			Labels:       parseLabels(uploadFlags.labels),
-			Verify:       uploadFlags.verify,
+			Reviewers:    parseEmails(c.reviewers),
+			Labels:       parseLabels(c.labels),
+			Verify:       c.verify,
 			Topic:        topic,
 			RefToUpload:  refToUpload,
 		}
@@ -222,7 +242,7 @@ func runUpload(jirix *jiri.X, args []string) error {
 	}
 
 	// Rebase all projects before pushing
-	if uploadFlags.rebase {
+	if c.rebase {
 		for _, gerritPushOption := range gerritPushOptions {
 			scm := gitutil.New(jirix, gitutil.RootDirOpt(gerritPushOption.Project.Path))
 			if err := scm.Fetch("origin", jirix.EnableSubmodules); err != nil {
