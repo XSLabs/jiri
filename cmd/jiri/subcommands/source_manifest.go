@@ -36,9 +36,9 @@ func runSourceManifest(jirix *jiri.X, args []string) error {
 		return err
 	}
 
-	sm, mErr := project.NewSourceManifest(jirix, localProjects)
-	if mErr != nil {
-		return mErr
+	sm, err := project.NewSourceManifest(jirix, localProjects)
+	if err != nil {
+		return err
 	}
 	return sm.ToFile(jirix, args[0])
 }

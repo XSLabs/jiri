@@ -22,22 +22,6 @@ import (
 	"go.fuchsia.dev/jiri/envvar"
 )
 
-type MultiError []error
-
-func (m MultiError) Error() string {
-	s := []string{}
-	for _, e := range m {
-		if e != nil {
-			s = append(s, e.Error())
-		}
-	}
-	return strings.Join(s, "\n")
-}
-
-func (m MultiError) String() string {
-	return m.Error()
-}
-
 type GitError struct {
 	Root        string
 	Args        []string
@@ -334,8 +318,7 @@ func (g *Git) CheckoutBranch(branch string, opts ...CheckoutOpt) error {
 	// Update all submodules, both current and new.
 	// Un-initialized submodules are updated one by one.
 	if recurseSubmodules {
-		if mErr := g.SubmoduleUpdateAll(bool(rebaseSubmodules)); mErr != nil {
-			err := errors.New(mErr.String())
+		if err := g.SubmoduleUpdateAll(bool(rebaseSubmodules)); err != nil {
 			return err
 		}
 	}
@@ -376,30 +359,28 @@ func (g *Git) SubmoduleUpdate(opts ...SubmoduleUpdateOpt) error {
 }
 
 // SubmoduleUpdateAll updates all submodules, including the ones that are not yet inited.
-func (g *Git) SubmoduleUpdateAll(rebaseSubmodules bool) MultiError {
-	var multiErr MultiError
+func (g *Git) SubmoduleUpdateAll(rebaseSubmodules bool) error {
+	var multiErr error
 	// Update submodules that are currently inited first.
 	if err := g.SubmoduleUpdate(InitOpt(false), RebaseSubmodulesOpt(rebaseSubmodules)); err != nil {
-		multiErr = append(multiErr, err)
+		multiErr = errors.Join(multiErr, err)
 	}
 	// Update un-inited submodules one by one with path.
-	if mErr := g.SubmoduleUpdateNew(); mErr != nil {
-		for _, err := range mErr {
-			multiErr = append(multiErr, err)
-		}
+	if err := g.SubmoduleUpdateNew(); err != nil {
+		multiErr = errors.Join(multiErr, err)
 	}
 	return multiErr
 }
 
-func (g *Git) SubmoduleUpdateNew() MultiError {
-	var multiErr MultiError
+func (g *Git) SubmoduleUpdateNew() error {
+	var multiErr error
 	submPaths, err := g.SubmodulePaths()
 	if err != nil {
-		multiErr = append(multiErr, err)
+		multiErr = errors.Join(multiErr, err)
 		return multiErr
 	}
 	if err := g.SubmoduleInit(submPaths); err != nil {
-		multiErr = append(multiErr, err)
+		multiErr = errors.Join(multiErr, err)
 		return multiErr
 	}
 	var wg sync.WaitGroup
@@ -411,7 +392,7 @@ func (g *Git) SubmoduleUpdateNew() MultiError {
 			defer func() { <-fetchLimit }()
 			defer wg.Done()
 			if err := g.SubmoduleUpdateModule(path); err != nil {
-				multiErr = append(multiErr, err)
+				multiErr = errors.Join(multiErr, err)
 			}
 		}(path)
 	}

@@ -98,14 +98,14 @@ func getCLRefByCommit(jirix *jiri.X, gerritHost, revision string) (string, error
 	return "", nil
 }
 
-func NewSourceManifest(jirix *jiri.X, projects Projects) (*SourceManifest, MultiError) {
+func NewSourceManifest(jirix *jiri.X, projects Projects) (*SourceManifest, error) {
 	jirix.TimerPush("create source manifest")
 	defer jirix.TimerPop()
 
 	workQueue := make(chan Project, len(projects))
 	for _, proj := range projects {
 		if err := proj.relativizePaths(jirix.Root); err != nil {
-			return nil, MultiError{err}
+			return nil, err
 		}
 		workQueue <- proj
 	}
@@ -178,11 +178,7 @@ func NewSourceManifest(jirix *jiri.X, projects Projects) (*SourceManifest, Multi
 	}
 	wg.Wait()
 	close(errs)
-	var multiErr MultiError
-	for err := range errs {
-		multiErr = append(multiErr, err)
-	}
-	return sm, multiErr
+	return sm, errFromChannel(errs)
 }
 
 func (sm *SourceManifest) ToFile(jirix *jiri.X, filename string) error {

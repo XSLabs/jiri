@@ -1063,10 +1063,10 @@ func loadLocalProjectsSlow(jirix *jiri.X) (Projects, error) {
 	// the root.
 	projects := Projects{}
 	jirix.TimerPush("scan fs")
-	multiErr := findLocalProjects(jirix, jirix.Root, projects)
+	err := findLocalProjects(jirix, jirix.Root, projects)
 	jirix.TimerPop()
-	if multiErr != nil {
-		return nil, multiErr
+	if err != nil {
+		return nil, err
 	}
 	return setProjectRevisions(jirix, projects)
 }
@@ -1647,14 +1647,7 @@ func CleanupProjects(jirix *jiri.X, localProjects Projects, cleanupBranches bool
 	wg.Wait()
 	close(errs)
 
-	multiErr := make(MultiError, 0)
-	for err := range errs {
-		multiErr = append(multiErr, err)
-	}
-	if len(multiErr) != 0 {
-		return multiErr
-	}
-	return nil
+	return errFromChannel(errs)
 }
 
 // gitIndexExcludeLocalProject sets projects to assume-unchanged to index in tree to avoid unpredictable submodule changes.
@@ -1780,7 +1773,7 @@ func ProjectAtPath(jirix *jiri.X, path string) (Project, error) {
 
 // findLocalProjects scans the filesystem for all projects.  Note that project
 // directories can be nested recursively.
-func findLocalProjects(jirix *jiri.X, path string, projects Projects) MultiError {
+func findLocalProjects(jirix *jiri.X, path string, projects Projects) error {
 	jirix.TimerPush("find local projects")
 	defer jirix.TimerPop()
 
@@ -1794,11 +1787,11 @@ func findLocalProjects(jirix *jiri.X, path string, projects Projects) MultiError
 		}
 	}()
 	errs := make(chan error, jirix.Jobs)
-	var multiErr MultiError
+	var multiErr error
 	go func() {
 		defer wg.Done()
 		for err := range errs {
-			multiErr = append(multiErr, err)
+			multiErr = errors.Join(multiErr, err)
 		}
 	}()
 	var pwg sync.WaitGroup
@@ -2168,7 +2161,7 @@ func syncProjectMaster(jirix *jiri.X, project Project, state ProjectState, rebas
 				jirix.Logger.Debugf("For project %q, rebased your local branch %q on %q", project.Name, branch.Name, tracking.Name)
 				if project.GitSubmodules && jirix.EnableSubmodules {
 					jirix.Logger.Debugf("Checking out submodules for superproject %q after rebasing", project.Name)
-					if multiErr := scm.SubmoduleUpdateAll(rebaseSubmodules); len(multiErr) != 0 {
+					if err := scm.SubmoduleUpdateAll(rebaseSubmodules); err != nil {
 						msg := fmt.Sprintf("For superproject %s(%s), unable to update submodules", project.Name, relativePath)
 						jirix.Logger.Errorf(msg)
 						jirix.IncrementFailures()
@@ -2216,7 +2209,7 @@ func syncProjectMaster(jirix *jiri.X, project Project, state ProjectState, rebas
 					jirix.Logger.Debugf("For project %q, rebased your untracked branch %q on %q", project.Name, branch.Name, headRevision)
 					if project.GitSubmodules && jirix.EnableSubmodules {
 						jirix.Logger.Debugf("Checking out submodules for superproject %q after rebasing untracked branch", project.Name)
-						if multiErr := scm.SubmoduleUpdateAll(rebaseSubmodules); len(multiErr) != 0 {
+						if err := scm.SubmoduleUpdateAll(rebaseSubmodules); err != nil {
 							msg := fmt.Sprintf("For superproject %s(%s), unable to update submodules", project.Name, relativePath)
 							jirix.Logger.Errorf(msg)
 							jirix.IncrementFailures()
@@ -2253,7 +2246,7 @@ func syncProjectMaster(jirix *jiri.X, project Project, state ProjectState, rebas
 // setRemoteHeadRevisions set the repo statuses from remote for
 // projects at HEAD so we can detect when a local project is already
 // up-to-date.
-func setRemoteHeadRevisions(jirix *jiri.X, remoteProjects Projects, localProjects Projects) MultiError {
+func setRemoteHeadRevisions(jirix *jiri.X, remoteProjects Projects, localProjects Projects) error {
 	jirix.TimerPush("Set Remote Revisions")
 	defer jirix.TimerPop()
 
@@ -2303,12 +2296,7 @@ func setRemoteHeadRevisions(jirix *jiri.X, remoteProjects Projects, localProject
 		remoteProjects[remote.Key()] = remote
 	}
 
-	var multiErr MultiError
-	for err := range errs {
-		multiErr = append(multiErr, err)
-	}
-
-	return multiErr
+	return errFromChannel(errs)
 }
 
 func updateOrCreateCache(jirix *jiri.X, dir, remote, branch, revision string, depth int, gitSubmodules bool) error {
@@ -2482,15 +2470,7 @@ func updateCache(jirix *jiri.X, remoteProjects Projects) error {
 	wg.Wait()
 	close(errs)
 
-	multiErr := make(MultiError, 0)
-	for err := range errs {
-		multiErr = append(multiErr, err)
-	}
-	if len(multiErr) != 0 {
-		return multiErr
-	}
-
-	return nil
+	return errFromChannel(errs)
 }
 
 func fetchLocalProjects(jirix *jiri.X, localProjects, remoteProjects Projects) error {
@@ -2531,14 +2511,7 @@ func fetchLocalProjects(jirix *jiri.X, localProjects, remoteProjects Projects) e
 	wg.Wait()
 	close(errs)
 
-	multiErr := make(MultiError, 0)
-	for err := range errs {
-		multiErr = append(multiErr, err)
-	}
-	if len(multiErr) != 0 {
-		return multiErr
-	}
-	return nil
+	return errFromChannel(errs)
 }
 
 // FilterPackagesByName removes packages in place given a list of CIPD package names.
@@ -2823,7 +2796,7 @@ type ProjectStatus struct {
 	Changes      string
 }
 
-func getProjectStatus(jirix *jiri.X, ps Projects) ([]ProjectStatus, MultiError) {
+func getProjectStatus(jirix *jiri.X, ps Projects) ([]ProjectStatus, error) {
 	jirix.TimerPush("jiri status")
 	defer jirix.TimerPop()
 	workQueue := make(chan Project, len(ps))
@@ -2873,15 +2846,11 @@ func getProjectStatus(jirix *jiri.X, ps Projects) ([]ProjectStatus, MultiError) 
 	close(projectStatuses)
 	close(errs)
 
-	var multiErr MultiError
-	for err := range errs {
-		multiErr = append(multiErr, err)
-	}
 	var psa []ProjectStatus
 	for projectStatus := range projectStatuses {
 		psa = append(psa, projectStatus)
 	}
-	return psa, multiErr
+	return psa, errFromChannel(errs)
 }
 
 // writeMetadata stores the given project metadata in the directory

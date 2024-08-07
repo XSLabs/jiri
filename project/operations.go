@@ -855,7 +855,7 @@ func computeOp(jirix *jiri.X, local, remote *Project, state *ProjectState, rebas
 }
 
 // This function creates worktree and runs create operation in parallel
-func runCreateOperations(jirix *jiri.X, ops []createOperation) MultiError {
+func runCreateOperations(jirix *jiri.X, ops []createOperation) error {
 	jirix.TimerPush("create operations")
 	defer jirix.TimerPop()
 	count := len(ops)
@@ -935,11 +935,7 @@ func runCreateOperations(jirix *jiri.X, ops []createOperation) MultiError {
 	close(workQueue)
 	close(errs)
 
-	var multiErr MultiError
-	for err := range errs {
-		multiErr = append(multiErr, err)
-	}
-	return multiErr
+	return errFromChannel(errs)
 }
 
 type PathTrie struct {
