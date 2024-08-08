@@ -88,11 +88,10 @@ func (c *runHooksCmd) run(jirix *jiri.X, args []string) (err error) {
 	project.FilterPackagesByName(jirix, pkgs, c.packagesToSkip)
 	if c.fetchPackages && len(pkgs) > 0 {
 		// Extend timeout for packages to be 5 times the timeout of a single hook.
-		return project.FetchPackages(jirix, pkgs, c.hookTimeout*5)
+		if err := project.FetchPackages(jirix, pkgs, c.hookTimeout*5); err != nil {
+			return err
+		}
 	}
 
-	if err = project.RunHooks(jirix, hooks, c.hookTimeout); err != nil {
-		return err
-	}
-	return nil
+	return project.RunHooks(jirix, hooks, c.hookTimeout)
 }
