@@ -107,8 +107,9 @@ func fetch(jirix *jiri.X, path, remote string, opts ...gitutil.FetchOpt) error {
 	msg := fmt.Sprintf("Fetching for %s", path)
 	t := jirix.Logger.TrackTime(msg)
 	defer t.Done()
+	opts = append([]gitutil.FetchOpt{gitutil.RecurseSubmodulesOpt(jirix.EnableSubmodules)}, opts...)
 	return retry.Function(jirix, func() error {
-		return gitutil.New(jirix, gitutil.RootDirOpt(path)).Fetch(remote, jirix.EnableSubmodules, opts...)
+		return gitutil.New(jirix, gitutil.RootDirOpt(path)).Fetch(remote, opts...)
 	}, msg, retry.AttemptsOpt(jirix.Attempts))
 }
 

@@ -245,7 +245,7 @@ func (c *uploadCmd) run(jirix *jiri.X, args []string) error {
 	if c.rebase {
 		for _, gerritPushOption := range gerritPushOptions {
 			scm := gitutil.New(jirix, gitutil.RootDirOpt(gerritPushOption.Project.Path))
-			if err := scm.Fetch("origin", jirix.EnableSubmodules); err != nil {
+			if err := scm.Fetch("origin", gitutil.RecurseSubmodulesOpt(jirix.EnableSubmodules)); err != nil {
 				return err
 			}
 			remoteBranch := "remotes/origin/" + gerritPushOption.CLOpts.RemoteBranch

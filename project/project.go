@@ -1972,7 +1972,7 @@ func checkoutHeadRevision(jirix *jiri.X, project Project, forceCheckout bool) er
 	}
 	jirix.Logger.Debugf("Checkout %s to head revision %s failed, fallback to fetch: %v", project.Name, revision, err)
 	if project.Revision != "" && project.Revision != "HEAD" {
-		if err2 := git.FetchRefspec("origin", project.Revision, jirix.EnableSubmodules); err2 != nil {
+		if err2 := git.FetchRefspec("origin", project.Revision, gitutil.RecurseSubmodulesOpt(jirix.EnableSubmodules)); err2 != nil {
 			return fmt.Errorf("error while fetching after failed to checkout revision %s for project %s (%s): %s\ncheckout error: %v", revision, project.Name, project.Path, err2, err)
 		}
 		return git.CheckoutBranch(revision, opts...)
@@ -2358,7 +2358,7 @@ func updateOrCreateCache(jirix *jiri.X, dir, remote, branch, revision string, de
 			// Use --update-head-ok here to force fetch to update the current branch.
 			// This is used in the case of a partial clone having a working tree
 			// checked out in the cache.
-			if err := scm.FetchRefspec("origin", refspec, jirix.EnableSubmodules,
+			if err := scm.FetchRefspec("origin", refspec, gitutil.RecurseSubmodulesOpt(jirix.EnableSubmodules),
 				gitutil.DepthOpt(depth), gitutil.PruneOpt(true), gitutil.UpdateShallowOpt(true), gitutil.UpdateHeadOkOpt(true)); err != nil {
 				return err
 			}

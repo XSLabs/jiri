@@ -367,7 +367,7 @@ func (c *patchCmd) patchProject(jirix *jiri.X, local project.Project, ref, branc
 	} else {
 		jirix.Logger.Infof("Patching project %s(%s) to ref %q\n", local.Name, local.Path, ref)
 	}
-	if err := scm.FetchRefspec("origin", ref, jirix.EnableSubmodules); err != nil {
+	if err := scm.FetchRefspec("origin", ref, gitutil.RecurseSubmodulesOpt(jirix.EnableSubmodules)); err != nil {
 		return false, err
 	}
 	branchBase := "FETCH_HEAD"
@@ -389,7 +389,7 @@ func (c *patchCmd) patchProject(jirix *jiri.X, local project.Project, ref, branc
 		}
 		// Fetch the remote branch before trying to set it as upstream, in case
 		// it hasn't yet been fetched.
-		if err := scm.FetchRefspec("origin", remote, false); err != nil {
+		if err := scm.FetchRefspec("origin", remote); err != nil {
 			return false, fmt.Errorf("failed to fetch 'origin/%s': %s", remote, err)
 		}
 		if err := scm.SetUpstream(branch, "origin/"+remote); err != nil {
@@ -415,7 +415,7 @@ func (c *patchCmd) patchProject(jirix *jiri.X, local project.Project, ref, branc
 		// FETCH_HEAD. This will not be true after a rebase, as the rebase
 		// functions perform fetches of their own.
 		if c.cherryPick {
-			if err := scm.FetchRefspec("origin", ref, jirix.EnableSubmodules); err != nil {
+			if err := scm.FetchRefspec("origin", ref, gitutil.RecurseSubmodulesOpt(jirix.EnableSubmodules)); err != nil {
 				return false, err
 			}
 		}
@@ -464,7 +464,7 @@ func (c *patchCmd) rebaseProject(jirix *jiri.X, project project.Project, branch,
 	}
 	// TODO: provide a way to set username and email
 	scm = gitutil.New(jirix, gitutil.UserNameOpt(name), gitutil.UserEmailOpt(email), gitutil.RootDirOpt(project.Path))
-	if err := scm.FetchRefspec("origin", remoteBranch, jirix.EnableSubmodules); err != nil {
+	if err := scm.FetchRefspec("origin", remoteBranch, gitutil.RecurseSubmodulesOpt(jirix.EnableSubmodules)); err != nil {
 		jirix.Logger.Errorf("Not able to fetch branch %q: %s", remoteBranch, err)
 		jirix.IncrementFailures()
 		return nil
@@ -491,12 +491,12 @@ func (c *patchCmd) rebaseProjectWRevision(jirix *jiri.X, project project.Project
 		return fmt.Errorf("Rebase: cannot get user info for HEAD: %s", err)
 	}
 	scm = gitutil.New(jirix, gitutil.UserNameOpt(name), gitutil.UserEmailOpt(email), gitutil.RootDirOpt(project.Path))
-	if err := scm.Fetch("origin", jirix.EnableSubmodules, gitutil.PruneOpt(true)); err != nil {
+	if err := scm.Fetch("origin", gitutil.RecurseSubmodulesOpt(jirix.EnableSubmodules), gitutil.PruneOpt(true)); err != nil {
 		jirix.Logger.Errorf("Not able to fetch origin: %v", err)
 		jirix.IncrementFailures()
 		return nil
 	}
-	if err := scm.FetchRefspec("origin", revision, jirix.EnableSubmodules); err != nil {
+	if err := scm.FetchRefspec("origin", revision, gitutil.RecurseSubmodulesOpt(jirix.EnableSubmodules)); err != nil {
 		jirix.Logger.Errorf("Not able to fetch revision %q: %s", revision, err)
 		jirix.IncrementFailures()
 		return nil

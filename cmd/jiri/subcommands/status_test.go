@@ -193,7 +193,7 @@ func TestStatusWhenUserUpdatesGitTree(t *testing.T) {
 	writeFile(t, fake.X, fake.Projects[localProjects[0].Name], "file", "file")
 	// git fetch
 	gitLocal := gitutil.New(fake.X, gitutil.RootDirOpt(localProjects[0].Path))
-	if err := gitLocal.Fetch("origin", false); err != nil {
+	if err := gitLocal.Fetch("origin"); err != nil {
 		t.Fatal(err)
 	}
 

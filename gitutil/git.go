@@ -844,12 +844,12 @@ func (g *Git) CreateLightweightTag(name string) error {
 }
 
 // Fetch fetches refs and tags from the given remote.
-func (g *Git) Fetch(remote string, enableSubmodules bool, opts ...FetchOpt) error {
-	return g.FetchRefspec(remote, "", enableSubmodules, opts...)
+func (g *Git) Fetch(remote string, opts ...FetchOpt) error {
+	return g.FetchRefspec(remote, "", opts...)
 }
 
 // FetchRefspec fetches refs and tags from the given remote for a particular refspec.
-func (g *Git) FetchRefspec(remote, refspec string, enabledSubmodules bool, opts ...FetchOpt) error {
+func (g *Git) FetchRefspec(remote, refspec string, opts ...FetchOpt) error {
 	tags := false
 	all := false
 	prune := false
@@ -858,6 +858,7 @@ func (g *Git) FetchRefspec(remote, refspec string, enabledSubmodules bool, opts 
 	fetchTag := ""
 	updateHeadOk := false
 	jobs := uint(0)
+	recurseSubmodules := false
 	for _, opt := range opts {
 		switch typedOpt := opt.(type) {
 		case TagsOpt:
@@ -876,11 +877,13 @@ func (g *Git) FetchRefspec(remote, refspec string, enabledSubmodules bool, opts 
 			updateHeadOk = bool(typedOpt)
 		case JobsOpt:
 			jobs = uint(typedOpt)
+		case RecurseSubmodulesOpt:
+			recurseSubmodules = bool(typedOpt)
 		}
 	}
 	args := []string{}
 	args = append(args, "fetch")
-	if !enabledSubmodules {
+	if !recurseSubmodules {
 		args = append(args, "--recurse-submodules=no")
 	}
 	if prune {
