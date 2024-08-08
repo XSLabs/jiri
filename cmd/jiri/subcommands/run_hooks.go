@@ -79,17 +79,20 @@ func (c *runHooksCmd) run(jirix *jiri.X, args []string) (err error) {
 	if err != nil {
 		return err
 	}
-	if err = project.RunHooks(jirix, hooks, c.hookTimeout); err != nil {
-		return err
-	}
+
+	// If fetchPackages is true, fetch packages before running hooks in case
+	// the hooks rely on the packages being available in the checkout.
 	if err := project.FilterOptionalProjectsPackages(jirix, jirix.FetchingAttrs, nil, pkgs); err != nil {
 		return err
 	}
 	project.FilterPackagesByName(jirix, pkgs, c.packagesToSkip)
-	// Get packages if the fetchPackages is true
 	if c.fetchPackages && len(pkgs) > 0 {
 		// Extend timeout for packages to be 5 times the timeout of a single hook.
 		return project.FetchPackages(jirix, pkgs, c.hookTimeout*5)
+	}
+
+	if err = project.RunHooks(jirix, hooks, c.hookTimeout); err != nil {
+		return err
 	}
 	return nil
 }
