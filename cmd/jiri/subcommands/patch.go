@@ -387,6 +387,11 @@ func (c *patchCmd) patchProject(jirix *jiri.X, local project.Project, ref, branc
 		if err := scm.CreateBranchFromRef(branch, branchBase); err != nil {
 			return false, err
 		}
+		// Fetch the remote branch before trying to set it as upstream, in case
+		// it hasn't yet been fetched.
+		if err := scm.FetchRefspec("origin", remote, false); err != nil {
+			return false, fmt.Errorf("failed to fetch 'origin/%s': %s", remote, err)
+		}
 		if err := scm.SetUpstream(branch, "origin/"+remote); err != nil {
 			return false, fmt.Errorf("setting upstream to 'origin/%s': %s", remote, err)
 		}
