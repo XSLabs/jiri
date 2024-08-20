@@ -1371,9 +1371,7 @@ func GenerateJiriLockFile(jirix *jiri.X, manifestFiles []string, resolveConfig R
 					}
 					pkgsPlatformMap[pkgInstance] = plats
 				}
-				if err := cipd.CheckFloatingRefs(jirix, pkgsForRefCheck, pkgsPlatformMap); err != nil {
-					return nil, nil, err
-				}
+				cipd.CheckFloatingRefs(pkgsForRefCheck)
 				for k, v := range pkgsForRefCheck {
 					var errBuf bytes.Buffer
 					if v {

@@ -10,6 +10,7 @@ import (
 	"context"
 	"crypto/sha256"
 	_ "embed"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -31,7 +32,6 @@ import (
 	"go.fuchsia.dev/jiri/log"
 	"go.fuchsia.dev/jiri/retry"
 	"go.fuchsia.dev/jiri/version"
-	"golang.org/x/sync/semaphore"
 )
 
 const (
@@ -67,6 +67,12 @@ var (
 	// Spaces must be trimmed because it's read from an embedded text file that
 	// may contain trailing newlines.
 	cipdVersion = strings.TrimSpace(untrimmedCipdVersion)
+
+	// Matches legacy CIPD instance IDs
+	hexMatcher = regexp.MustCompile("[a-fA-F0-9]{40}")
+
+	// Matches allowed CIPD ref alphabet
+	pkgRefMatcher = regexp.MustCompile(`^[a-z0-9_./\-]{1,256}$`)
 )
 
 func init() {
@@ -591,178 +597,44 @@ type packageFloatingRef struct {
 
 // CheckFloatingRefs determines if pkgs contains a floating ref which shouldn't
 // be used normally.
-func CheckFloatingRefs(jirix *jiri.X, pkgs map[PackageInstance]bool, plats map[PackageInstance][]Platform) error {
-	if err := Bootstrap(jirix); err != nil {
-		return err
-	}
-
-	jsonDir, err := os.MkdirTemp("", "jiri_cipd")
-	if err != nil {
-		return err
-	}
-	defer os.RemoveAll(jsonDir)
-
-	c := make(chan packageFloatingRef)
-	sem := semaphore.NewWeighted(10)
-	var errBuf bytes.Buffer
+//
+// Note that CIPD versions can either be:
+//   - A legacy InstanceID (40 hex chars)
+//   - A modern InstanceID (>28 chars, base64 encoded)
+//   - A tag (contains ':')
+//   - A ref
+//
+// Technically, there are additional semantic checks for modern InstanceID
+// decoding (see
+// https://pkg.go.dev/go.chromium.org/luci/cipd/common#ValidateInstanceID).
+//
+// However, for the purpose of this function, we only care about finding likely
+// refs, so we use heuristics to approximate the fuller parsing without needing
+// to invoke the cipd binary.
+//
+// A previous version of this code used `cipd describe` and then checked to see
+// if the VersionTag was present in the Refs field of the returned JSON.
+// Under the hood this makes an incredibly expensive RPC to CIPD and was
+// dominating the database read costs there.
+func CheckFloatingRefs(pkgs map[PackageInstance]bool) {
 	for k := range pkgs {
-		plat, ok := plats[k]
-		if !ok {
-			return fmt.Errorf("Platforms for package \"%s\" is not found", k.PackageName)
-		}
-		go checkFloatingRefs(jirix, k, plat, jsonDir, sem, c)
-	}
-
-	for i := 0; i < len(pkgs); i++ {
-		floatingRef := <-c
-		pkgs[floatingRef.pkg] = floatingRef.floating
-		if floatingRef.err != nil {
-			errBuf.WriteString(fmt.Sprintf("error happened while checking package %q with version %q: %v\n", floatingRef.pkg.PackageName, floatingRef.pkg.VersionTag, floatingRef.err.Error()))
-		}
-	}
-
-	if errBuf.Len() != 0 {
-		// Remote trailing '\n'
-		errBuf.Truncate(errBuf.Len() - 1)
-		return errors.New(errBuf.String())
-	}
-	return nil
-}
-
-type describeJSON struct {
-	Refs []refsJSON `json:"refs,omitempty"`
-}
-
-type refsJSON struct {
-	Ref string `json:"ref,omitempty"`
-}
-
-func checkFloatingRefs(jirix *jiri.X, pkg PackageInstance, plats []Platform, jsonDir string, sem *semaphore.Weighted, c chan<- packageFloatingRef) {
-	// cipd should already bootstrapped before calling
-	// this function.
-	sem.Acquire(context.Background(), 1)
-	defer sem.Release(1)
-	// jsonFile will be cleaned up by caller.
-	jsonFile, err := os.CreateTemp(jsonDir, "cipd*.json")
-	if err != nil {
-		c <- packageFloatingRef{
-			pkg:      pkg,
-			err:      err,
-			floating: false,
-		}
-		return
-	}
-	jsonFileName := jsonFile.Name()
-	jsonFile.Close()
-
-	// Remove ${platform}, ${os} ... from package name before calling cipd describe
-	// as it will fail when these tags are not compatible with current host.
-	pkgName := pkg.PackageName
-	if MustExpand(pkgName) {
-		expandedPkgName, err := Expand(pkgName, plats)
-		if err != nil {
-			c <- packageFloatingRef{
-				pkg:      pkg,
-				err:      err,
-				floating: false,
+		switch {
+		case strings.Contains(k.VersionTag, ":"):
+			// it's a tag, not floating
+		case len(k.VersionTag) == 40 && hexMatcher.MatchString(k.VersionTag):
+			// legacy InstanceID
+		case !pkgRefMatcher.MatchString(k.VersionTag):
+			// not a valid ref
+		default:
+			_, err := base64.RawURLEncoding.DecodeString(k.VersionTag)
+			if err == nil {
+				// we assume it's a modern InstanceID
+			} else {
+				// we assume it's a ref
+				pkgs[k] = true
 			}
-			return
-		}
-		if len(expandedPkgName) == 0 {
-			c <- packageFloatingRef{
-				pkg: pkg,
-				// avoid using %q as we don't want escape characters in the output.
-				err:      fmt.Errorf("cannot expand package \"%s\"", pkgName),
-				floating: false,
-			}
-			return
-		}
-		pkgName = expandedPkgName[0]
-	}
-
-	args := []string{"describe", pkgName, "-version", pkg.VersionTag, "-json-output", jsonFileName}
-	jirix.Logger.Debugf("Invoke cipd with %v", args)
-
-	var stdoutBuf bytes.Buffer
-	var stderrBuf bytes.Buffer
-	command := exec.Command(jirix.CIPDPath(), args...)
-	command.Env = append(os.Environ(), "CIPD_HTTP_USER_AGENT_PREFIX="+getUserAgent())
-	command.Stdin = os.Stdin
-	command.Stdout = &stdoutBuf
-	command.Stderr = &stderrBuf
-
-	if err := command.Run(); err != nil {
-		c <- packageFloatingRef{
-			pkg:      pkg,
-			err:      fmt.Errorf("cipd describe failed due to error: %v, stdout: %s\n, stderr: %s", err, stdoutBuf.String(), stderrBuf.String()),
-			floating: false,
-		}
-		return
-	}
-
-	jsonData, err := os.ReadFile(jsonFileName)
-	if err != nil {
-		c <- packageFloatingRef{
-			pkg:      pkg,
-			err:      err,
-			floating: false,
-		}
-		return
-	}
-	// Example of generated JSON:
-	// {
-	// 	"result": {
-	// 	  "pin": {
-	// 		"package": "gn/gn/linux-amd64",
-	// 		"instance_id": "4usiirrra6WbnCKgplRoiJ8EcAsCuqCOd_7tpf_yXrAC"
-	// 	  },
-	// 	  "registered_by": "user:infra-internal-gn-builder@chops-service-accounts.iam.gserviceaccount.com",
-	// 	  "registered_ts": 1554328925,
-	// 	  "refs": [
-	// 		{
-	// 		  "ref": "latest",
-	// 		  "instance_id": "4usiirrra6WbnCKgplRoiJ8EcAsCuqCOd_7tpf_yXrAC",
-	// 		  "modified_by": "user:infra-internal-gn-builder@chops-service-accounts.iam.gserviceaccount.com",
-	// 		  "modified_ts": 1554328926
-	// 		}
-	// 	  ],
-	// 	  "tags": [
-	// 		{
-	// 		  "tag": "git_repository:https://gn.googlesource.com/gn",
-	// 		  "registered_by": "user:infra-internal-gn-builder@chops-service-accounts.iam.gserviceaccount.com",
-	// 		  "registered_ts": 1554328925
-	// 		},
-	// 		{
-	// 		  "tag": "git_revision:64b846c96daeb3eaf08e26d8a84d8451c6cb712b",
-	// 		  "registered_by": "user:infra-internal-gn-builder@chops-service-accounts.iam.gserviceaccount.com",
-	// 		  "registered_ts": 1554328925
-	// 		}
-	// 	  ]
-	// 	}
-	// }
-	// Only "refs" is needed.
-
-	var result struct {
-		Result describeJSON `json:"result"`
-	}
-
-	if err := json.Unmarshal(jsonData, &result); err != nil {
-		c <- packageFloatingRef{
-			pkg:      pkg,
-			err:      err,
-			floating: false,
-		}
-		return
-	}
-
-	for _, v := range result.Result.Refs {
-		if v.Ref == pkg.VersionTag {
-			c <- packageFloatingRef{pkg: pkg, err: nil, floating: true}
-			return
 		}
 	}
-	c <- packageFloatingRef{pkg: pkg, err: nil, floating: false}
-	return
 }
 
 // Platform contains the parameters for a "${platform}" template.

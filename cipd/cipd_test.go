@@ -443,16 +443,22 @@ func TestDecl(t *testing.T) {
 
 func TestFloatingRefs(t *testing.T) {
 	t.Parallel()
-	fakex := newX(t)
 	testExpects := map[PackageInstance]bool{
-		{
-			PackageName: "gn/gn/${platform}",
-			VersionTag:  "latest",
-		}: true,
-		{
-			PackageName: "gn/gn/${platform}",
-			VersionTag:  "git_revision:bdb0fd02324b120cacde634a9235405061c8ea06",
-		}: false,
+		{VersionTag: "latest"}:        true,
+		{VersionTag: "very/long/ref"}: true,
+		// this looks like a legacy instanceID but is too long
+		{VersionTag: "b8abd799a0e246f4692a390a55c2d6a9c84312fcfff"}: true,
+		// this looks like a legacy instanceID but is too short
+		{VersionTag: "b8abd799a0e246f4692a390a55c2d6a9c84312"}: true,
+
+		// this is a legacy instanceID (hex(sha1))
+		{VersionTag: "b8abd799a0e246f4692a390a55c2d6a9c84312fc"}: false,
+		// this is a modern instanceID (base64(hashtype | sha256)
+		{VersionTag: "uKvXmaDiRvRpKjkKVcLWqchDEvwUZKynE0A0IyejVVkC"}: false,
+		// this is a modern instanceID (base64(hashtype | sha1)
+		{VersionTag: "uKvXmaDiRvRpKjkKVcLWqchDEvwUZ"}: false,
+		// this is a tag
+		{VersionTag: "git_revision:bdb0fd02324b120cacde634a9235405061c8ea06"}: false,
 	}
 
 	platformMap := make(map[PackageInstance][]Platform)
@@ -465,10 +471,7 @@ func TestFloatingRefs(t *testing.T) {
 		tests[k] = v
 	}
 
-	if err := CheckFloatingRefs(fakex, tests, platformMap); err != nil {
-		t.Fatalf("CheckFloatingRefs failed due to error: %v", err)
-		return
-	}
+	CheckFloatingRefs(tests)
 
 	for k, v := range tests {
 		if v != testExpects[k] {
