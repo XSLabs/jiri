@@ -28,16 +28,22 @@ func TestFindRootEnvSymlink(t *testing.T) {
 	root, perm := filepath.Join(tmpDir, "root"), os.FileMode(0700)
 	symRoot := filepath.Join(tmpDir, "sym_root")
 	if err := os.MkdirAll(root, perm); err != nil {
-		t.Fatalf("%s", err)
+		t.Fatal(err)
 	}
 	if err := os.Symlink(root, symRoot); err != nil {
-		t.Fatalf("%s", err)
+		t.Fatal(err)
 	}
 
 	// Set the -root flag to the symlink created above and check that
 	// FindRoot() evaluates the symlink.
-	rootFlag = symRoot
-	if got, want := FindRoot(), root; got != want {
+	flags := TopLevelFlags{Root: symRoot}
+	got, err := FindRoot(flags, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	want := root
+	if got != want {
 		t.Fatalf("unexpected output: got %v, want %v", got, want)
 	}
 }

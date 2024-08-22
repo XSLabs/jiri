@@ -8,21 +8,24 @@
 package main
 
 import (
+	"fmt"
+	"os"
 	"runtime"
 
 	"go.fuchsia.dev/jiri/cmd/jiri/subcommands"
 	"go.fuchsia.dev/jiri/cmdline"
 )
 
-// cmdRoot represents the root of the jiri tool.
-var cmdRoot *cmdline.Command
-
 func init() {
-	cmdRoot = subcommands.NewCmdRoot()
 	runtime.GOMAXPROCS(runtime.NumCPU())
 	platform_init()
 }
 
 func main() {
-	cmdline.Main(cmdRoot)
+	env := cmdline.EnvFromOS()
+	commander, err := subcommands.NewCommander(os.Args[1:])
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "ERROR: %s", err)
+	}
+	os.Exit(int(cmdline.Main(env, commander)))
 }

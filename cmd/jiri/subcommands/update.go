@@ -36,6 +36,8 @@ func init() {
 }
 
 type updateCmd struct {
+	cmdBase
+
 	gc               bool
 	localManifest    bool
 	attempts         uint
@@ -90,8 +92,8 @@ Usage:
 `
 }
 
-func (c *updateCmd) Execute(ctx context.Context, _ *flag.FlagSet, args ...any) subcommands.ExitStatus {
-	return executeWrapper(ctx, c.run, args)
+func (c *updateCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...any) subcommands.ExitStatus {
+	return executeWrapper(ctx, c.run, c.topLevelFlags, f.Args())
 }
 
 func (c *updateCmd) run(jirix *jiri.X, args []string) error {
@@ -99,27 +101,27 @@ func (c *updateCmd) run(jirix *jiri.X, args []string) error {
 		return jirix.UsageErrorf("unexpected number of arguments")
 	}
 
-	if updateFlags.attempts < 1 {
+	if c.attempts < 1 {
 		return jirix.UsageErrorf("Number of attempts should be >= 1")
 	}
-	jirix.Attempts = updateFlags.attempts
+	jirix.Attempts = c.attempts
 
-	if updateFlags.autoupdate {
+	if c.autoupdate {
 		// Try to update Jiri itself.
 		if err := retry.Function(jirix, func() error {
-			return jiri.UpdateAndExecute(updateFlags.forceAutoupdate)
+			return jiri.UpdateAndExecute(c.forceAutoupdate)
 		}, fmt.Sprintf("download jiri binary"), retry.AttemptsOpt(jirix.Attempts)); err != nil {
 			fmt.Fprintf(jirix.Stdout(), "warning: automatic update failed: %v\n", err)
 		}
 	}
-	if updateFlags.rebaseCurrent {
-		jirix.Logger.Warningf("updateFlags. -rebase-current has been deprecated, please use -rebase-tracked.\n\n")
-		updateFlags.rebaseTracked = true
+	if c.rebaseCurrent {
+		jirix.Logger.Warningf("c. -rebase-current has been deprecated, please use -rebase-tracked.\n\n")
+		c.rebaseTracked = true
 	}
 
 	if len(args) > 0 {
-		jirix.OverrideOptional = updateFlags.overrideOptional
-		if err := project.CheckoutSnapshot(jirix, args[0], updateFlags.gc, updateFlags.runHooks, updateFlags.fetchPkgs, updateFlags.hookTimeout, updateFlags.fetchPkgsTimeout, updateFlags.packagesToSkip); err != nil {
+		jirix.OverrideOptional = c.overrideOptional
+		if err := project.CheckoutSnapshot(jirix, args[0], c.gc, c.runHooks, c.fetchPkgs, c.hookTimeout, c.fetchPkgsTimeout, c.packagesToSkip); err != nil {
 			return err
 		}
 	} else {
@@ -133,19 +135,19 @@ func (c *updateCmd) run(jirix *jiri.X, args []string) error {
 		}
 
 		err := project.UpdateUniverse(jirix, project.UpdateUniverseParams{
-			GC:                   updateFlags.gc,
-			LocalManifest:        updateFlags.localManifest,
-			RebaseTracked:        updateFlags.rebaseTracked,
-			RebaseUntracked:      updateFlags.rebaseUntracked,
-			RebaseAll:            updateFlags.rebaseAll,
-			RunHooks:             updateFlags.runHooks,
-			FetchPackages:        updateFlags.fetchPkgs,
-			RebaseSubmodules:     updateFlags.rebaseSubmodules,
-			RunHookTimeout:       updateFlags.hookTimeout,
-			FetchPackagesTimeout: updateFlags.fetchPkgsTimeout,
-			PackagesToSkip:       updateFlags.packagesToSkip,
+			GC:                   c.gc,
+			LocalManifest:        c.localManifest,
+			RebaseTracked:        c.rebaseTracked,
+			RebaseUntracked:      c.rebaseUntracked,
+			RebaseAll:            c.rebaseAll,
+			RunHooks:             c.runHooks,
+			FetchPackages:        c.fetchPkgs,
+			RebaseSubmodules:     c.rebaseSubmodules,
+			RunHookTimeout:       c.hookTimeout,
+			FetchPackagesTimeout: c.fetchPkgsTimeout,
+			PackagesToSkip:       c.packagesToSkip,
 		})
-		if err2 := project.WriteUpdateHistorySnapshot(jirix, nil, nil, updateFlags.localManifest); err2 != nil {
+		if err2 := project.WriteUpdateHistorySnapshot(jirix, nil, nil, c.localManifest); err2 != nil {
 			if err != nil {
 				return fmt.Errorf("while updating: %s, while writing history: %s", err, err2)
 			}

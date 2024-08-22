@@ -19,7 +19,9 @@ var (
 	cmdSourceManifest = commandFromSubcommand(&sourceManifestCmd{})
 )
 
-type sourceManifestCmd struct{}
+type sourceManifestCmd struct {
+	cmdBase
+}
 
 func (c *sourceManifestCmd) Name() string { return "source-manifest" }
 func (c *sourceManifestCmd) Synopsis() string {
@@ -38,8 +40,8 @@ Usage:
 
 func (c *sourceManifestCmd) SetFlags(f *flag.FlagSet) {}
 
-func (c *sourceManifestCmd) Execute(ctx context.Context, _ *flag.FlagSet, args ...any) subcommands.ExitStatus {
-	return executeWrapper(ctx, c.run, args)
+func (c *sourceManifestCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...any) subcommands.ExitStatus {
+	return executeWrapper(ctx, c.run, c.topLevelFlags, f.Args())
 }
 
 func (c *sourceManifestCmd) run(jirix *jiri.X, args []string) error {

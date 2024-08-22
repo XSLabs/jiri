@@ -29,6 +29,8 @@ func init() {
 }
 
 type projectConfigCmd struct {
+	cmdBase
+
 	ignore   string
 	noUpdate string
 	noRebase string
@@ -52,8 +54,8 @@ func (c *projectConfigCmd) SetFlags(f *flag.FlagSet) {
 	f.StringVar(&c.noRebase, "no-rebase", "", `This can be true or false. If set to true local branch won't be rebased or merged.`)
 }
 
-func (c *projectConfigCmd) Execute(ctx context.Context, _ *flag.FlagSet, args ...any) subcommands.ExitStatus {
-	return executeWrapper(ctx, c.run, args)
+func (c *projectConfigCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...any) subcommands.ExitStatus {
+	return executeWrapper(ctx, c.run, c.topLevelFlags, f.Args())
 }
 
 func (c *projectConfigCmd) run(jirix *jiri.X, args []string) error {

@@ -28,7 +28,9 @@ var (
 	}
 )
 
-type bootstrapCmd struct{}
+type bootstrapCmd struct {
+	cmdBase
+}
 
 func (c *bootstrapCmd) Name() string     { return "bootstrap" }
 func (c *bootstrapCmd) Synopsis() string { return "Bootstrap essential packages" }
@@ -45,8 +47,8 @@ Usage:
 
 func (c *bootstrapCmd) SetFlags(f *flag.FlagSet) {}
 
-func (c *bootstrapCmd) Execute(ctx context.Context, _ *flag.FlagSet, args ...any) subcommands.ExitStatus {
-	return errToExitStatus(c.run(ctx, argsToStrings(args)))
+func (c *bootstrapCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...any) subcommands.ExitStatus {
+	return errToExitStatus(ctx, c.run(ctx, f.Args()))
 }
 
 func (c *bootstrapCmd) run(ctx context.Context, args []string) error {
@@ -58,7 +60,7 @@ func (c *bootstrapCmd) run(ctx context.Context, args []string) error {
 	for _, v := range args {
 		switch strings.ToLower(v) {
 		case "cipd":
-			jirix, err := jiri.NewXFromContext(ctx)
+			jirix, err := jiri.NewXFromContext(ctx, c.topLevelFlags)
 			if err != nil {
 				return err
 			}

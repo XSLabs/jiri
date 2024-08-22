@@ -35,6 +35,8 @@ func init() {
 }
 
 type editCmd struct {
+	cmdBase
+
 	projects   arrayFlag
 	imports    arrayFlag
 	packages   arrayFlag
@@ -69,8 +71,8 @@ func (c *editCmd) SetFlags(f *flag.FlagSet) {
 	f.StringVar(&c.editMode, "edit-mode", "both", "Edit mode. It can be 'manifest' for updating project revisions in manifest only, 'lockfile' for updating project revisions in lockfile only or 'both' for updating project revisions in both files.")
 }
 
-func (c *editCmd) Execute(ctx context.Context, _ *flag.FlagSet, args ...any) subcommands.ExitStatus {
-	return executeWrapper(ctx, c.run, args)
+func (c *editCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...any) subcommands.ExitStatus {
+	return executeWrapper(ctx, c.run, c.topLevelFlags, f.Args())
 }
 
 func (c *editCmd) run(jirix *jiri.X, args []string) error {

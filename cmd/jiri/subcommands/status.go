@@ -32,6 +32,8 @@ func init() {
 }
 
 type statusCmd struct {
+	cmdBase
+
 	changes        bool
 	checkHead      bool
 	branch         string
@@ -62,8 +64,8 @@ func (c *statusCmd) SetFlags(f *flag.FlagSet) {
 	f.BoolVar(&c.deleted, "d", false, "Same as -deleted.")
 }
 
-func (c *statusCmd) Execute(ctx context.Context, _ *flag.FlagSet, args ...any) subcommands.ExitStatus {
-	return executeWrapper(ctx, c.run, args)
+func (c *statusCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...any) subcommands.ExitStatus {
+	return executeWrapper(ctx, c.run, c.topLevelFlags, f.Args())
 }
 
 func colorFormatGitLog(jirix *jiri.X, log string) string {

@@ -31,6 +31,8 @@ func init() {
 }
 
 type importCmd struct {
+	cmdBase
+
 	// Flags for configuring project attributes for remote imports.
 	name         string
 	remoteBranch string
@@ -73,7 +75,7 @@ func (c *importCmd) SetFlags(f *flag.FlagSet) {
 	f.StringVar(&c.name, "name", "manifest", `The name of the remote manifest project.`)
 	f.StringVar(&c.remoteBranch, "remote-branch", "main", `The branch of the remote manifest project to track, without the leading "origin/".`)
 	f.StringVar(&c.revision, "revision", "", `Revision to check out for the remote.`)
-	f.StringVar(&c.root, "root", "", `Root to store the manifest project locally.`)
+	f.StringVar(&c.root, "manifest-root", "", `Root to store the manifest project locally.`)
 	f.BoolVar(&c.overwrite, "overwrite", false, `Write a new .jiri_manifest file with the given specification.  If it already exists, the existing content will be ignored and the file will be overwritten.`)
 	f.StringVar(&c.out, "out", "", `The output file.  Uses <root>/.jiri_manifest if unspecified.  Uses stdout if set to "-".`)
 	f.BoolVar(&c.delete, "delete", false, `Delete existing import. Import is matched using <manifest>, <remote> and name. <remote> is optional.`)
@@ -81,8 +83,8 @@ func (c *importCmd) SetFlags(f *flag.FlagSet) {
 	f.StringVar(&c.jsonOutput, "json-output", "", `Json output file from -list flag.`)
 }
 
-func (c *importCmd) Execute(ctx context.Context, _ *flag.FlagSet, args ...any) subcommands.ExitStatus {
-	return executeWrapper(ctx, c.run, args)
+func (c *importCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...any) subcommands.ExitStatus {
+	return executeWrapper(ctx, c.run, c.topLevelFlags, f.Args())
 }
 
 func (c *importCmd) run(jirix *jiri.X, args []string) error {

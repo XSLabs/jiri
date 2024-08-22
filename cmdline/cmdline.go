@@ -45,14 +45,11 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
-	"os/exec"
-	"path/filepath"
-	"reflect"
 	"sort"
+	"strconv"
 	"strings"
-	"syscall"
 
-	"go.fuchsia.dev/jiri/envvar"
+	"github.com/google/subcommands"
 	_ "go.fuchsia.dev/jiri/metadata" // for the -metadata flag
 	"go.fuchsia.dev/jiri/timing"
 )
@@ -127,32 +124,32 @@ type Topic struct {
 	Long  string // Long description, shown in help for this topic.
 }
 
-// Main implements the main function for the command tree rooted at root.
-//
-// It initializes a new environment from the underlying operating system, parses
-// os.Args[1:] against the root command, and runs the resulting runner.  Calls
-// os.Exit with an exit code that is 0 for success, or non-zero for errors.
-//
-// Most main packages should be implemented as follows:
-//
-//	var root := &cmdline.Command{...}
-//
-//	func main() {
-//	  cmdline.Main(root)
-//	}
-func Main(root *Command) {
-	env := EnvFromOS()
+// Main implements the main function for the given commander.
+func Main(env *Env, commander *subcommands.Commander) subcommands.ExitStatus {
 	if env.Timer != nil && len(env.Timer.Intervals) > 0 {
-		env.Timer.Intervals[0].Name = pathName(env.prefix(), []*Command{root})
+		env.Timer.Intervals[0].Name = commander.Name()
 	}
-	err := ParseAndRun(root, env, os.Args[1:])
-	code := ExitCode(err, env.Stderr)
-	if err := writeTiming(env, *flagTime, *flagTimeFile); err != nil {
+	ctx := AddEnvToContext(context.Background(), env)
+	var flagTime bool
+	var flagTimeFile string
+	// Hack to get around the fact that we can't import the flagTime and
+	// flagTimeFile variables into this package as that would cause circular
+	// imports.
+	commander.VisitAll(func(f *flag.Flag) {
+		switch f.Name {
+		case "time":
+			flagTime, _ = strconv.ParseBool(f.Value.String())
+		case "timefile":
+			flagTimeFile = f.Value.String()
+		}
+	})
+	code := commander.Execute(ctx)
+	if err := writeTiming(env, flagTime, flagTimeFile); err != nil {
 		if code == 0 {
-			code = ExitCode(err, env.Stderr)
+			code = subcommands.ExitStatus(ExitCode(err, env.Stderr))
 		}
 	}
-	os.Exit(code)
+	return code
 }
 
 func writeTiming(env *Env, timingEnabled bool, timeFile string) error {
@@ -180,9 +177,6 @@ func writeTiming(env *Env, timingEnabled bool, timeFile string) error {
 	}
 	return err
 }
-
-var flagTime = flag.Bool("time", false, "Dump timing information to stderr before exiting the program.")
-var flagTimeFile = flag.String("timefile", "", "File to dump timing information to, if not stderr.")
 
 // Parse parses args against the command tree rooted at root down to a leaf
 // command.  A single path through the command tree is traversed, based on the
@@ -220,142 +214,14 @@ func Parse(ctx context.Context, root *Command, args []string) (Runner, []string,
 
 	env.TimerPush("cmdline parse")
 	defer env.TimerPop()
-	if globalFlags == nil {
-		// Initialize our global flags to a cleaned copy.  We don't want the merging
-		// in parseFlags to contaminate the global flags, even if Parse is called
-		// multiple times, so we keep a single package-level copy.
-		cleanFlags(flag.CommandLine)
-		globalFlags = copyFlags(flag.CommandLine)
-	}
-	// Set env.Usage to the usage of the root command, in case the parse fails.
-	path := []*Command{root}
-
-	env.Usage = makeHelpRunner(path, env).usageFunc
-	cleanTree(root)
-	if err := checkTreeInvariants(path, env); err != nil {
-		return nil, nil, err
-	}
 	runner, args, err := root.parse(ctx, nil, args, make(map[string]string))
 	if err != nil {
 		return nil, nil, err
 	}
-	// Clear envvars that start with "CMDLINE_" when returning a user-specified
-	// runner, to avoid polluting the environment.  In particular CMDLINE_PREFIX
-	// and CMDLINE_FIRST_CALL are only meant to be passed to external children,
-	// and shouldn't be propagated through the user's runner.
-	switch runner.(type) {
-	case helpRunner, binaryRunner:
-		// The help and binary runners need the envvars to be set.
-	default:
-		for key := range env.Vars {
-			if strings.HasPrefix(key, "CMDLINE_") {
-				delete(env.Vars, key)
-				if err := os.Unsetenv(key); err != nil {
-					return nil, nil, err
-				}
-			}
-		}
-	}
 	return runner, args, nil
 }
 
-var globalFlags *flag.FlagSet
-
-// ParseAndRun is a convenience that calls Parse, and then calls Run on the
-// returned runner with the given env and parsed args.
-func ParseAndRun(root *Command, env *Env, args []string) error {
-	ctx := AddEnvToContext(context.Background(), env)
-	runner, args, err := Parse(ctx, root, args)
-	if err != nil {
-		return err
-	}
-	env.TimerPush("cmdline run")
-	defer env.TimerPop()
-	return runner.Run(ctx, args)
-}
-
 func trimSpace(s *string) { *s = strings.TrimSpace(*s) }
-
-func cleanTree(cmd *Command) {
-	trimSpace(&cmd.Name)
-	trimSpace(&cmd.Short)
-	trimSpace(&cmd.Long)
-	trimSpace(&cmd.ArgsName)
-	trimSpace(&cmd.ArgsLong)
-	for tx := range cmd.Topics {
-		trimSpace(&cmd.Topics[tx].Name)
-		trimSpace(&cmd.Topics[tx].Short)
-		trimSpace(&cmd.Topics[tx].Long)
-	}
-	cleanFlags(&cmd.Flags)
-	for _, child := range cmd.Children {
-		cleanTree(child)
-	}
-}
-
-func cleanFlags(flags *flag.FlagSet) {
-	flags.VisitAll(func(f *flag.Flag) {
-		trimSpace(&f.Usage)
-	})
-}
-
-func checkTreeInvariants(path []*Command, env *Env) error {
-	cmd, cmdPath := path[len(path)-1], pathName(env.prefix(), path)
-	// Check that the root name is non-empty.
-	if cmdPath == "" {
-		return fmt.Errorf(`CODE INVARIANT BROKEN; FIX YOUR CODE
-
-Root command name cannot be empty.`)
-	}
-	// Check that the children and topic names are non-empty and unique.
-	seen := make(map[string]bool)
-	checkName := func(name string) error {
-		if name == "" {
-			return fmt.Errorf(`%v: CODE INVARIANT BROKEN; FIX YOUR CODE
-
-Command and topic names cannot be empty.`, cmdPath)
-		}
-		if seen[name] {
-			return fmt.Errorf(`%v: CODE INVARIANT BROKEN; FIX YOUR CODE
-
-Each command must have unique children and topic names.
-Saw %q multiple times.`, cmdPath, name)
-		}
-		seen[name] = true
-		return nil
-	}
-	for _, child := range cmd.Children {
-		if err := checkName(child.Name); err != nil {
-			return err
-		}
-	}
-	for _, topic := range cmd.Topics {
-		if err := checkName(topic.Name); err != nil {
-			return err
-		}
-	}
-	// Check that our Children / Runner invariant is satisfied.  At least one must
-	// be specified, and if both are specified then ArgsName and ArgsLong must be
-	// empty, meaning the Runner doesn't take any args.
-	switch hasC, hasR := len(cmd.Children) > 0, cmd.Runner != nil; {
-	case !hasC && !hasR:
-		return fmt.Errorf(`%v: CODE INVARIANT BROKEN; FIX YOUR CODE
-
-At least one of Children or Runner must be specified.`, cmdPath)
-	case hasC && hasR && (cmd.ArgsName != "" || cmd.ArgsLong != ""):
-		return fmt.Errorf(`%v: CODE INVARIANT BROKEN; FIX YOUR CODE
-
-Since both Children and Runner are specified, the Runner cannot take args.
-Otherwise a conflict between child names and runner args is possible.`, cmdPath)
-	}
-	// Check recursively for all children
-	for _, child := range cmd.Children {
-		if err := checkTreeInvariants(append(path, child), env); err != nil {
-			return err
-		}
-	}
-	return nil
-}
 
 func pathName(prefix string, path []*Command) string {
 	name := prefix
@@ -372,14 +238,10 @@ func (cmd *Command) parse(ctx context.Context, path []*Command, args []string, s
 	env := EnvFromContext(ctx)
 	path = append(path, cmd)
 	cmdPath := pathName(env.prefix(), path)
-	runHelp := makeHelpRunner(path, env)
-	env.Usage = runHelp.usageFunc
 	// Parse flags and retrieve the args remaining after the parse, as well as the
 	// flags that were set.
 	args, setF, err := parseFlags(ctx, path, args)
 	switch {
-	case err == flag.ErrHelp:
-		return runHelp, nil, nil
 	case err != nil:
 		return nil, nil, env.UsageErrorf("%s: %v", cmdPath, err)
 	}
@@ -407,11 +269,6 @@ func (cmd *Command) parse(ctx context.Context, path []*Command, args []string, s
 				return child.parse(ctx, path, subArgs, setFlags)
 			}
 		}
-		// Every non-leaf command gets a default help command.
-		if helpName == subName {
-			env.CommandName = subName
-			return runHelp.newCommand().parse(ctx, path, subArgs, setFlags)
-		}
 	}
 	// No matching subcommands, check various error cases.
 	switch {
@@ -421,8 +278,6 @@ func (cmd *Command) parse(ctx context.Context, path []*Command, args []string, s
 		if len(cmd.Children) > 0 {
 			return nil, nil, env.UsageErrorf("%s: unknown command %q", cmdPath, subName)
 		}
-	case reflect.DeepEqual(args, []string{helpName, "..."}):
-		return nil, nil, env.UsageErrorf("%s: unsupported help invocation", cmdPath)
 	}
 	// INVARIANT:
 	// cmd.Runner != nil && len(args) > 0 &&
@@ -448,7 +303,7 @@ func parseFlags(ctx context.Context, path []*Command, args []string) ([]string, 
 	} else {
 		// Command flags take precedence over global flags for non-root commands.
 		flags = pathFlags(path)
-		mergeFlags(flags, globalFlags)
+		mergeFlags(flags, &cmd.Flags)
 	}
 	// Silence the many different ways flags.Parse can produce ugly output; we
 	// just want it to return any errors and handle the output ourselves.
@@ -502,7 +357,7 @@ func copyFlags(flags *flag.FlagSet) *flag.FlagSet {
 func pathFlags(path []*Command) *flag.FlagSet {
 	cmd := path[len(path)-1]
 	flags := copyFlags(&cmd.Flags)
-	if cmd.Name != helpName && !cmd.DontInheritFlags {
+	if !cmd.DontInheritFlags {
 		// Walk backwards to merge flags up to the root command.  If this takes too
 		// long, we could consider memoizing previous results.
 		for p := len(path) - 2; p >= 0; p-- {
@@ -566,42 +421,16 @@ const ErrUsage = ErrExitCode(2)
 //	1:    all other errors
 //
 // Writes the error message for "all other errors" to w, if w is non-nil.
-func ExitCode(err error, w io.Writer) int {
+func ExitCode(err error, w io.Writer) subcommands.ExitStatus {
 	if err == nil {
 		return 0
 	}
 	if code, ok := err.(ErrExitCode); ok {
-		return int(code)
+		return subcommands.ExitStatus(code)
 	}
 	if w != nil {
 		// We don't print "ERROR: exit code N" above to avoid cluttering the output.
 		fmt.Fprintf(w, "ERROR: %v\n", err)
 	}
 	return 1
-}
-
-type binaryRunner struct {
-	subCmd  string
-	cmdPath string
-}
-
-func (b binaryRunner) Run(ctx context.Context, args []string) error {
-	env := EnvFromContext(ctx)
-	env.TimerPush("run " + filepath.Base(b.subCmd))
-	defer env.TimerPop()
-	vars := envvar.CopyMap(env.Vars)
-	vars["CMDLINE_PREFIX"] = b.cmdPath
-	cmd := exec.CommandContext(ctx, b.subCmd, args...)
-	cmd.Stdin = env.Stdin
-	cmd.Stdout = env.Stdout
-	cmd.Stderr = env.Stderr
-	cmd.Env = envvar.MapToSlice(vars)
-	err := cmd.Run()
-	// Make sure we return the exit code from the binary, if it exited.
-	if exitError, ok := err.(*exec.ExitError); ok {
-		if status, ok := exitError.Sys().(syscall.WaitStatus); ok {
-			return ErrExitCode(status.ExitStatus())
-		}
-	}
-	return err
 }

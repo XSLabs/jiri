@@ -30,7 +30,9 @@ func init() {
 	checkCleanFlags.SetFlags(&cmdCheckClean.Flags)
 }
 
-type checkCleanCmd struct{}
+type checkCleanCmd struct {
+	cmdBase
+}
 
 func (c *checkCleanCmd) Name() string     { return "check-clean" }
 func (c *checkCleanCmd) Synopsis() string { return "Checks if the checkout is clean" }
@@ -46,8 +48,8 @@ Usage:
 
 func (c *checkCleanCmd) SetFlags(f *flag.FlagSet) {}
 
-func (c *checkCleanCmd) Execute(ctx context.Context, _ *flag.FlagSet, args ...any) subcommands.ExitStatus {
-	return executeWrapper(ctx, c.run, args)
+func (c *checkCleanCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...any) subcommands.ExitStatus {
+	return executeWrapper(ctx, c.run, c.topLevelFlags, f.Args())
 }
 
 func (c *checkCleanCmd) run(jirix *jiri.X, args []string) error {

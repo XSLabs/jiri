@@ -40,8 +40,9 @@ func init() {
 }
 
 type runpCmd struct {
+	cmdBase
+
 	projectKeys    string
-	verbose        bool
 	interactive    bool
 	uncommitted    bool
 	noUncommitted  bool
@@ -75,7 +76,6 @@ runp by the shell.
 }
 
 func (c *runpCmd) SetFlags(f *flag.FlagSet) {
-	f.BoolVar(&c.verbose, "v", false, "Print verbose logging information")
 	f.StringVar(&c.projectKeys, "projects", "", "A Regular expression specifying project keys to run commands in. By default, runp will use projects that have the same branch checked as the current project unless it is run from outside of a project in which case it will default to using all projects.")
 	f.BoolVar(&c.uncommitted, "uncommitted", false, "Match projects that have uncommitted changes")
 	f.BoolVar(&c.noUncommitted, "no-uncommitted", false, "Match projects that have no uncommitted changes")
@@ -91,8 +91,8 @@ func (c *runpCmd) SetFlags(f *flag.FlagSet) {
 	f.StringVar(&c.remote, "remote", "", "A Regular expression specifying projects to run commands in by matching against their remote URLs.")
 }
 
-func (c *runpCmd) Execute(ctx context.Context, _ *flag.FlagSet, args ...any) subcommands.ExitStatus {
-	return executeWrapper(ctx, c.run, args)
+func (c *runpCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...any) subcommands.ExitStatus {
+	return executeWrapper(ctx, c.run, c.topLevelFlags, f.Args())
 }
 
 type mapInput struct {
@@ -417,7 +417,7 @@ func (c *runpCmd) run(jirix *jiri.X, args []string) error {
 		index++
 	}
 
-	if c.verbose {
+	if c.topLevelFlags.DebugVerbose {
 		fmt.Fprintf(jirix.Stdout(), "Project Names: %s\n", strings.Join(projectNames(mapInputs), " "))
 		fmt.Fprintf(jirix.Stdout(), "Project Keys: %s\n", strings.Join(projectKeys(mapInputs), " "))
 	}

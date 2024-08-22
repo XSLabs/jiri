@@ -26,7 +26,9 @@ var (
 	}
 )
 
-type selfUpdateCmd struct{}
+type selfUpdateCmd struct {
+	cmdBase
+}
 
 func (c *selfUpdateCmd) Name() string     { return "selfupdate" }
 func (c *selfUpdateCmd) Synopsis() string { return "Update jiri tool" }
@@ -41,8 +43,8 @@ Usage:
 
 func (c *selfUpdateCmd) SetFlags(f *flag.FlagSet) {}
 
-func (c *selfUpdateCmd) Execute(ctx context.Context, _ *flag.FlagSet, args ...any) subcommands.ExitStatus {
-	return errToExitStatus(c.run(ctx, argsToStrings(args)))
+func (c *selfUpdateCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...any) subcommands.ExitStatus {
+	return errToExitStatus(ctx, c.run(ctx, f.Args()))
 }
 
 func (c *selfUpdateCmd) run(ctx context.Context, args []string) error {

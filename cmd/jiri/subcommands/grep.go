@@ -31,6 +31,8 @@ func init() {
 }
 
 type grepCmd struct {
+	cmdBase
+
 	cwdRel                   bool
 	lineNumbers              bool
 	h                        bool
@@ -66,8 +68,8 @@ func (c *grepCmd) SetFlags(f *flag.FlagSet) {
 	f.BoolVar(&c.cwdRel, "cwd-rel", false, "Output paths relative to the current working directory (if available)")
 }
 
-func (c *grepCmd) Execute(ctx context.Context, _ *flag.FlagSet, args ...any) subcommands.ExitStatus {
-	return executeWrapper(ctx, c.run, args)
+func (c *grepCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...any) subcommands.ExitStatus {
+	return executeWrapper(ctx, c.run, c.topLevelFlags, f.Args())
 }
 
 func (c *grepCmd) buildFlags() []string {

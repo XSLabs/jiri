@@ -27,6 +27,8 @@ func init() {
 }
 
 type fetchPkgsCmd struct {
+	cmdBase
+
 	localManifest     bool
 	fetchPkgsTimeout  uint
 	attempts          uint
@@ -56,8 +58,8 @@ func (c *fetchPkgsCmd) SetFlags(f *flag.FlagSet) {
 	f.Var(&c.packagesToSkip, "package-to-skip", "Skip fetching this package. Repeatable.")
 }
 
-func (c *fetchPkgsCmd) Execute(ctx context.Context, _ *flag.FlagSet, args ...any) subcommands.ExitStatus {
-	return executeWrapper(ctx, c.run, args)
+func (c *fetchPkgsCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...any) subcommands.ExitStatus {
+	return executeWrapper(ctx, c.run, c.topLevelFlags, f.Args())
 }
 
 func (c *fetchPkgsCmd) run(jirix *jiri.X, args []string) (err error) {

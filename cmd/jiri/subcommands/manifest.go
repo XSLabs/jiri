@@ -32,6 +32,8 @@ func init() {
 
 // manifestCmd defines the command-line flags for the manifest command.
 type manifestCmd struct {
+	cmdBase
+
 	// ElementName is a flag specifying the name= of the <import> or <project>
 	// to search for in the manifest file.
 	ElementName string
@@ -45,7 +47,7 @@ type manifestCmd struct {
 
 func (c *manifestCmd) Name() string { return "manifest" }
 func (c *manifestCmd) Synopsis() string {
-	return "Reads <import>, <project> or <package> information from a manifest file"
+	return "Reads information from a manifest file"
 }
 func (c *manifestCmd) Usage() string {
 	return `
@@ -76,8 +78,8 @@ func (c *manifestCmd) SetFlags(f *flag.FlagSet) {
 	f.StringVar(&c.Template, "template", "", "The template for the fields to display.")
 }
 
-func (c *manifestCmd) Execute(ctx context.Context, _ *flag.FlagSet, args ...any) subcommands.ExitStatus {
-	return executeWrapper(ctx, c.run, args)
+func (c *manifestCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...any) subcommands.ExitStatus {
+	return executeWrapper(ctx, c.run, c.topLevelFlags, f.Args())
 }
 
 func (c *manifestCmd) run(jirix *jiri.X, args []string) error {
@@ -132,5 +134,5 @@ func (c *manifestCmd) readManifest(jirix *jiri.X, manifestPath string, tmpl *tem
 	}
 
 	// Found nothing.
-	return fmt.Errorf("found no project/import/package named %s", manifestFlags.ElementName)
+	return fmt.Errorf("found no project/import/package named %s", c.ElementName)
 }

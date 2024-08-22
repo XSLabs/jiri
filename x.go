@@ -185,34 +185,33 @@ func (jirix *X) UsePartialClone(remote string) bool {
 	return false
 }
 
-var (
-	rootFlag              string
-	cwdFlag               string
-	jobsFlag              uint
-	colorFlag             string
-	quietVerboseFlag      bool
-	debugVerboseFlag      bool
-	traceVerboseFlag      bool
-	showProgressFlag      bool
-	progessWindowSizeFlag uint
-	timeLogThresholdFlag  time.Duration
-)
+type TopLevelFlags struct {
+	Root               string
+	Jobs               uint
+	Color              string
+	QuietVerbose       bool
+	DebugVerbose       bool
+	TraceVerbose       bool
+	ShowProgress       bool
+	ProgressWindowSize uint
+	TimeLogThreshold   time.Duration
+	DumpTiming         bool
+	TimeFile           string
+}
 
-// showRootFlag implements a flag that dumps the root dir and exits the
-// program when it is set.
-type showRootFlag struct{}
-
-func (showRootFlag) IsBoolFlag() bool { return true }
-func (showRootFlag) String() string   { return "<just specify -show-root to activate>" }
-func (showRootFlag) Set(string) error {
-	if root, err := findJiriRoot(nil); err != nil {
-		fmt.Printf("Error: %s\n", err)
-		os.Exit(1)
-	} else {
-		fmt.Println(root)
-		os.Exit(0)
-	}
-	return nil
+func (t *TopLevelFlags) SetFlags(f *flag.FlagSet) {
+	f.StringVar(&t.Root, "root", "", "Jiri root directory")
+	f.UintVar(&t.Jobs, "j", DefaultJobs, "Number of jobs (commands) to run simultaneously")
+	f.StringVar(&t.Color, "color", "auto", "Use color to format output. Values can be always, never and auto")
+	f.BoolVar(&t.ShowProgress, "show-progress", true, "Show progress.")
+	f.UintVar(&t.ProgressWindowSize, "progress-window", 5, "Number of progress messages to show simultaneously. Should be between 1 and 10")
+	f.DurationVar(&t.TimeLogThreshold, "time-log-threshold", time.Second*10, "Log time taken by operations if more than the passed value (eg 5s). This only works with -v and -vv.")
+	f.BoolVar(&t.QuietVerbose, "quiet", false, "Only print user actionable messages")
+	f.BoolVar(&t.QuietVerbose, "q", false, "Same as -quiet")
+	f.BoolVar(&t.DebugVerbose, "v", false, "Print debug level output")
+	f.BoolVar(&t.TraceVerbose, "vv", false, "Print trace level output")
+	f.BoolVar(&t.DumpTiming, "time", false, "Dump timing information to stderr before exiting the program.")
+	f.StringVar(&t.TimeFile, "timefile", "", "File to dump timing information to, if not stderr.")
 }
 
 var DefaultJobs = uint(runtime.NumCPU() * 2)
@@ -222,59 +221,47 @@ func init() {
 	if DefaultJobs > 50 {
 		DefaultJobs = 50
 	}
-	flag.StringVar(&rootFlag, "root", "", "Jiri root directory")
-	flag.UintVar(&jobsFlag, "j", DefaultJobs, "Number of jobs (commands) to run simultaneously")
-	flag.StringVar(&colorFlag, "color", "auto", "Use color to format output. Values can be always, never and auto")
-	flag.BoolVar(&showProgressFlag, "show-progress", true, "Show progress.")
-	flag.Var(showRootFlag{}, "show-root", "Displays jiri root and exits.")
-	flag.UintVar(&progessWindowSizeFlag, "progress-window", 5, "Number of progress messages to show simultaneously. Should be between 1 and 10")
-	flag.DurationVar(&timeLogThresholdFlag, "time-log-threshold", time.Second*10, "Log time taken by operations if more than the passed value (eg 5s). This only works with -v and -vv.")
-	flag.StringVar(&cwdFlag, "cwd", "", "Run as if this is the current working directory")
-	flag.BoolVar(&quietVerboseFlag, "quiet", false, "Only print user actionable messages.")
-	flag.BoolVar(&quietVerboseFlag, "q", false, "Same as -quiet")
-	flag.BoolVar(&debugVerboseFlag, "v", false, "Print debug level output.")
-	flag.BoolVar(&traceVerboseFlag, "vv", false, "Print trace level output.")
 }
 
-func NewXFromContext(ctx context.Context) (*X, error) {
-	return NewX(cmdline.EnvFromContext(ctx))
+func NewXFromContext(ctx context.Context, topLevelFlags TopLevelFlags) (*X, error) {
+	return NewX(cmdline.EnvFromContext(ctx), topLevelFlags)
 }
 
 // NewX returns a new execution environment, given a cmdline env.
 // It also prepends .jiri_root/bin to the PATH.
-func NewX(env *cmdline.Env) (*X, error) {
-	cf := color.EnableColor(colorFlag)
+func NewX(env *cmdline.Env, flags TopLevelFlags) (*X, error) {
+	cf := color.EnableColor(flags.Color)
 	if cf != color.ColorAuto && cf != color.ColorAlways && cf != color.ColorNever {
 		return nil, env.UsageErrorf("invalid value of -color flag")
 	}
 	color := color.NewColor(cf)
 
 	loggerLevel := log.InfoLevel
-	if quietVerboseFlag {
+	if flags.QuietVerbose {
 		loggerLevel = log.WarningLevel
-	} else if traceVerboseFlag {
+	} else if flags.TraceVerbose {
 		loggerLevel = log.TraceLevel
-	} else if debugVerboseFlag {
+	} else if flags.DebugVerbose {
 		loggerLevel = log.DebugLevel
 	}
-	if progessWindowSizeFlag < 1 {
-		progessWindowSizeFlag = 1
-	} else if progessWindowSizeFlag > 10 {
-		progessWindowSizeFlag = 10
+	if flags.ProgressWindowSize < 1 {
+		flags.ProgressWindowSize = 1
+	} else if flags.ProgressWindowSize > 10 {
+		flags.ProgressWindowSize = 10
 	}
-	logger := log.NewLogger(loggerLevel, color, showProgressFlag, progessWindowSizeFlag, timeLogThresholdFlag, nil, nil)
+	logger := log.NewLogger(loggerLevel, color, flags.ShowProgress, flags.ProgressWindowSize, flags.TimeLogThreshold, nil, nil)
 
 	ctx := tool.NewContextFromEnv(env)
-	root, err := findJiriRoot(ctx.Timer())
+	root, err := FindRoot(flags, ctx.Timer())
 	if err != nil {
 		return nil, err
 	}
 
-	if jobsFlag == 0 {
+	if flags.Jobs == 0 {
 		return nil, fmt.Errorf("No of concurrent jobs should be more than zero")
 	}
 
-	cwd, err := GetCwd()
+	cwd, err := os.Getwd()
 	if err != nil {
 		return nil, err
 	}
@@ -284,7 +271,7 @@ func NewX(env *cmdline.Env) (*X, error) {
 		Cwd:      cwd,
 		Root:     root,
 		Usage:    env.UsageErrorf,
-		Jobs:     jobsFlag,
+		Jobs:     flags.Jobs,
 		Color:    color,
 		Logger:   logger,
 		Attempts: 1,
@@ -391,14 +378,8 @@ func NewX(env *cmdline.Env) (*X, error) {
 			return nil, err
 		}
 	}
+	setupAnalytics(x, env)
 	return x, nil
-}
-
-func GetCwd() (string, error) {
-	if cwdFlag != "" {
-		return cwdFlag, nil
-	}
-	return os.Getwd()
 }
 
 func cleanPath(path string) (string, error) {
@@ -421,17 +402,17 @@ func findCache(root string, config *Config) (string, error) {
 	return "", nil
 }
 
-func findJiriRoot(timer *timing.Timer) (string, error) {
+func FindRoot(flags TopLevelFlags, timer *timing.Timer) (string, error) {
 	if timer != nil {
 		timer.Push("find .jiri_root")
 		defer timer.Pop()
 	}
 
-	if rootFlag != "" {
-		return cleanPath(rootFlag)
+	if flags.Root != "" {
+		return cleanPath(flags.Root)
 	}
 
-	wd, err := GetCwd()
+	wd, err := os.Getwd()
 	if err != nil {
 		return "", err
 	}
@@ -460,23 +441,6 @@ func findJiriRoot(timer *timing.Timer) (string, error) {
 	}
 
 	return "", fmt.Errorf("cannot find %v", RootMetaDir)
-}
-
-// FindRoot returns the root directory of the jiri environment.  All state
-// managed by jiri resides under this root.
-//
-// If the rootFlag variable is non-empty, we always attempt to use it.
-// It must point to an absolute path, after symlinks are evaluated.
-//
-// Returns an empty string if the root directory cannot be determined, or if any
-// errors are encountered.
-//
-// FindRoot should be rarely used; typically you should use NewX to create a new
-// execution environment, and handle errors.  An example of a valid usage is to
-// initialize default flag values in an init func before main.
-func FindRoot() string {
-	root, _ := findJiriRoot(nil)
-	return root
 }
 
 // Clone returns a clone of the environment.
@@ -577,24 +541,9 @@ func (x *X) UpdateHistoryLogSecondLatestLink() string {
 	return filepath.Join(x.UpdateHistoryLogDir(), "second-latest")
 }
 
-// RunnerFunc is an adapter that turns regular functions into cmdline.Runner.
-// This is similar to cmdline.RunnerFunc, but the first function argument is
-// jiri.X, rather than cmdline.Env.
-func RunnerFunc(run func(*X, []string) error) cmdline.Runner {
-	return runner(run)
-}
-
-type runner func(*X, []string) error
-
-func (r runner) Run(ctx context.Context, args []string) error {
-	env := cmdline.EnvFromContext(ctx)
-	x, err := NewX(env)
-	if err != nil {
-		return err
-	}
-	defer x.RunCleanup()
+func setupAnalytics(x *X, env *cmdline.Env) {
 	enabledAnalytics := false
-	userId := ""
+	var userID string
 	analyticsCommandMsg := fmt.Sprintf("To check what data we collect run: %s\n"+
 		"To opt-in run: %s\n"+
 		"To opt-out run: %s",
@@ -609,18 +558,16 @@ func (r runner) Run(ctx context.Context, args []string) error {
 		} else if x.config.AnalyticsVersion != analytics_util.Version {
 			x.Logger.Warningf("You have opted in for old version of data collection. Please opt in/out again\n%s\n\n", analyticsCommandMsg)
 		} else {
-			userId = x.config.AnalyticsUserId
+			userID = x.config.AnalyticsUserId
 			enabledAnalytics = true
 		}
 	}
-	as := analytics_util.NewAnalyticsSession(enabledAnalytics, "UA-101128147-1", userId)
+	as := analytics_util.NewAnalyticsSession(enabledAnalytics, "UA-101128147-1", userID)
 	x.AnalyticsSession = as
 	id := as.AddCommand(env.CommandName, env.CommandFlags)
 
-	err = r(x, args)
 	x.Logger.DisableProgress()
 
 	as.Done(id)
 	as.SendAllAndWaitToFinish()
-	return err
 }

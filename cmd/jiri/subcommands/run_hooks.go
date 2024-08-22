@@ -27,6 +27,8 @@ func init() {
 }
 
 type runHooksCmd struct {
+	cmdBase
+
 	localManifest  bool
 	hookTimeout    uint
 	attempts       uint
@@ -54,8 +56,8 @@ func (c *runHooksCmd) SetFlags(f *flag.FlagSet) {
 	f.Var(&c.packagesToSkip, "package-to-skip", "Skip fetching this package. Repeatable.")
 }
 
-func (c *runHooksCmd) Execute(ctx context.Context, _ *flag.FlagSet, args ...any) subcommands.ExitStatus {
-	return executeWrapper(ctx, c.run, args)
+func (c *runHooksCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...any) subcommands.ExitStatus {
+	return executeWrapper(ctx, c.run, c.topLevelFlags, f.Args())
 }
 
 func (c *runHooksCmd) run(jirix *jiri.X, args []string) (err error) {

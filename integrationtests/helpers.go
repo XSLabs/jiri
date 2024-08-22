@@ -15,7 +15,8 @@ import (
 	"strings"
 	"testing"
 
-	"go.fuchsia.dev/jiri/cmd/jiri/subcommands"
+	"github.com/google/subcommands"
+	jirisubcommands "go.fuchsia.dev/jiri/cmd/jiri/subcommands"
 	"go.fuchsia.dev/jiri/cmdline"
 	"go.fuchsia.dev/jiri/envvar"
 	"go.fuchsia.dev/jiri/gitutil"
@@ -42,11 +43,14 @@ func newJiri(t *testing.T, root string) func(args ...string) string {
 			Stderr: &stderr,
 			Vars:   envvar.SliceToMap(os.Environ()),
 		}
-		err := cmdline.ParseAndRun(subcommands.NewCmdRoot(), env, args)
+		commander, err := jirisubcommands.NewCommander(args)
 		if err != nil {
-			t.Fatalf("%q failed: %s\n%s",
+			t.Fatal(err)
+		}
+		retcode := cmdline.Main(env, commander)
+		if retcode != subcommands.ExitSuccess {
+			t.Fatalf("%q failed:\n%s",
 				strings.Join(append([]string{"jiri"}, args...), " "),
-				err,
 				string(stderr.Bytes()),
 			)
 		}

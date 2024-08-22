@@ -7,55 +7,72 @@ package subcommands
 import (
 	"context"
 	"errors"
+	"flag"
+	"fmt"
 
 	"github.com/google/subcommands"
 	"go.fuchsia.dev/jiri"
 	"go.fuchsia.dev/jiri/cmdline"
 )
 
-// Use a factory to avoid an initialization loop between between the
-// Runner functions in subcommands and the ParsedFlags field in the
-// Command.
-func NewCmdRoot() *cmdline.Command {
-	return &cmdline.Command{
-		Name:  "jiri",
-		Short: "Multi-purpose tool for multi-repo development",
-		Long: `
-Command jiri is a multi-purpose tool for multi-repo development.
-`,
-		Children: []*cmdline.Command{
-			cmdBranch,
-			cmdBootstrap,
-			cmdCheckClean,
-			cmdDiff,
-			cmdEdit,
-			cmdFetchPkgs,
-			cmdGenGitModule,
-			cmdGrep,
-			cmdImport,
-			cmdInit,
-			cmdPackage,
-			cmdPatch,
-			cmdProject,
-			cmdProjectConfig,
-			cmdManifest,
-			cmdOverride,
-			cmdResolve,
-			cmdRunHooks,
-			cmdRunp,
-			cmdSelfUpdate,
-			cmdSnapshot,
-			cmdSourceManifest,
-			cmdStatus,
-			cmdUpdate,
-			cmdUpload,
-			cmdVersion,
-		},
-		Topics: []cmdline.Topic{
-			topicFileSystem,
-			topicManifest,
-		},
+type cmdBase struct {
+	topLevelFlags jiri.TopLevelFlags
+}
+
+func NewCommander(args []string) (*subcommands.Commander, error) {
+	f := flag.NewFlagSet("jiri", flag.ExitOnError)
+
+	var flags jiri.TopLevelFlags
+	flags.SetFlags(f)
+
+	err := f.Parse(args)
+	if err != nil {
+		return nil, err
 	}
+
+	cdr := subcommands.NewCommander(f, "jiri")
+
+	// Mark all top-level flags as important so they should up in the default
+	// help text.
+	f.VisitAll(func(flg *flag.Flag) {
+		cdr.ImportantFlag(flg.Name)
+	})
+
+	b := cmdBase{topLevelFlags: flags}
+
+	lowLevelGroup := "low-level operations"
+
+	cdr.Register(cdr.HelpCommand(), "")
+	cdr.Register(cdr.FlagsCommand(), "")
+	cdr.Register(&branchCmd{cmdBase: b}, "")
+	cdr.Register(&diffCmd{cmdBase: b}, "")
+	cdr.Register(&grepCmd{cmdBase: b}, "")
+	cdr.Register(&initCmd{cmdBase: b}, "")
+	cdr.Register(&patchCmd{cmdBase: b}, "")
+	cdr.Register(&runpCmd{cmdBase: b}, "")
+	cdr.Register(&selfUpdateCmd{cmdBase: b}, "")
+	cdr.Register(&statusCmd{cmdBase: b}, "")
+	cdr.Register(&updateCmd{cmdBase: b}, "")
+	cdr.Register(&uploadCmd{cmdBase: b}, "")
+	cdr.Register(&versionCmd{cmdBase: b}, "")
+
+	cdr.Register(&bootstrapCmd{cmdBase: b}, lowLevelGroup)
+	cdr.Register(&checkCleanCmd{cmdBase: b}, lowLevelGroup)
+	cdr.Register(&editCmd{cmdBase: b}, lowLevelGroup)
+	cdr.Register(&fetchPkgsCmd{cmdBase: b}, lowLevelGroup)
+	cdr.Register(&genGitModuleCmd{cmdBase: b}, lowLevelGroup)
+	cdr.Register(&importCmd{cmdBase: b}, lowLevelGroup)
+	cdr.Register(&manifestCmd{cmdBase: b}, lowLevelGroup)
+	cdr.Register(&overrideCmd{cmdBase: b}, lowLevelGroup)
+	cdr.Register(&packageCmd{cmdBase: b}, lowLevelGroup)
+	cdr.Register(&projectCmd{cmdBase: b}, lowLevelGroup)
+	cdr.Register(&projectConfigCmd{cmdBase: b}, lowLevelGroup)
+	cdr.Register(&resolveCmd{cmdBase: b}, lowLevelGroup)
+	cdr.Register(&runHooksCmd{cmdBase: b}, lowLevelGroup)
+	cdr.Register(&snapshotCmd{cmdBase: b}, lowLevelGroup)
+	cdr.Register(&sourceManifestCmd{cmdBase: b}, lowLevelGroup)
+
+	return cdr, nil
 }
 
 type jiriSubcommand interface {
@@ -73,9 +90,6 @@ func commandFromSubcommand(s jiriSubcommand) *cmdline.Command {
 		Name:  s.Name(),
 		Short: s.Synopsis(),
 		Long:  s.Usage(),
-
-		// TODO
-		Runner: jiri.RunnerFunc(s.run),
 	}
 }
 
@@ -84,34 +98,30 @@ func commandFromSubcommand(s jiriSubcommand) *cmdline.Command {
 //
 // Example:
 //
-//	func (c *fooCmd) Execute(ctx context.Context, _ *flag.Flagset, args ...any) subcommands.ExitStatus {
-//		executeWrapper(ctx, c.run, args)
+//	func (c *fooCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...any) subcommands.ExitStatus {
+//		executeWrapper(ctx, c.run, c.topLevelFlags, f.Args())
 //	}
 //	func (c *fooCmd) run(jirix *jiri.X, args []string) error {
 //		// ... actual implementation of the command
 //	}
-func executeWrapper(ctx context.Context, f func(jirix *jiri.X, args []string) error, args []any) subcommands.ExitStatus {
+func executeWrapper(ctx context.Context, f func(jirix *jiri.X, args []string) error, topLevelFlags jiri.TopLevelFlags, args []string) subcommands.ExitStatus {
 	err := func() error {
-		jirix, err := jiri.NewXFromContext(ctx)
+		jirix, err := jiri.NewXFromContext(ctx, topLevelFlags)
 		if err != nil {
 			return err
 		}
-		return f(jirix, argsToStrings(args))
+		defer jirix.RunCleanup()
+		return f(jirix, args)
 	}()
-	return errToExitStatus(err)
+	return errToExitStatus(ctx, err)
 }
 
-func argsToStrings(args []any) []string {
-	var strArgs []string
-	for _, arg := range args {
-		s := arg.(string)
-		strArgs = append(strArgs, s)
-	}
-	return strArgs
-}
-
-func errToExitStatus(err error) subcommands.ExitStatus {
+func errToExitStatus(ctx context.Context, err error) subcommands.ExitStatus {
 	if err != nil {
+		env := cmdline.EnvFromContext(ctx)
+		if env.Stderr != nil {
+			fmt.Fprintf(env.Stderr, "ERROR: %s\n", err)
+		}
 		var exitCodeErr *cmdline.ErrExitCode
 		if errors.As(err, &exitCodeErr) {
 			return subcommands.ExitStatus(int(*exitCodeErr))

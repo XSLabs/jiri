@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"go.fuchsia.dev/jiri"
 	"go.fuchsia.dev/jiri/gitutil"
 	"go.fuchsia.dev/jiri/jiritest"
 	"go.fuchsia.dev/jiri/project"
@@ -77,16 +78,17 @@ func TestRunP(t *testing.T) {
 
 	fake.X.Cwd = projects[0].Path
 	cmd := runpCmd{
+		cmdBase:        cmdBase{jiri.TopLevelFlags{DebugVerbose: true}},
 		collateOutput:  true,
 		showNamePrefix: true,
-		verbose:        true,
 	}
 	got := executeRunp(t, fake, cmd, "echo")
 	hdr := "Project Names: manifest r.a r.b r.c sub/r.t1 sub/sub2/r.t2\n"
 	hdr += "Project Keys: " + strings.Join(keys, " ") + "\n"
 
-	if want := hdr + "manifest: \nr.a: \nr.b: \nr.c: \nsub/r.t1: \nsub/sub2/r.t2:"; got != want {
-		t.Errorf("got %q, want %q", got, want)
+	want := hdr + "manifest: \nr.a: \nr.b: \nr.c: \nsub/r.t1: \nsub/sub2/r.t2:"
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Errorf("unexpected diff:\n%s", diff)
 	}
 
 	cmd = runpCmd{collateOutput: true}

@@ -33,6 +33,8 @@ func init() {
 }
 
 type uploadCmd struct {
+	cmdBase
+
 	ccs            string
 	presubmit      string
 	reviewers      string
@@ -85,8 +87,8 @@ func (c *uploadCmd) SetFlags(f *flag.FlagSet) {
 	f.StringVar(&c.gitOptions, "git-options", "", `Passthrough git options`)
 }
 
-func (c *uploadCmd) Execute(ctx context.Context, _ *flag.FlagSet, args ...any) subcommands.ExitStatus {
-	return executeWrapper(ctx, c.run, args)
+func (c *uploadCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...any) subcommands.ExitStatus {
+	return executeWrapper(ctx, c.run, c.topLevelFlags, f.Args())
 }
 
 // runUpload is a wrapper that pushes the changes to gerrit for review.

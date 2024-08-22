@@ -32,13 +32,15 @@ func init() {
 }
 
 type genGitModuleCmd struct {
+	cmdBase
+
 	genScript    string
 	redirectRoot bool
 }
 
 func (c *genGitModuleCmd) Name() string { return "generate-gitmodules" }
 func (c *genGitModuleCmd) Synopsis() string {
-	return "Create a .gitmodule and a .gitattributes files for git submodule repository"
+	return "Set up git submodules"
 }
 func (c *genGitModuleCmd) Usage() string {
 	return `
@@ -59,8 +61,8 @@ func (c *genGitModuleCmd) SetFlags(f *flag.FlagSet) {
 	f.BoolVar(&c.redirectRoot, "redir-root", false, "When set to true, jiri will add the root repository as a submodule into {name}-mirror directory and create necessary setup commands in generated script.")
 }
 
-func (c *genGitModuleCmd) Execute(ctx context.Context, _ *flag.FlagSet, args ...any) subcommands.ExitStatus {
-	return executeWrapper(ctx, c.run, args)
+func (c *genGitModuleCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...any) subcommands.ExitStatus {
+	return executeWrapper(ctx, c.run, c.topLevelFlags, f.Args())
 }
 
 func (c *genGitModuleCmd) run(jirix *jiri.X, args []string) error {

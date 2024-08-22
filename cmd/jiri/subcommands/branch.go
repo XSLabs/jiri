@@ -37,6 +37,7 @@ func init() {
 }
 
 type branchCmd struct {
+	cmdBase
 	delete                bool
 	deleteMergedCLs       bool
 	deleteMerged          bool
@@ -66,8 +67,8 @@ func (c *branchCmd) SetFlags(f *flag.FlagSet) {
 	f.BoolVar(&c.deleteMergedCLs, "delete-merged-cl", false, "Implies -delete-merged. It also parses commit messages for ChangeID and checks with gerrit if those changes have been merged and deletes those branches. It will ignore a branch if it differs with remote by more than 10 commits.")
 }
 
-func (c *branchCmd) Execute(ctx context.Context, _ *flag.FlagSet, args ...any) subcommands.ExitStatus {
-	return executeWrapper(ctx, c.run, args)
+func (c *branchCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...any) subcommands.ExitStatus {
+	return executeWrapper(ctx, c.run, c.topLevelFlags, f.Args())
 }
 
 func (c *branchCmd) run(jirix *jiri.X, args []string) error {
