@@ -43,8 +43,7 @@ type packageCmd struct {
 func (c *packageCmd) Name() string     { return "package" }
 func (c *packageCmd) Synopsis() string { return "Display the jiri packages" }
 func (c *packageCmd) Usage() string {
-	return `
-Display structured info on the existing
+	return `Display structured info on the existing
 packages and branches. Packages are specified using either names or	regular
 expressions that are matched against package names. If no command line
 arguments are provided all projects will be used.

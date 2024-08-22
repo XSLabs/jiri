@@ -49,8 +49,7 @@ type importCmd struct {
 func (c *importCmd) Name() string     { return "import" }
 func (c *importCmd) Synopsis() string { return "Adds imports to .jiri_manifest file" }
 func (c *importCmd) Usage() string {
-	return `
-Command "import" adds imports to the [root]/.jiri_manifest file, which specifies
+	return `Command "import" adds imports to the [root]/.jiri_manifest file, which specifies
 manifest information for the jiri tool.  The file is created if it doesn't
 already exist, otherwise additional imports are added to the existing file.
 

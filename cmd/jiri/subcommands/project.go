@@ -49,8 +49,7 @@ type projectCmd struct {
 func (c *projectCmd) Name() string     { return "project" }
 func (c *projectCmd) Synopsis() string { return "Manage the jiri projects" }
 func (c *projectCmd) Usage() string {
-	return `
-Cleans all projects if -clean flag is provided else inspect
+	return `Cleans all projects if -clean flag is provided else inspect
 the local filesystem and provide structured info on the existing
 projects and branches. Projects are specified using either names or
 regular expressions that are matched against project names. If no

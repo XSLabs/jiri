@@ -39,8 +39,7 @@ type runHooksCmd struct {
 func (c *runHooksCmd) Name() string     { return "run-hooks" }
 func (c *runHooksCmd) Synopsis() string { return "Run hooks using local manifest" }
 func (c *runHooksCmd) Usage() string {
-	return `
-Run hooks using local manifest JIRI_HEAD version if -local-manifest flag is
+	return `Run hooks using local manifest JIRI_HEAD version if -local-manifest flag is
 false, else it runs hooks using current manifest checkout version.
 
 Usage:

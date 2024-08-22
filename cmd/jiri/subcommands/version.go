@@ -34,8 +34,7 @@ type versionCmd struct {
 func (c *versionCmd) Name() string     { return "version" }
 func (c *versionCmd) Synopsis() string { return "Print the jiri version" }
 func (c *versionCmd) Usage() string {
-	return `
-Print the Git commit revision jiri was built from and the build date.
+	return `Print the Git commit revision jiri was built from and the build date.
 
 Usage:
   jiri version

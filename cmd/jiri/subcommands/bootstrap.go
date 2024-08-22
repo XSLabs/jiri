@@ -35,8 +35,7 @@ type bootstrapCmd struct {
 func (c *bootstrapCmd) Name() string     { return "bootstrap" }
 func (c *bootstrapCmd) Synopsis() string { return "Bootstrap essential packages" }
 func (c *bootstrapCmd) Usage() string {
-	return `
-Bootstrap essential packages such as cipd.
+	return `Bootstrap essential packages such as cipd.
 
 Usage:
   jiri bootstrap [<package ...>]

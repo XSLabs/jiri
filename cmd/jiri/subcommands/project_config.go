@@ -39,8 +39,7 @@ type projectConfigCmd struct {
 func (c *projectConfigCmd) Name() string     { return "project-config" }
 func (c *projectConfigCmd) Synopsis() string { return "Prints/sets project's local config" }
 func (c *projectConfigCmd) Usage() string {
-	return `
-Prints/Manages local project config. This command should be run from inside a
+	return `Prints/Manages local project config. This command should be run from inside a
 project. It will print config if no flags are provided otherwise set it.
 
 Usage:

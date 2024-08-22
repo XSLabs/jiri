@@ -78,8 +78,7 @@ func (c *updateCmd) SetFlags(f *flag.FlagSet) {
 func (c *updateCmd) Name() string     { return "update" }
 func (c *updateCmd) Synopsis() string { return "Update all jiri projects" }
 func (c *updateCmd) Usage() string {
-	return `
-Updates all projects. The sequence in which the individual updates happen
+	return `Updates all projects. The sequence in which the individual updates happen
 guarantees that we end up with a consistent workspace. The set of projects
 to update is described in the manifest.
 

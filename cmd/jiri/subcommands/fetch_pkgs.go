@@ -41,8 +41,7 @@ func (c *fetchPkgsCmd) Synopsis() string {
 	return "Fetch cipd packages using JIRI_HEAD version manifest"
 }
 func (c *fetchPkgsCmd) Usage() string {
-	return `
-Fetch cipd packages using local manifest JIRI_HEAD version if -local-manifest flag is
+	return `Fetch cipd packages using local manifest JIRI_HEAD version if -local-manifest flag is
 false, otherwise it fetches cipd packages using current manifest checkout version.
 
 Usage:

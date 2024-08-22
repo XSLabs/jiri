@@ -70,8 +70,7 @@ type initCmd struct {
 func (c *initCmd) Name() string     { return "init" }
 func (c *initCmd) Synopsis() string { return "Create a new jiri root" }
 func (c *initCmd) Usage() string {
-	return `
-The "init" command creates new jiri "root" - basically a [root]/.jiri_root
+	return `The "init" command creates new jiri "root" - basically a [root]/.jiri_root
 directory and template files.
 
 Running "init" in existing jiri [root] is safe.

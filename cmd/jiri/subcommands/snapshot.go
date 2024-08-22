@@ -35,8 +35,7 @@ type snapshotCmd struct {
 func (c *snapshotCmd) Name() string     { return "snapshot" }
 func (c *snapshotCmd) Synopsis() string { return "Create a new project snapshot" }
 func (c *snapshotCmd) Usage() string {
-	return `
-The "jiri snapshot <snapshot>" command captures the current project state
+	return `The "jiri snapshot <snapshot>" command captures the current project state
 in a manifest.
 
 Usage:

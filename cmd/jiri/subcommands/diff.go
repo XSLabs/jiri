@@ -47,8 +47,7 @@ type diffCmd struct {
 func (c *diffCmd) Name() string     { return "diff" }
 func (c *diffCmd) Synopsis() string { return "Prints diff between two snapshots" }
 func (c *diffCmd) Usage() string {
-	return `
-Prints diff between two snapshots in json format. Max CLs returned for a
+	return `Prints diff between two snapshots in json format. Max CLs returned for a
 project is controlled by flag max-xls and is default by 5. The format of
 returned json:
 {

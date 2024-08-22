@@ -61,8 +61,7 @@ const rebaseFailedErr = cmdline.ErrExitCode(24)
 func (c *patchCmd) Name() string     { return "patch" }
 func (c *patchCmd) Synopsis() string { return "Patch in the existing change" }
 func (c *patchCmd) Usage() string {
-	return `
-Command "patch" applies the existing changelist to the current project. The
+	return `Command "patch" applies the existing changelist to the current project. The
 change can be identified either using change ID, in which case the latest
 patchset will be used, or the the full reference. By default patch will be
 checked-out on a new branch.

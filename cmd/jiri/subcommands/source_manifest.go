@@ -28,8 +28,7 @@ func (c *sourceManifestCmd) Synopsis() string {
 	return "Create a new source-manifest from current checkout"
 }
 func (c *sourceManifestCmd) Usage() string {
-	return `
-This command captures the current project state in a source-manifest format.
+	return `This command captures the current project state in a source-manifest format.
 
 Usage:
   jiri source-manifest <source-manifest>

@@ -80,8 +80,7 @@ func (c *resolveCmd) FullResolve() bool {
 func (c *resolveCmd) Name() string     { return "resolve" }
 func (c *resolveCmd) Synopsis() string { return "Generate jiri lockfile" }
 func (c *resolveCmd) Usage() string {
-	return `
-Generate jiri lockfile in json format for <manifest ...>. If no manifest
+	return `Generate jiri lockfile in json format for <manifest ...>. If no manifest
 provided, jiri will use .jiri_manifest by default.
 
 Usage:

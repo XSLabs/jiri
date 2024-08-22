@@ -33,8 +33,7 @@ type selfUpdateCmd struct {
 func (c *selfUpdateCmd) Name() string     { return "selfupdate" }
 func (c *selfUpdateCmd) Synopsis() string { return "Update jiri tool" }
 func (c *selfUpdateCmd) Usage() string {
-	return `
-Updates jiri tool and replaces current one with the latest
+	return `Updates jiri tool and replaces current one with the latest
 
 Usage:
   jiri selfupdate

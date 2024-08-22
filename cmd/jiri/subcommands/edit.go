@@ -53,8 +53,7 @@ const (
 func (c *editCmd) Name() string     { return "edit" }
 func (c *editCmd) Synopsis() string { return "Edit manifest file" }
 func (c *editCmd) Usage() string {
-	return `
-Edit manifest file by rolling the revision of provided projects, imports or packages.
+	return `Edit manifest file by rolling the revision of provided projects, imports or packages.
 
 Usage:
   jiri edit [flags] <manifest>

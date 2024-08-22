@@ -50,8 +50,7 @@ func (c *manifestCmd) Synopsis() string {
 	return "Reads information from a manifest file"
 }
 func (c *manifestCmd) Usage() string {
-	return `
-Reads <import>, <project> or <package> information from a manifest file.
+	return `Reads <import>, <project> or <package> information from a manifest file.
 A template matching the schema defined in pkg/text/template is used to fill
 in the requested information.
 

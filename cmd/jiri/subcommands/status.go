@@ -45,8 +45,7 @@ type statusCmd struct {
 func (c *statusCmd) Name() string     { return "status" }
 func (c *statusCmd) Synopsis() string { return "Prints status of all the projects" }
 func (c *statusCmd) Usage() string {
-	return `
-Prints status for the the projects. It runs git status -s across all the projects
+	return `Prints status for the the projects. It runs git status -s across all the projects
 and prints it if there are some changes. It also shows status if the project is on
 a rev other then the one according to manifest(Named as JIRI_HEAD in git)
 

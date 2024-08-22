@@ -43,8 +43,7 @@ func (c *genGitModuleCmd) Synopsis() string {
 	return "Set up git submodules"
 }
 func (c *genGitModuleCmd) Usage() string {
-	return `
-The "jiri generate-gitmodules command captures the current project state and
+	return `The "jiri generate-gitmodules command captures the current project state and
 create a .gitmodules file and an optional .gitattributes file for building
 a git submodule based super repository.
 

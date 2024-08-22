@@ -46,8 +46,7 @@ type grepCmd struct {
 func (c *grepCmd) Name() string     { return "grep" }
 func (c *grepCmd) Synopsis() string { return "Search across projects." }
 func (c *grepCmd) Usage() string {
-	return `
-Run git grep across all projects.
+	return `Run git grep across all projects.
 
 Usage:
   jiri grep [flags] <query> [--] [<pathspec>...]

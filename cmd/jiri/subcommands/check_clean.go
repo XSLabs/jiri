@@ -37,8 +37,7 @@ type checkCleanCmd struct {
 func (c *checkCleanCmd) Name() string     { return "check-clean" }
 func (c *checkCleanCmd) Synopsis() string { return "Checks if the checkout is clean" }
 func (c *checkCleanCmd) Usage() string {
-	return `
-Exits non-zero and prints repositories (and their status) if they contain
+	return `Exits non-zero and prints repositories (and their status) if they contain
 uncommitted changes.
 
 Usage:

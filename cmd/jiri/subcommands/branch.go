@@ -48,8 +48,7 @@ type branchCmd struct {
 func (c *branchCmd) Name() string     { return "branch" }
 func (c *branchCmd) Synopsis() string { return "Show or delete branches" }
 func (c *branchCmd) Usage() string {
-	return `
-Show all the projects having branch <branch>. If -d or -D is passed, <branch>
+	return `Show all the projects having branch <branch>. If -d or -D is passed, <branch>
 is deleted. if <branch> is not passed, show all projects which have branches other than "main"
 
 Usage:

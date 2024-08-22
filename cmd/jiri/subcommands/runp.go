@@ -60,8 +60,7 @@ type runpCmd struct {
 func (c *runpCmd) Name() string     { return "runp" }
 func (c *runpCmd) Synopsis() string { return "Run a command in parallel across jiri projects" }
 func (c *runpCmd) Usage() string {
-	return `
-Run a command in parallel across one or more jiri projects. Commands are run
+	return `Run a command in parallel across one or more jiri projects. Commands are run
 using the shell specified by the users $SHELL environment variable, or "sh"
 if that's not set. Thus commands are run as $SHELL -c "args..."
 
