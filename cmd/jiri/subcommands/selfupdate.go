@@ -11,19 +11,6 @@ import (
 
 	"github.com/google/subcommands"
 	"go.fuchsia.dev/jiri"
-	"go.fuchsia.dev/jiri/cmdline"
-)
-
-// TODO(https://fxbug.dev/356134056): delete when finished migrating to
-// subcommands library.
-var (
-	selfUpdateFlags selfUpdateCmd
-	cmdSelfUpdate   = &cmdline.Command{
-		Runner: cmdline.RunnerFunc(selfUpdateFlags.run),
-		Name:   selfUpdateFlags.Name(),
-		Short:  selfUpdateFlags.Synopsis(),
-		Long:   selfUpdateFlags.Usage(),
-	}
 )
 
 type selfUpdateCmd struct {

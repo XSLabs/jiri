@@ -11,20 +11,7 @@ import (
 	"fmt"
 
 	"github.com/google/subcommands"
-	"go.fuchsia.dev/jiri/cmdline"
 	"go.fuchsia.dev/jiri/version"
-)
-
-// TODO(https://fxbug.dev/356134056): delete when finished migrating to
-// subcommands library.
-var (
-	versionFlags versionCmd
-	cmdVersion   = &cmdline.Command{
-		Name:   versionFlags.Name(),
-		Short:  versionFlags.Synopsis(),
-		Long:   versionFlags.Usage(),
-		Runner: cmdline.RunnerFunc(versionFlags.run),
-	}
 )
 
 type versionCmd struct {

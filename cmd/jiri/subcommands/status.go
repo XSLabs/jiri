@@ -18,19 +18,6 @@ import (
 	"go.fuchsia.dev/jiri/project"
 )
 
-// TODO(https://fxbug.dev/356134056): delete when finished migrating to
-// subcommands library.
-var (
-	statusFlags statusCmd
-	cmdStatus   = commandFromSubcommand(&statusFlags)
-)
-
-// TODO(https://fxbug.dev/356134056): delete when finished migrating to
-// subcommands library.
-func init() {
-	statusFlags.SetFlags(&cmdStatus.Flags)
-}
-
 type statusCmd struct {
 	cmdBase
 

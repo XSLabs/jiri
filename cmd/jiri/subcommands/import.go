@@ -17,19 +17,6 @@ import (
 	"go.fuchsia.dev/jiri/project"
 )
 
-// TODO(https://fxbug.dev/356134056): delete when finished migrating to
-// subcommands library.
-var (
-	importFlags importCmd
-	cmdImport   = commandFromSubcommand(&importFlags)
-)
-
-// TODO(https://fxbug.dev/356134056): delete when finished migrating to
-// subcommands library.
-func init() {
-	importFlags.SetFlags(&cmdImport.Flags)
-}
-
 type importCmd struct {
 	cmdBase
 

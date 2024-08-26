@@ -18,19 +18,6 @@ import (
 	"go.fuchsia.dev/jiri/project"
 )
 
-// TODO(https://fxbug.dev/356134056): delete when finished migrating to
-// subcommands library.
-var (
-	genGitModuleFlags genGitModuleCmd
-	cmdGenGitModule   = commandFromSubcommand(&genGitModuleFlags)
-)
-
-// TODO(https://fxbug.dev/356134056): delete when finished migrating to
-// subcommands library.
-func init() {
-	genGitModuleFlags.SetFlags(&cmdGenGitModule.Flags)
-}
-
 type genGitModuleCmd struct {
 	cmdBase
 

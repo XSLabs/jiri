@@ -22,19 +22,6 @@ const (
 	maxExecutionTimingThreshold time.Duration = time.Duration(2) * time.Hour * 24 * 14 // 2 weeks
 )
 
-// TODO(https://fxbug.dev/356134056): delete when finished migrating to
-// subcommands library.
-var (
-	updateFlags updateCmd
-	cmdUpdate   = commandFromSubcommand(&updateFlags)
-)
-
-// TODO(https://fxbug.dev/356134056): delete when finished migrating to
-// subcommands library.
-func init() {
-	updateFlags.SetFlags(&cmdUpdate.Flags)
-}
-
 type updateCmd struct {
 	cmdBase
 

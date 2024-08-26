@@ -13,19 +13,6 @@ import (
 	"github.com/google/subcommands"
 	"go.fuchsia.dev/jiri"
 	"go.fuchsia.dev/jiri/cipd"
-	"go.fuchsia.dev/jiri/cmdline"
-)
-
-// TODO(https://fxbug.dev/356134056): delete when finished migrating to
-// subcommands library.
-var (
-	bootstrapFlags bootstrapCmd
-	cmdBootstrap   = &cmdline.Command{
-		Name:   bootstrapFlags.Name(),
-		Short:  bootstrapFlags.Synopsis(),
-		Long:   bootstrapFlags.Usage(),
-		Runner: cmdline.RunnerFunc(bootstrapFlags.run),
-	}
 )
 
 type bootstrapCmd struct {

@@ -17,30 +17,11 @@ import (
 	"github.com/google/subcommands"
 	"go.fuchsia.dev/jiri"
 	"go.fuchsia.dev/jiri/analytics_util"
-	"go.fuchsia.dev/jiri/cmdline"
 )
 
 const (
 	optionalAttrsNotSet = "[ATTRIBUTES_NOT_SET]"
 )
-
-// TODO(https://fxbug.dev/356134056): delete when finished migrating to
-// subcommands library.
-var (
-	initFlags initCmd
-	cmdInit   = &cmdline.Command{
-		Name:   initFlags.Name(),
-		Short:  initFlags.Synopsis(),
-		Long:   initFlags.Usage(),
-		Runner: cmdline.RunnerFunc(initFlags.run),
-	}
-)
-
-// TODO(https://fxbug.dev/356134056): delete when finished migrating to
-// subcommands library.
-func init() {
-	initFlags.SetFlags(&cmdInit.Flags)
-}
 
 type initCmd struct {
 	cmdBase

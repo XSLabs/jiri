@@ -22,19 +22,6 @@ import (
 	"go.fuchsia.dev/jiri/project"
 )
 
-// TODO(https://fxbug.dev/356134056): delete when finished migrating to
-// subcommands library.
-var (
-	patchFlags patchCmd
-	cmdPatch   = commandFromSubcommand(&patchFlags)
-)
-
-// TODO(https://fxbug.dev/356134056): delete when finished migrating to
-// subcommands library.
-func init() {
-	patchFlags.SetFlags(&cmdPatch.Flags)
-}
-
 type patchCmd struct {
 	cmdBase
 

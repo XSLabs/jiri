@@ -19,19 +19,6 @@ import (
 	"go.fuchsia.dev/jiri/project"
 )
 
-// TODO(https://fxbug.dev/356134056): delete when finished migrating to
-// subcommands library.
-var (
-	uploadFlags uploadCmd
-	cmdUpload   = commandFromSubcommand(&uploadFlags)
-)
-
-// TODO(https://fxbug.dev/356134056): delete when finished migrating to
-// subcommands library.
-func init() {
-	uploadFlags.SetFlags(&cmdUpload.Flags)
-}
-
 type uploadCmd struct {
 	cmdBase
 

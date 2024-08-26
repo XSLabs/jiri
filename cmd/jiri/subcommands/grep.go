@@ -17,19 +17,6 @@ import (
 	"go.fuchsia.dev/jiri/project"
 )
 
-// TODO(https://fxbug.dev/356134056): delete when finished migrating to
-// subcommands library.
-var (
-	grepFlags grepCmd
-	cmdGrep   = commandFromSubcommand(&grepFlags)
-)
-
-// TODO(https://fxbug.dev/356134056): delete when finished migrating to
-// subcommands library.
-func init() {
-	grepFlags.SetFlags(&cmdGrep.Flags)
-}
-
 type grepCmd struct {
 	cmdBase
 
