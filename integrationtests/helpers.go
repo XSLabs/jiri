@@ -6,6 +6,7 @@ package integrationtests
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io/fs"
 	"os"
@@ -23,19 +24,31 @@ import (
 	"go.fuchsia.dev/jiri/project"
 )
 
-// newJiri returns a function that can be called to run jiri commands.
+// jiriInit returns a function that can be called to run jiri commands.
 //
 // For example:
 //
-//	jiri := newJiri(t, root)
+//	jiri := jiriInit(t, root)
 //	stdout := jiri("update", "-gc")
-func newJiri(t *testing.T, root string) func(args ...string) string {
+func jiriInit(t *testing.T, root string, initArgs ...string) func(args ...string) string {
 	t.Helper()
 
-	return func(args ...string) string {
+	jiri := func(args ...string) string {
 		t.Helper()
 
-		args = append([]string{"--root", root}, args...)
+		var finalArgs []string
+		finalArgs = append(finalArgs, args...)
+
+		if len(args) > 0 {
+			subcommand := args[0]
+			switch subcommand {
+			case "update", "run-hooks", "fetch-packages":
+				// Don't do retries with backoff since they make tests slower
+				// and shouldn't be necessary since tests should be hermetic and
+				// deterministic.
+				finalArgs = append(finalArgs, "-attempts", "1")
+			}
+		}
 
 		var stdout, stderr bytes.Buffer
 		env := &cmdline.Env{
@@ -43,6 +56,7 @@ func newJiri(t *testing.T, root string) func(args ...string) string {
 			Stderr: &stderr,
 			Vars:   envvar.SliceToMap(os.Environ()),
 		}
+		args = append([]string{"--root", root}, args...)
 		commander, err := jirisubcommands.NewCommander(args)
 		if err != nil {
 			t.Fatal(err)
@@ -56,6 +70,12 @@ func newJiri(t *testing.T, root string) func(args ...string) string {
 		}
 		return string(stdout.Bytes())
 	}
+
+	initArgs = append([]string{"init", "-analytics-opt=false"}, initArgs...)
+	initArgs = append(initArgs, root)
+	jiri(initArgs...)
+
+	return jiri
 }
 
 func runSubprocess(t *testing.T, dir string, args ...string) string {
@@ -85,15 +105,37 @@ func runSubprocess(t *testing.T, dir string, args ...string) string {
 	return string(stdout.Bytes())
 }
 
-func writeFile(t *testing.T, path string, contents []byte) {
+func writeFile(t *testing.T, path string, contents string) {
 	t.Helper()
 
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(path, contents, 0o600); err != nil {
+	if err := os.WriteFile(path, []byte(contents), 0o600); err != nil {
 		t.Fatal(err)
 	}
+}
+
+func readFile(t *testing.T, path string) string {
+	t.Helper()
+
+	b, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(b)
+}
+
+func fileExists(t *testing.T, path string) bool {
+	t.Helper()
+
+	if _, err := os.Stat(path); err != nil {
+		if !errors.Is(err, os.ErrNotExist) {
+			t.Fatal(err)
+		}
+		return false
+	}
+	return true
 }
 
 func setupGitRepo(t *testing.T, dir string, files map[string]any) {
@@ -102,23 +144,23 @@ func setupGitRepo(t *testing.T, dir string, files map[string]any) {
 	runSubprocess(t, dir, "git", "init")
 
 	for path, contents := range files {
-		var b []byte
+		var s string
 		switch x := contents.(type) {
 		case []byte:
-			b = x
+			s = string(x)
 		case string:
-			b = []byte(x)
+			s = x
 		case project.Manifest:
-			var err error
-			b, err = x.ToBytes()
+			b, err := x.ToBytes()
 			if err != nil {
 				t.Fatal(err)
 			}
+			s = string(b)
 		default:
 			t.Fatalf("Invalid type for git repo file %s", path)
 		}
 
-		writeFile(t, filepath.Join(dir, path), b)
+		writeFile(t, filepath.Join(dir, path), s)
 	}
 
 	runSubprocess(t, dir, "git", "add", ".")

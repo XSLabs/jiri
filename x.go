@@ -249,7 +249,7 @@ func NewX(env *cmdline.Env, flags TopLevelFlags) (*X, error) {
 	} else if flags.ProgressWindowSize > 10 {
 		flags.ProgressWindowSize = 10
 	}
-	logger := log.NewLogger(loggerLevel, color, flags.ShowProgress, flags.ProgressWindowSize, flags.TimeLogThreshold, nil, nil)
+	logger := log.NewLogger(loggerLevel, color, flags.ShowProgress, flags.ProgressWindowSize, flags.TimeLogThreshold, env.Stdout, env.Stderr)
 
 	ctx := tool.NewContextFromEnv(env)
 	root, err := FindRoot(flags, ctx.Timer())
