@@ -46,7 +46,7 @@ func checkSubmodulestates(jirix *jiri.X, superproject Project) error {
 			}(proj)
 		}
 		if subm.Prefix == "+" {
-			jirix.Logger.Infof("Submodule %s current checkout does not match the SHA-1 to the index of superproject. May contain local changes.\n", subm.Name)
+			jirix.Logger.Infof("Submodule %s current checkout does not match the SHA-1 to the index of superproject. May contain local changes. Try running `git submodule update`.\n", subm.Name)
 			continue
 		}
 		if subm.Prefix == "U" {
