@@ -921,7 +921,7 @@ func TestBranchUpdateWhenNoRebase(t *testing.T) {
 		t.Fatal(err)
 	}
 	gitLocal := gitutil.New(fake.X, gitutil.RootDirOpt(localProjects[1].Path))
-	gitLocal.CheckoutBranch("main")
+	gitLocal.Checkout("main")
 
 	lc := project.LocalConfig{NoRebase: true}
 	project.WriteLocalConfig(fake.X, localProjects[1], lc)
@@ -1658,7 +1658,7 @@ func TestUpdateWhenRemoteChangesRebased(t *testing.T) {
 	}
 
 	// checkout branch in local repo
-	if err := gitLocal.CheckoutBranch("non-main"); err != nil {
+	if err := gitLocal.Checkout("non-main"); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1714,7 +1714,7 @@ func TestUpdateWhenConflictMerge(t *testing.T) {
 	}
 
 	// checkout branch in local repo
-	if err := gitLocal.CheckoutBranch("non-main"); err != nil {
+	if err := gitLocal.Checkout("non-main"); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1766,7 +1766,7 @@ func TestTagNotContainedInBranch(t *testing.T) {
 		t.Fatalf("Creating tag: %s", err)
 
 	}
-	if err := gitRemote.CheckoutBranch("main"); err != nil {
+	if err := gitRemote.Checkout("main"); err != nil {
 		t.Fatal(err)
 	}
 	if err := gitRemote.DeleteBranch("non-main", gitutil.ForceOpt(true)); err != nil {
@@ -1840,7 +1840,7 @@ func testCheckoutSnapshot(t *testing.T, testURL bool) {
 
 		// Test case when local repo in on a branch
 		if i == 1 {
-			if err := gitLocal.CheckoutBranch("main"); err != nil {
+			if err := gitLocal.Checkout("main"); err != nil {
 				t.Fatal(err)
 			}
 		}
@@ -1910,7 +1910,7 @@ func testLocalBranchesAreUpdated(t *testing.T, shouldLocalBeOnABranch, rebaseAll
 
 	writeReadme(t, fake.X, fake.Projects[localProjects[1].Name], "non-main commit")
 
-	if err := gitRemote.CheckoutBranch("main"); err != nil {
+	if err := gitRemote.Checkout("main"); err != nil {
 		t.Fatal(err)
 	}
 	writeReadme(t, fake.X, fake.Projects[localProjects[1].Name], "main commit")
@@ -1918,13 +1918,13 @@ func testLocalBranchesAreUpdated(t *testing.T, shouldLocalBeOnABranch, rebaseAll
 	gitLocal := gitutil.New(fake.X, gitutil.UserNameOpt("John Doe"), gitutil.UserEmailOpt("john.doe@example.com"), gitutil.RootDirOpt(localProjects[1].Path))
 
 	// This will create a local branch non-main
-	if err := gitLocal.CheckoutBranch("non-main"); err != nil {
+	if err := gitLocal.Checkout("non-main"); err != nil {
 		t.Fatal(err)
 	}
 
 	// Go back to detached HEAD
 	if !shouldLocalBeOnABranch {
-		if err := gitLocal.CheckoutBranch("HEAD", gitutil.DetachOpt(true)); err != nil {
+		if err := gitLocal.Checkout("HEAD", gitutil.DetachOpt(true)); err != nil {
 			t.Fatal(err)
 		}
 	}

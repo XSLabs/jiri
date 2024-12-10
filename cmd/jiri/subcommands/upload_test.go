@@ -68,7 +68,7 @@ func assertUploadPushedFilesToRef(t *testing.T, jirix *jiri.X, gerritPath, pushe
 	t.Helper()
 
 	git := gitutil.New(jirix, gitutil.RootDirOpt(gerritPath))
-	if err := git.CheckoutBranch(pushedRef); err != nil {
+	if err := git.Checkout(pushedRef); err != nil {
 		t.Fatal(err)
 	}
 	for _, file := range files {
@@ -88,7 +88,7 @@ func assertUploadFilesNotPushedToRef(t *testing.T, jirix *jiri.X, gerritPath, pu
 	t.Helper()
 
 	git := gitutil.New(jirix, gitutil.RootDirOpt(gerritPath))
-	if err := git.CheckoutBranch(pushedRef); err != nil {
+	if err := git.Checkout(pushedRef); err != nil {
 		t.Fatal(err)
 	}
 	for _, file := range files {
@@ -122,7 +122,7 @@ func TestUpload(t *testing.T) {
 	if err := git.CreateBranchWithUpstream(branch, "origin/main"); err != nil {
 		t.Fatal(err)
 	}
-	if err := git.CheckoutBranch(branch); err != nil {
+	if err := git.Checkout(branch); err != nil {
 		t.Fatal(err)
 	}
 	files := []string{"file1"}
@@ -162,7 +162,7 @@ func TestUploadRef(t *testing.T) {
 	if err := git.CreateBranchWithUpstream(branch, "origin/main"); err != nil {
 		t.Fatal(err)
 	}
-	if err := git.CheckoutBranch(branch); err != nil {
+	if err := git.Checkout(branch); err != nil {
 		t.Fatal(err)
 	}
 	files := []string{"file1", "file2"}
@@ -231,7 +231,7 @@ func TestUploadMultipart(t *testing.T) {
 		if err := git.CreateBranchWithUpstream(branch, "origin/main"); err != nil {
 			t.Fatal(err)
 		}
-		if err := git.CheckoutBranch(branch); err != nil {
+		if err := git.Checkout(branch); err != nil {
 			t.Fatal(err)
 		}
 		commitFiles(t, git, []string{"file-1" + strconv.Itoa(i)})
@@ -276,7 +276,7 @@ func TestUploadMultipartWithBranchFlagSimple(t *testing.T) {
 		if err := git.CreateBranchWithUpstream(branch, "origin/main"); err != nil {
 			t.Fatalf("%v", err)
 		}
-		if err := git.CheckoutBranch(branch); err != nil {
+		if err := git.Checkout(branch); err != nil {
 			t.Fatalf("%v", err)
 		}
 		commitFiles(t, git, []string{"file-1" + strconv.Itoa(i)})
@@ -323,7 +323,7 @@ func TestUploadRebase(t *testing.T) {
 	if err := git.CreateBranchWithUpstream(branch, "origin/main"); err != nil {
 		t.Fatal(err)
 	}
-	if err := git.CheckoutBranch(branch); err != nil {
+	if err := git.Checkout(branch); err != nil {
 		t.Fatal(err)
 	}
 	localFiles := []string{"file1"}
@@ -358,7 +358,7 @@ func TestUploadMultipleCommits(t *testing.T) {
 	if err := git.CreateBranchWithUpstream(branch, "origin/main"); err != nil {
 		t.Fatal(err)
 	}
-	if err := git.CheckoutBranch(branch); err != nil {
+	if err := git.Checkout(branch); err != nil {
 		t.Fatal(err)
 	}
 	files1 := []string{"file1"}

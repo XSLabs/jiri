@@ -285,8 +285,8 @@ func (g *Git) IsRevAvailable(jirix *jiri.X, remote, rev string) bool {
 	return true
 }
 
-// CheckoutBranch checks out the given branch.
-func (g *Git) CheckoutBranch(branch string, opts ...CheckoutOpt) error {
+// Checkout checks out the given ref.
+func (g *Git) Checkout(ref string, opts ...CheckoutOpt) error {
 	args := []string{"checkout"}
 	var force ForceOpt = false
 	var detach DetachOpt = false
@@ -311,7 +311,7 @@ func (g *Git) CheckoutBranch(branch string, opts ...CheckoutOpt) error {
 		args = append(args, "--detach")
 	}
 
-	args = append(args, branch)
+	args = append(args, ref)
 	if err := g.run(args...); err != nil {
 		return err
 	}

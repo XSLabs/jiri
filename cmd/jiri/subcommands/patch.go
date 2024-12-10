@@ -337,7 +337,7 @@ func (c *patchCmd) patchProject(jirix *jiri.X, local project.Project, ref, branc
 					return false, err
 				}
 				if currentBranch == branch {
-					if err := scm.CheckoutBranch("remotes/origin/"+remote, gitutil.RecurseSubmodulesOpt(local.GitSubmodules && jirix.EnableSubmodules), gitutil.DetachOpt(true)); err != nil {
+					if err := scm.Checkout("remotes/origin/"+remote, gitutil.RecurseSubmodulesOpt(local.GitSubmodules && jirix.EnableSubmodules), gitutil.DetachOpt(true)); err != nil {
 						return false, err
 					}
 				}
@@ -409,7 +409,7 @@ func (c *patchCmd) patchProject(jirix *jiri.X, local project.Project, ref, branc
 		}
 	}
 
-	if err := scm.CheckoutBranch(branchBase, gitutil.RecurseSubmodulesOpt(local.GitSubmodules && jirix.EnableSubmodules)); err != nil {
+	if err := scm.Checkout(branchBase, gitutil.RecurseSubmodulesOpt(local.GitSubmodules && jirix.EnableSubmodules)); err != nil {
 		return false, err
 	}
 	if c.cherryPick {
@@ -427,7 +427,7 @@ func (c *patchCmd) patchProject(jirix *jiri.X, local project.Project, ref, branc
 			}
 
 			// checkout last ref
-			if err := scm.CheckoutBranch(lastRef, gitutil.RecurseSubmodulesOpt(local.GitSubmodules && jirix.EnableSubmodules)); err != nil {
+			if err := scm.Checkout(lastRef, gitutil.RecurseSubmodulesOpt(local.GitSubmodules && jirix.EnableSubmodules)); err != nil {
 				jirix.Logger.Errorf("Not able to checkout last ref. Error:%s\nPlease do it manually:'%s'\n\n", err,
 					jirix.Color.Yellow("git -C %q checkout %s", local.Path, lastRef))
 				return false, nil

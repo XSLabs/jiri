@@ -37,11 +37,11 @@ func createCommits(t *testing.T, fake *jiritest.FakeJiriRoot, localProjects []pr
 		gitRemote := gitutil.New(fake.X, gitutil.RootDirOpt(fake.Projects[localProject.Name]))
 		writeFile(t, fake.X, fake.Projects[localProject.Name], "file1"+strconv.Itoa(i), "file1"+strconv.Itoa(i))
 		gitRemote.CreateAndCheckoutBranch("file-1")
-		gitRemote.CheckoutBranch("main")
+		gitRemote.Checkout("main")
 		file1CommitRev, _ := gitRemote.CurrentRevision()
 		file1CommitRevs = append(file1CommitRevs, file1CommitRev)
 		gitRemote.CreateAndCheckoutBranch("file-2")
-		gitRemote.CheckoutBranch("main")
+		gitRemote.Checkout("main")
 		writeFile(t, fake.X, fake.Projects[localProject.Name], "file2"+strconv.Itoa(i), "file2"+strconv.Itoa(i))
 		file2CommitRev, _ := gitRemote.CurrentRevision()
 		file2CommitRevs = append(file2CommitRevs, file2CommitRev)
@@ -148,9 +148,9 @@ func TestStatus(t *testing.T) {
 
 	// Test when HEAD is on different revsion
 	gitLocal := gitutil.New(fake.X, gitutil.RootDirOpt(localProjects[1].Path))
-	gitLocal.CheckoutBranch("HEAD~1")
+	gitLocal.Checkout("HEAD~1")
 	gitLocal = gitutil.New(fake.X, gitutil.RootDirOpt(localProjects[2].Path))
-	gitLocal.CheckoutBranch("file-2")
+	gitLocal.Checkout("file-2")
 	got = executeStatus(t, fake, cmd, "")
 	currentCommits := []string{latestCommitRevs[0], file2CommitRevs[1], file1CommitRevs[2]}
 	currentBranch := []string{"", "", "file-2"}
@@ -267,11 +267,11 @@ func statusFlagsTest(t *testing.T, cmd *statusCmd) {
 		gitLocals[i] = gitLocal
 	}
 
-	gitLocals[0].CheckoutBranch("HEAD~1")
-	gitLocals[1].CheckoutBranch("file-2")
-	gitLocals[3].CheckoutBranch("HEAD~2")
-	gitLocals[4].CheckoutBranch("main")
-	gitLocals[5].CheckoutBranch("main")
+	gitLocals[0].Checkout("HEAD~1")
+	gitLocals[1].Checkout("file-2")
+	gitLocals[3].Checkout("HEAD~2")
+	gitLocals[4].Checkout("main")
+	gitLocals[5].Checkout("main")
 
 	newfile(t, localProjects[0].Path, "untracked1")
 	newfile(t, localProjects[0].Path, "untracked2")
