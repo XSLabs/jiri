@@ -86,7 +86,7 @@ func unarchiveJiri(b []byte) ([]byte, error) {
 	return nil, fmt.Errorf("Cannot find jiri in update archive")
 }
 
-func UpdateAndExecute(force bool) error {
+func UpdateAndExecute(jirix *X, force bool) error {
 	// Capture executable path before it is replaced in Update func
 	path, err := osutil.Executable()
 	if err != nil {
@@ -97,6 +97,9 @@ func UpdateAndExecute(force bool) error {
 			err != updateTestVersionErr {
 			return err
 		}
+		jirix.Logger.Debugf("selfupdate not possible: %s", err)
+		// No update available, so continue normal execution with the current
+		// executable instead of doing a redundant exec of the same executable.
 		return nil
 	}
 
@@ -107,7 +110,7 @@ func UpdateAndExecute(force bool) error {
 		}
 	}
 
-	// Run the update version.
+	// Run the updated version.
 	if err = syscall.Exec(path, args, os.Environ()); err != nil {
 		return fmt.Errorf("cannot execute %s: %s", path, err)
 	}

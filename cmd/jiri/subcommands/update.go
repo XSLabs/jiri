@@ -95,8 +95,8 @@ func (c *updateCmd) run(jirix *jiri.X, args []string) error {
 	if c.autoupdate {
 		// Try to update Jiri itself.
 		if err := retry.Function(jirix, func() error {
-			return jiri.UpdateAndExecute(c.forceAutoupdate)
-		}, fmt.Sprintf("download jiri binary"), retry.AttemptsOpt(jirix.Attempts)); err != nil {
+			return jiri.UpdateAndExecute(jirix, c.forceAutoupdate)
+		}, "download jiri binary", retry.AttemptsOpt(jirix.Attempts)); err != nil {
 			fmt.Fprintf(jirix.Stdout(), "warning: automatic update failed: %v\n", err)
 		}
 	}
