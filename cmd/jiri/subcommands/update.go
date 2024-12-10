@@ -133,12 +133,6 @@ func (c *updateCmd) run(jirix *jiri.X, args []string) error {
 			FetchPackagesTimeout: c.fetchPkgsTimeout,
 			PackagesToSkip:       c.packagesToSkip,
 		})
-		if err2 := project.WriteUpdateHistorySnapshot(jirix, nil, nil, c.localManifest); err2 != nil {
-			if err != nil {
-				return fmt.Errorf("while updating: %s, while writing history: %s", err, err2)
-			}
-			return fmt.Errorf("while writing history: %s", err2)
-		}
 		if err != nil {
 			return err
 		}

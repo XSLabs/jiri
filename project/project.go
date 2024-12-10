@@ -880,10 +880,7 @@ func CheckoutSnapshot(jirix *jiri.X, snapshot string, gc, runHooks, fetchPkgs bo
 		FetchPackages:        fetchPkgs,
 		PackagesToSkip:       pkgsToSkip,
 	}
-	if err := updateProjects(jirix, localProjects, remoteProjects, hooks, pkgs, true /*snapshot*/, params); err != nil {
-		return err
-	}
-	return WriteUpdateHistorySnapshot(jirix, hooks, pkgs, false)
+	return updateProjects(jirix, localProjects, remoteProjects, hooks, pkgs, true /*snapshot*/, params)
 }
 
 // LoadSnapshotFile loads the specified snapshot manifest.  If the snapshot
@@ -2734,6 +2731,11 @@ func updateProjects(jirix *jiri.X, localProjects, remoteProjects Projects, hooks
 				return err
 			}
 		}
+	}
+
+	// Generate snapshot before running hooks so hooks can depend on the snapshot
+	if err := WriteUpdateHistorySnapshot(jirix, hooks, pkgs, params.LocalManifest); err != nil {
+		return err
 	}
 
 	if params.RunHooks {
