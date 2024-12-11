@@ -79,6 +79,8 @@ func jiriInit(t *testing.T, root string, initArgs ...string) func(args ...string
 }
 
 func runSubprocess(t *testing.T, dir string, args ...string) string {
+	t.Helper()
+
 	cmd := exec.Command(args[0], args[1:]...)
 	cmd.Env = os.Environ()
 	gitConfig := map[string]string{
