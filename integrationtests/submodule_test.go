@@ -201,3 +201,55 @@ func TestUpdateAfterLocalChangeToSubmodule(t *testing.T) {
 		t.Errorf("Wrong directory contents after update (-want +got):\n%s", diff)
 	}
 }
+
+// Check that it's safe to toggle from -enable-submodules=true to -enable-submodules=false.
+func TestDisablingSubmodules(t *testing.T) {
+	t.Parallel()
+
+	remoteDir := t.TempDir()
+	submoduleRemoteDir := t.TempDir()
+	setupGitRepo(t, remoteDir, map[string]any{
+		"manifest": project.Manifest{
+			Projects: []project.Project{
+				{
+					Name:          "manifest",
+					Path:          "manifest_dir",
+					Remote:        remoteDir,
+					GitSubmodules: true,
+				},
+				{
+					Name:           "submodule",
+					Path:           "manifest_dir/submodule",
+					Remote:         submoduleRemoteDir,
+					GitSubmodules:  true,
+					GitSubmoduleOf: "manifest",
+				},
+			},
+		},
+	})
+
+	setupGitRepo(t, submoduleRemoteDir, map[string]any{
+		"foo.txt": "foo",
+	})
+
+	runSubprocess(t, remoteDir, "git", "submodule", "add", submoduleRemoteDir, "submodule")
+	runSubprocess(t, remoteDir, "git", "commit", "-a", "-m", "Add submodule")
+
+	root := t.TempDir()
+	jiri := jiriInit(t, root, "-enable-submodules=true")
+	jiri("import", "manifest", remoteDir)
+	jiri("update")
+
+	jiri("init", "-enable-submodules=false")
+	jiri("update")
+
+	wantFiles := []string{
+		"manifest_dir/manifest",
+		"manifest_dir/submodule/foo.txt",
+	}
+
+	gotFiles := listDirRecursive(t, root)
+	if diff := cmp.Diff(wantFiles, gotFiles); diff != "" {
+		t.Errorf("Wrong directory contents after update (-want +got):\n%s", diff)
+	}
+}

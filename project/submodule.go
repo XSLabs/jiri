@@ -29,8 +29,8 @@ type Submodules map[string]Submodule
 
 var submoduleConfigRegex = regexp.MustCompile(`([-+U]?)([a-fA-F0-9]{40})\s([^\s]*)\s?`)
 
-// checkSubmodulestates checks if all submodules synced properly.
-func checkSubmodulestates(jirix *jiri.X, superproject Project) error {
+// checkSubmoduleStates checks if all submodules synced properly.
+func checkSubmoduleStates(jirix *jiri.X, superproject Project) error {
 	subms, err := getSubmodulesStatus(jirix, superproject)
 	if err != nil {
 		return err

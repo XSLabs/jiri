@@ -2675,7 +2675,7 @@ func updateProjects(jirix *jiri.X, localProjects, remoteProjects Projects, hooks
 				if !project.GitSubmodules {
 					return
 				}
-				if err := checkSubmodulestates(jirix, project); err != nil {
+				if err := checkSubmoduleStates(jirix, project); err != nil {
 					jirix.Logger.Debugf("writing jiri revision files failed due to error: %v", err)
 				}
 			}(jirix, project)

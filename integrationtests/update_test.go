@@ -142,3 +142,44 @@ func TestImportRemoteManifest(t *testing.T) {
 		t.Errorf("Wrong directory contents after update (-want +got):\n%s", diff)
 	}
 }
+
+func TestSuperprojectChange(t *testing.T) {
+	t.Parallel()
+
+	remoteDir := t.TempDir()
+	setupGitRepo(t, remoteDir, map[string]any{
+		"manifest": project.Manifest{
+			Projects: []project.Project{
+				{
+					Name:          "manifest",
+					Path:          "manifest_dir",
+					Remote:        remoteDir,
+					GitSubmodules: true,
+				},
+			},
+		},
+	})
+
+	root := t.TempDir()
+	jiri := jiriInit(t, root, "-enable-submodules=true")
+	jiri("import", "manifest", remoteDir)
+	jiri("update")
+
+	// Commit a new file to the superproject's upstream.
+	writeFile(t, filepath.Join(remoteDir, "bar.txt"), "bar")
+	runSubprocess(t, remoteDir, "git", "add", ".")
+	runSubprocess(t, remoteDir, "git", "commit", "-m", "Add bar.txt")
+
+	// Do an update, which should pull in the superproject changes.
+	jiri("update")
+
+	wantFiles := []string{
+		"manifest_dir/bar.txt",
+		"manifest_dir/manifest",
+	}
+
+	gotFiles := listDirRecursive(t, root)
+	if diff := cmp.Diff(wantFiles, gotFiles); diff != "" {
+		t.Errorf("Wrong directory contents after update (-want +got):\n%s", diff)
+	}
+}
