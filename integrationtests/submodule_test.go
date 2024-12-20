@@ -9,7 +9,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/google/go-cmp/cmp"
 	"go.fuchsia.dev/jiri/project"
 )
 
@@ -62,15 +61,10 @@ func TestUpdateWithSubmodule(t *testing.T) {
 		t.Errorf("JIRI_HEAD of submodule points to wrong commit %q, expected %q", gotJiriHead, wantJiriHead)
 	}
 
-	wantFiles := []string{
+	checkDirContents(t, root, []string{
 		"manifest_dir/manifest",
 		"manifest_dir/submodule/foo.txt",
-	}
-
-	gotFiles := listDirRecursive(t, root)
-	if diff := cmp.Diff(wantFiles, gotFiles); diff != "" {
-		t.Errorf("Wrong directory contents after update (-want +got):\n%s", diff)
-	}
+	})
 
 	// TODO(olivernewman): It's necessary to run `jiri update` twice in order to
 	// get it to install git hooks for submodules. This is a bug.
@@ -131,18 +125,13 @@ func TestUpdateWithSubmodulesOnBranch(t *testing.T) {
 	// Do an update, which should pull in the submodule changes.
 	jiri("update")
 
-	wantFiles := []string{
+	checkDirContents(t, root, []string{
 		"manifest_dir/manifest",
 		"manifest_dir/submodule/foo.txt",
 		// TODO(https://fxbug.dev/290956668): This file should also exist after
 		// an update.
 		// "manifest_dir/submodule/new_file.txt",
-	}
-
-	gotFiles := listDirRecursive(t, root)
-	if diff := cmp.Diff(wantFiles, gotFiles); diff != "" {
-		t.Errorf("Wrong directory contents after update (-want +got):\n%s", diff)
-	}
+	})
 }
 
 func TestUpdateAfterLocalChangeToSubmodule(t *testing.T) {
@@ -187,19 +176,14 @@ func TestUpdateAfterLocalChangeToSubmodule(t *testing.T) {
 
 	jiri("update")
 
-	wantFiles := []string{
+	checkDirContents(t, root, []string{
 		"manifest_dir/manifest",
 		"manifest_dir/submodule/foo.txt",
 		// TODO(https://fxbug.dev/290956668): This file should still exist after
 		// an update - jiri should not update submodules that are not on
 		// JIRI_HEAD.
 		// "manifest_dir/submodule/new_file.txt",
-	}
-
-	gotFiles := listDirRecursive(t, root)
-	if diff := cmp.Diff(wantFiles, gotFiles); diff != "" {
-		t.Errorf("Wrong directory contents after update (-want +got):\n%s", diff)
-	}
+	})
 }
 
 // Check that it's safe to toggle from -enable-submodules=true to -enable-submodules=false.
@@ -243,13 +227,8 @@ func TestDisablingSubmodules(t *testing.T) {
 	jiri("init", "-enable-submodules=false")
 	jiri("update")
 
-	wantFiles := []string{
+	checkDirContents(t, root, []string{
 		"manifest_dir/manifest",
 		"manifest_dir/submodule/foo.txt",
-	}
-
-	gotFiles := listDirRecursive(t, root)
-	if diff := cmp.Diff(wantFiles, gotFiles); diff != "" {
-		t.Errorf("Wrong directory contents after update (-want +got):\n%s", diff)
-	}
+	})
 }

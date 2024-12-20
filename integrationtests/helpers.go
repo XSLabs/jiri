@@ -16,6 +16,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/google/subcommands"
 	jirisubcommands "go.fuchsia.dev/jiri/cmd/jiri/subcommands"
 	"go.fuchsia.dev/jiri/cmdline"
@@ -170,6 +172,8 @@ func setupGitRepo(t *testing.T, dir string, files map[string]any) {
 }
 
 func listDirRecursive(t *testing.T, dir string) []string {
+	t.Helper()
+
 	var files []string
 	err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
@@ -198,4 +202,22 @@ func listDirRecursive(t *testing.T, dir string) []string {
 	}
 	slices.Sort(files)
 	return files
+}
+
+// checkDirContents asserts that the given `dir` contains the given `files`,
+// including files in subdirectories.
+func checkDirContents(t *testing.T, dir string, files []string) {
+	t.Helper()
+
+	got := listDirRecursive(t, dir)
+	if diff := cmp.Diff(files, got, cmpopts.SortSlices(func(a, b string) bool { return a < b })); diff != "" {
+		t.Errorf("Wrong directory contents (-want +got):\n%s", diff)
+	}
+}
+
+func currentRevision(t *testing.T, dir string) string {
+	t.Helper()
+
+	stdout := runSubprocess(t, dir, "git", "rev-parse", "HEAD")
+	return strings.TrimSpace(stdout)
 }

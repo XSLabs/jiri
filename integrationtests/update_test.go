@@ -34,14 +34,9 @@ func TestSimpleProject(t *testing.T) {
 	jiri("import", "manifest", remoteDir)
 	jiri("update")
 
-	wantFiles := []string{
+	checkDirContents(t, root, []string{
 		"manifest_dir/manifest",
-	}
-
-	gotFiles := listDirRecursive(t, root)
-	if diff := cmp.Diff(wantFiles, gotFiles); diff != "" {
-		t.Errorf("Wrong directory contents after update (-want +got):\n%s", diff)
-	}
+	})
 }
 
 func TestUpdateWithDirtyProject(t *testing.T) {
@@ -131,16 +126,11 @@ func TestImportRemoteManifest(t *testing.T) {
 	jiri("import", "top_level_manifest", remoteDir)
 	jiri("update")
 
-	wantFiles := []string{
+	checkDirContents(t, root, []string{
 		"foo.txt",
 		"imported_manifest",
 		"manifest/top_level_manifest",
-	}
-
-	gotFiles := listDirRecursive(t, root)
-	if diff := cmp.Diff(wantFiles, gotFiles); diff != "" {
-		t.Errorf("Wrong directory contents after update (-want +got):\n%s", diff)
-	}
+	})
 }
 
 func TestSuperprojectChange(t *testing.T) {
@@ -173,13 +163,73 @@ func TestSuperprojectChange(t *testing.T) {
 	// Do an update, which should pull in the superproject changes.
 	jiri("update")
 
-	wantFiles := []string{
+	checkDirContents(t, root, []string{
 		"manifest_dir/bar.txt",
 		"manifest_dir/manifest",
-	}
+	})
+}
 
-	gotFiles := listDirRecursive(t, root)
-	if diff := cmp.Diff(wantFiles, gotFiles); diff != "" {
-		t.Errorf("Wrong directory contents after update (-want +got):\n%s", diff)
+// Checks that -local-manifest works.
+func TestUpdateWithLocalManifestChange(t *testing.T) {
+	t.Parallel()
+
+	subprojectRemoteDir := t.TempDir()
+	setupGitRepo(t, subprojectRemoteDir, map[string]any{
+		"foo.txt": "foo",
+	})
+	subprojectOldRevision := currentRevision(t, subprojectRemoteDir)
+
+	remoteDir := t.TempDir()
+	setupGitRepo(t, remoteDir, map[string]any{
+		"manifest": project.Manifest{
+			Projects: []project.Project{
+				{
+					Name:   "manifest",
+					Path:   "manifest_dir",
+					Remote: remoteDir,
+				},
+				{
+					Name:     "subproject",
+					Path:     "subproject",
+					Remote:   subprojectRemoteDir,
+					Revision: subprojectOldRevision,
+				},
+			},
+		},
+	})
+
+	root := t.TempDir()
+	jiri := jiriInit(t, root)
+	jiri("import", "manifest", remoteDir)
+	jiri("update")
+
+	originalContents := []string{
+		"manifest_dir/manifest",
+		"subproject/foo.txt",
 	}
+	checkDirContents(t, root, originalContents)
+
+	// Advance the subproject to a new revision, with a new file.
+	writeFile(t, filepath.Join(subprojectRemoteDir, "new_file.txt"), "new file contents")
+	runSubprocess(t, subprojectRemoteDir, "git", "add", "new_file.txt")
+	runSubprocess(t, subprojectRemoteDir, "git", "commit", "-m", "Add new_file.txt")
+	subprojectNewRevision := currentRevision(t, subprojectRemoteDir)
+
+	// Edit the manifest to point to the new revision.
+	localManifestPath := filepath.Join(root, "manifest_dir", "manifest")
+	oldManifestContents := readFile(t, localManifestPath)
+	newManifestContents := strings.ReplaceAll(oldManifestContents, subprojectOldRevision, subprojectNewRevision)
+	writeFile(t, localManifestPath, newManifestContents)
+
+	// A plain old `jiri update` should ignore the manifest changes...
+	jiri("update")
+	checkDirContents(t, root, originalContents)
+
+	// ... but with the -local-manifest flag, Jiri should respect local manifest
+	// changes and pull in the locally pinned version of the subproject, with
+	// the new file.
+	jiri("update", "-local-manifest")
+	checkDirContents(t, root, append(originalContents,
+		"subproject/new_file.txt",
+	))
 }
