@@ -6,7 +6,6 @@ package integrationtests
 
 import (
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -94,8 +93,6 @@ func TestImportRemoteManifest(t *testing.T) {
 		},
 		"foo.txt": "foo\n",
 	})
-	importedRevision := strings.TrimSpace(
-		runSubprocess(t, importedRemoteDir, "git", "rev-parse", "HEAD"))
 
 	// Set up a remote repo that imports the above repository at the root of the
 	// checkout.
@@ -107,7 +104,7 @@ func TestImportRemoteManifest(t *testing.T) {
 					Name:     "imported",
 					Manifest: "imported_manifest",
 					Remote:   importedRemoteDir,
-					Revision: importedRevision,
+					Revision: currentRevision(t, importedRemoteDir),
 					Root:     "",
 				},
 			},
@@ -177,7 +174,6 @@ func TestUpdateWithLocalManifestChange(t *testing.T) {
 	setupGitRepo(t, subprojectRemoteDir, map[string]any{
 		"foo.txt": "foo",
 	})
-	subprojectOldRevision := currentRevision(t, subprojectRemoteDir)
 
 	remoteDir := t.TempDir()
 	setupGitRepo(t, remoteDir, map[string]any{
@@ -192,7 +188,7 @@ func TestUpdateWithLocalManifestChange(t *testing.T) {
 					Name:     "subproject",
 					Path:     "subproject",
 					Remote:   subprojectRemoteDir,
-					Revision: subprojectOldRevision,
+					Revision: currentRevision(t, subprojectRemoteDir),
 				},
 			},
 		},
@@ -217,9 +213,7 @@ func TestUpdateWithLocalManifestChange(t *testing.T) {
 
 	// Edit the manifest to point to the new revision.
 	localManifestPath := filepath.Join(root, "manifest_dir", "manifest")
-	oldManifestContents := readFile(t, localManifestPath)
-	newManifestContents := strings.ReplaceAll(oldManifestContents, subprojectOldRevision, subprojectNewRevision)
-	writeFile(t, localManifestPath, newManifestContents)
+	jiri("edit", "-project", "subproject="+subprojectNewRevision, localManifestPath)
 
 	// A plain old `jiri update` should ignore the manifest changes...
 	jiri("update")
@@ -232,4 +226,90 @@ func TestUpdateWithLocalManifestChange(t *testing.T) {
 	checkDirContents(t, root, append(originalContents,
 		"subproject/new_file.txt",
 	))
+}
+
+// Checks that -local-manifest respects changes in a manifest in an <import>ed
+// project, not just the top-level manifest project.
+func TestUpdateWithLocalManifestChangeInImportedProject(t *testing.T) {
+	t.Parallel()
+
+	transitiveDepRemoteDir := t.TempDir()
+	setupGitRepo(t, transitiveDepRemoteDir, map[string]any{
+		"foo.txt": "foo\n",
+	})
+
+	importedRemoteDir := t.TempDir()
+	setupGitRepo(t, importedRemoteDir, map[string]any{
+		"imported_manifest": project.Manifest{
+			Projects: []project.Project{
+				{
+					Name:   "imported",
+					Path:   ".",
+					Remote: importedRemoteDir,
+				},
+				{
+					Name:     "transitive",
+					Path:     "transitive",
+					Remote:   transitiveDepRemoteDir,
+					Revision: currentRevision(t, transitiveDepRemoteDir),
+				},
+			},
+		},
+	})
+
+	// Set up a remote repo that imports the above repository at the root of the
+	// checkout.
+	remoteDir := t.TempDir()
+	setupGitRepo(t, remoteDir, map[string]any{
+		"top_level_manifest": project.Manifest{
+			Imports: []project.Import{
+				{
+					Name:     "imported",
+					Manifest: "imported_manifest",
+					Remote:   importedRemoteDir,
+					Revision: currentRevision(t, importedRemoteDir),
+					Root:     "",
+				},
+			},
+			Projects: []project.Project{
+				{
+					Name:   "manifest",
+					Remote: remoteDir,
+					Path:   "manifest",
+				},
+			},
+		},
+	})
+
+	root := t.TempDir()
+	jiri := jiriInit(t, root)
+	jiri("import", "top_level_manifest", remoteDir)
+	jiri("update")
+
+	checkDirContents(t, root, []string{
+		"manifest/top_level_manifest",
+		"imported_manifest",
+		"transitive/foo.txt",
+	})
+
+	// Create a new commit in the transitive dependency.
+	writeFile(t, filepath.Join(transitiveDepRemoteDir, "new_file.txt"), "contents")
+	runSubprocess(t, transitiveDepRemoteDir, "git", "add", "new_file.txt")
+	runSubprocess(t, transitiveDepRemoteDir, "git", "commit", "-m", "Add new_file.txt")
+	newTransitiveDepRevision := currentRevision(t, transitiveDepRemoteDir)
+
+	// Edit the local manifest to point to the new revision.
+	localManifestPath := filepath.Join(root, "imported_manifest")
+	jiri("edit", "-project", "transitive="+newTransitiveDepRevision, localManifestPath)
+
+	jiri("update", "-local-manifest")
+	checkDirContents(t, root, []string{
+		"manifest/top_level_manifest",
+		"imported_manifest",
+		"transitive/foo.txt",
+		// TODO(olivernewman): `jiri update -local-manifest` should respect
+		// manifest changes in imported repositories, not just the root manifest
+		// repository, so `new_file.txt` should exist.
+		// "transitive/new_file.txt",
+	})
 }
