@@ -1378,7 +1378,7 @@ func (g *Git) SetRemoteHead() error {
 	return g.run("remote", "set-head", "origin", "-a")
 }
 
-// SubmoduleConfig gets the field of the subdmodule from the submodule config.
+// SubmoduleConfig gets the field of the submodule from the submodule config.
 func (g *Git) SubmoduleConfig(name, field string) (string, error) {
 	configKey := fmt.Sprintf("submodule.%s.%s", name, field)
 	out, err := g.runOutput("config", "--file", ".gitmodules", "--get", configKey)
@@ -1577,9 +1577,7 @@ func (g *Git) runGit(stdout, stderr io.Writer, args ...string) error {
 	if g.userEmail != "" {
 		config["user.email"] = g.userEmail
 	}
-	if !g.jirix.EnableSubmodules {
-		config["submodule.recurse"] = "false"
-	}
+	config["submodule.recurse"] = "false"
 	if g.jirix.OffloadPackfiles {
 		config["fetch.uriprotocols"] = "https"
 	}
