@@ -308,7 +308,7 @@ func (op deleteOperation) Run(jirix *jiri.X) error {
 		}
 		msg += fmt.Sprintf("\nIf you no longer need it, invoke '%s'", rmCommand)
 		msg += fmt.Sprintf("\nIf you no longer want jiri to manage it, invoke '%s'\n\n", unManageCommand)
-		jirix.Logger.Warningf(msg)
+		jirix.Logger.Warningf("%s", msg)
 		return nil
 	}
 
@@ -908,7 +908,7 @@ func runCreateOperations(jirix *jiri.X, ops []createOperation) error {
 		defer wg.Done()
 		for _, op := range tree.ops {
 			logMsg := fmt.Sprintf("Creating project %q", op.Project().Name)
-			task := jirix.Logger.AddTaskMsg(logMsg)
+			task := jirix.Logger.AddTaskMsg("%s", logMsg)
 			jirix.Logger.Debugf("%v", op)
 			if err := op.Run(jirix); err != nil {
 				task.Done()
@@ -1014,11 +1014,11 @@ func runDeleteOperations(jirix *jiri.X, ops []deleteOperation, gc bool) error {
 			rmCommand := jirix.Color.Yellow("rm -rf %q", op.source)
 			msg := fmt.Sprintf("Project %q won't be deleted because of its sub project(s)", op.project.Name)
 			msg += fmt.Sprintf("\nIf you no longer need it, invoke '%s'\n\n", rmCommand)
-			jirix.Logger.Warningf(msg)
+			jirix.Logger.Warningf("%s", msg)
 			continue
 		}
 		logMsg := fmt.Sprintf("Deleting project %q", op.Project().Name)
-		task := jirix.Logger.AddTaskMsg(logMsg)
+		task := jirix.Logger.AddTaskMsg("%s", logMsg)
 		jirix.Logger.Debugf("%s", op)
 		if err := op.Run(jirix); err != nil {
 			task.Done()
@@ -1048,7 +1048,7 @@ func runMoveOperations(jirix *jiri.X, ops []moveOperation) error {
 			parentDestPath = op.destination
 		}
 		logMsg := fmt.Sprintf("Moving and updating project %q", op.Project().Name)
-		task := jirix.Logger.AddTaskMsg(logMsg)
+		task := jirix.Logger.AddTaskMsg("%s", logMsg)
 		jirix.Logger.Debugf("%s", op)
 		if err := op.Run(jirix); err != nil {
 			task.Done()
@@ -1064,7 +1064,7 @@ func runCommonOperations(jirix *jiri.X, ops operations, loglevel log.LogLevel) e
 	defer jirix.TimerPop()
 	for _, op := range ops {
 		logMsg := fmt.Sprintf("Updating project %q", op.Project().Name)
-		task := jirix.Logger.AddTaskMsg(logMsg)
+		task := jirix.Logger.AddTaskMsg("%s", logMsg)
 		jirix.Logger.Logf(loglevel, "%s", op)
 		if err := op.Run(jirix); err != nil {
 			task.Done()

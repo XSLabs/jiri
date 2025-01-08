@@ -2030,7 +2030,7 @@ func syncProjectMaster(jirix *jiri.X, project Project, state ProjectState, rebas
 			}
 		}
 		msg += fmt.Sprintf("\nCommit or discard the changes and try again.\n\n")
-		jirix.Logger.Errorf(msg)
+		jirix.Logger.Errorf("%s", msg)
 		jirix.IncrementFailures()
 		return nil
 	}
@@ -2044,7 +2044,7 @@ func syncProjectMaster(jirix *jiri.X, project Project, state ProjectState, rebas
 			gitCommand := jirix.Color.Yellow("git -C %q checkout --detach %s", relativePath, revision)
 			msg := fmt.Sprintf("For project %q, not able to checkout latest, error: %s", project.Name, err)
 			msg += fmt.Sprintf("\nPlease checkout manually use: '%s'\n\n", gitCommand)
-			jirix.Logger.Errorf(msg)
+			jirix.Logger.Errorf("%s", msg)
 			jirix.IncrementFailures()
 		}
 		if snapshot || !rebaseAll {
@@ -2083,7 +2083,7 @@ func syncProjectMaster(jirix *jiri.X, project Project, state ProjectState, rebas
 		}
 		if err := scm.Merge(tracking.Name, gitutil.FfOnlyOpt(true)); err != nil {
 			msg := fmt.Sprintf("For project %s(%s), not able to fast forward your local branch %q to %q\n\n", project.Name, relativePath, state.CurrentBranch.Name, tracking.Name)
-			jirix.Logger.Errorf(msg)
+			jirix.Logger.Errorf("%s", msg)
 			jirix.IncrementFailures()
 		}
 		return nil
@@ -2122,7 +2122,7 @@ func syncProjectMaster(jirix *jiri.X, project Project, state ProjectState, rebas
 				if circularDependencyMap[t.Name] {
 					rebase = false
 					msg := fmt.Sprintf("For project %s(%s), branch %q has circular dependency, not rebasing it.\n\n", project.Name, relativePath, branch.Name)
-					jirix.Logger.Errorf(msg)
+					jirix.Logger.Errorf("%s", msg)
 					jirix.IncrementFailures()
 					break
 				}
@@ -2149,7 +2149,7 @@ func syncProjectMaster(jirix *jiri.X, project Project, state ProjectState, rebas
 				if project.GitSubmodules && jirix.EnableSubmodules {
 					msg += "\nPlease run 'git submodule update --init' after rebasing.\n\n"
 				}
-				jirix.Logger.Errorf(msg)
+				jirix.Logger.Errorf("%s", msg)
 				jirix.IncrementFailures()
 				continue
 			}
@@ -2163,7 +2163,7 @@ func syncProjectMaster(jirix *jiri.X, project Project, state ProjectState, rebas
 					jirix.Logger.Debugf("Checking out submodules for superproject %q after rebasing", project.Name)
 					if err := scm.SubmoduleUpdateAll(rebaseSubmodules); err != nil {
 						msg := fmt.Sprintf("For superproject %s(%s), unable to update submodules", project.Name, relativePath)
-						jirix.Logger.Errorf(msg)
+						jirix.Logger.Errorf("%s", msg)
 						jirix.IncrementFailures()
 						continue
 					}
@@ -2174,7 +2174,7 @@ func syncProjectMaster(jirix *jiri.X, project Project, state ProjectState, rebas
 			} else {
 				msg := fmt.Sprintf("For project %s(%s), not able to rebase your local branch %q onto %q", project.Name, relativePath, branch.Name, tracking.Name)
 				msg += "\nPlease do it manually\n\n"
-				jirix.Logger.Errorf(msg)
+				jirix.Logger.Errorf("%s", msg)
 				jirix.IncrementFailures()
 				continue
 			}
@@ -2197,7 +2197,7 @@ func syncProjectMaster(jirix *jiri.X, project Project, state ProjectState, rebas
 					if project.GitSubmodules && jirix.EnableSubmodules {
 						msg += "\nPlease run 'git submodule update --init' after rebasing manually.\n\n"
 					}
-					jirix.Logger.Errorf(msg)
+					jirix.Logger.Errorf("%s", msg)
 					jirix.IncrementFailures()
 					continue
 				}
@@ -2211,7 +2211,7 @@ func syncProjectMaster(jirix *jiri.X, project Project, state ProjectState, rebas
 						jirix.Logger.Debugf("Checking out submodules for superproject %q after rebasing untracked branch", project.Name)
 						if err := scm.SubmoduleUpdateAll(rebaseSubmodules); err != nil {
 							msg := fmt.Sprintf("For superproject %s(%s), unable to update submodules", project.Name, relativePath)
-							jirix.Logger.Errorf(msg)
+							jirix.Logger.Errorf("%s", msg)
 							jirix.IncrementFailures()
 							continue
 						}
@@ -2221,7 +2221,7 @@ func syncProjectMaster(jirix *jiri.X, project Project, state ProjectState, rebas
 				} else {
 					msg := fmt.Sprintf("For project %s(%s), not able to rebase your untracked branch %q onto JIRI_HEAD.", project.Name, relativePath, branch.Name)
 					msg += "\nPlease do it manually\n\n"
-					jirix.Logger.Errorf(msg)
+					jirix.Logger.Errorf("%s", msg)
 					jirix.IncrementFailures()
 					continue
 				}
@@ -2235,7 +2235,7 @@ func syncProjectMaster(jirix *jiri.X, project Project, state ProjectState, rebas
 					msg += "\nPlease run 'git submodule update --init' after rebasing manually.\n\n"
 				}
 				msg += fmt.Sprintf("\n%s\n\n", gitCommand)
-				jirix.Logger.Warningf(msg)
+				jirix.Logger.Warningf("%s", msg)
 				continue
 			}
 		}
@@ -2342,9 +2342,9 @@ func updateOrCreateCache(jirix *jiri.X, dir, remote, branch, revision string, de
 			}
 		}
 		msg := fmt.Sprintf("Updating cache: %q", dir)
-		task := jirix.Logger.AddTaskMsg(msg)
+		task := jirix.Logger.AddTaskMsg("%s", msg)
 		defer task.Done()
-		t := jirix.Logger.TrackTime(msg)
+		t := jirix.Logger.TrackTime("%s", msg)
 		defer t.Done()
 		// Cache already present, update it
 		// TODO : update this after implementing FetchAll using g
@@ -2380,9 +2380,9 @@ func updateOrCreateCache(jirix *jiri.X, dir, remote, branch, revision string, de
 		// TODO : If we in future need to support two projects with same remote url,
 		// one with shallow checkout and one with full, we should create two caches
 		msg := fmt.Sprintf("Creating cache: %q", dir)
-		task := jirix.Logger.AddTaskMsg(msg)
+		task := jirix.Logger.AddTaskMsg("%s", msg)
 		defer task.Done()
-		t := jirix.Logger.TrackTime(msg)
+		t := jirix.Logger.TrackTime("%s", msg)
 		defer t.Done()
 
 		opts := []gitutil.CloneOpt{gitutil.DepthOpt(depth)}

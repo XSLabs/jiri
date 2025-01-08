@@ -95,7 +95,7 @@ func fmtRevision(r string) string {
 // clone is a wrapper that reattempts a git clone operation on failure.
 func clone(jirix *jiri.X, repo, path string, opts ...gitutil.CloneOpt) error {
 	msg := fmt.Sprintf("Cloning %s", repo)
-	t := jirix.Logger.TrackTime(msg)
+	t := jirix.Logger.TrackTime("%s", msg)
 	defer t.Done()
 	return retry.Function(jirix, func() error {
 		return gitutil.New(jirix).Clone(repo, path, opts...)
@@ -105,7 +105,7 @@ func clone(jirix *jiri.X, repo, path string, opts ...gitutil.CloneOpt) error {
 // fetch is a wrapper that reattempts a git fetch operation on failure.
 func fetch(jirix *jiri.X, path, remote string, opts ...gitutil.FetchOpt) error {
 	msg := fmt.Sprintf("Fetching for %s", path)
-	t := jirix.Logger.TrackTime(msg)
+	t := jirix.Logger.TrackTime("%s", msg)
 	defer t.Done()
 	opts = append([]gitutil.FetchOpt{gitutil.RecurseSubmodulesOpt(jirix.EnableSubmodules)}, opts...)
 	return retry.Function(jirix, func() error {

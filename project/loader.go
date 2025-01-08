@@ -332,8 +332,8 @@ func (ld *loader) cloneManifestRepo(jirix *jiri.X, remote *Import, cacheDirPath 
 	defer task.Done()
 	if cacheDirPath != "" {
 		logStr := fmt.Sprintf("update/create cache for project %q", remote.Name)
-		jirix.Logger.Debugf(logStr)
-		task := jirix.Logger.AddTaskMsg(logStr)
+		jirix.Logger.Debugf("%s", logStr)
+		task := jirix.Logger.AddTaskMsg("%s", logStr)
 		defer task.Done()
 		if err := updateOrCreateCache(jirix, cacheDirPath, remoteUrl, remote.RemoteBranch, remote.Revision, 0, (p.GitSubmodules && jirix.EnableSubmodules)); err != nil {
 			return err

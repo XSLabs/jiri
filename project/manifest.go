@@ -715,7 +715,7 @@ func (ld *loader) enforceLocks(jirix *jiri.X) error {
 					ld.Projects[v.Key()] = v
 				} else if v.Revision != projectLock.Revision {
 					s := fmt.Sprintf("project %+v has conflicting revisions in manifest and jiri.lock: %s:%s", v, v.Revision, projectLock.Revision)
-					jirix.Logger.Debugf(s)
+					jirix.Logger.Debugf("%s", s)
 					err = errors.New(s)
 				}
 			}
@@ -742,7 +742,7 @@ func (ld *loader) enforceLocks(jirix *jiri.X) error {
 					if pkgLock.VersionTag != v.Version && !jirix.IgnoreLockConflicts {
 						// Package version conflicts detected. Treated it as an error.
 						s := fmt.Sprintf("package %q has conflicting version in manifest and jiri.lock: %s:%s", v.Name, v.Version, pkgLock.VersionTag)
-						jirix.Logger.Debugf(s)
+						jirix.Logger.Debugf("%s", s)
 						err = errors.New(s)
 					}
 					ins := PackageInstance{
@@ -1200,8 +1200,8 @@ func RunHooks(jirix *jiri.X, hooks Hooks, runHookTimeout uint) error {
 	for _, hook := range hooks {
 		go func(hook Hook) {
 			logStr := fmt.Sprintf("running hook(%s) for project %q", hook.Name, hook.ProjectName)
-			jirix.Logger.Debugf(logStr)
-			task := jirix.Logger.AddTaskMsg(logStr)
+			jirix.Logger.Debugf("%s", logStr)
+			task := jirix.Logger.AddTaskMsg("%s", logStr)
 			defer task.Done()
 			outFile, err := os.CreateTemp(tmpDir, hook.Name+"-out")
 			if err != nil {
