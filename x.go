@@ -63,11 +63,10 @@ type Config struct {
 	PartialSkip       []string `xml:"partialSkip,omitempty"`
 	OffloadPackfiles  bool     `xml:"offloadPackfiles,omitempty"`
 	// version user has opted-in to
-	AnalyticsVersion                string   `xml:"analytics>version,omitempty"`
-	KeepGitHooks                    bool     `xml:"keepGitHooks,omitempty"`
-	EnableSubmodules                string   `xml:"enableSubmodules,omitempty"`
-	ForceDisableSubmodulesInfraOnly string   `xml:"forceDisableSubmodulesInfraOnly,omitempty"`
-	ExcludeDirs                     []string `xml:"excludeDirs,omitempty"`
+	AnalyticsVersion string   `xml:"analytics>version,omitempty"`
+	KeepGitHooks     bool     `xml:"keepGitHooks,omitempty"`
+	EnableSubmodules string   `xml:"enableSubmodules,omitempty"`
+	ExcludeDirs      []string `xml:"excludeDirs,omitempty"`
 
 	XMLName struct{} `xml:"config"`
 }
@@ -116,40 +115,39 @@ func GitGetConfig(key string) (string, error) {
 // including the manifest and related operations.
 type X struct {
 	*tool.Context
-	Root                            string
-	Cwd                             string
-	Usage                           func(format string, args ...any) error
-	config                          *Config
-	Cache                           string
-	CipdParanoidMode                bool
-	CipdMaxThreads                  int
-	Dissociate                      bool
-	Shared                          bool
-	Jobs                            uint
-	KeepGitHooks                    bool
-	RewriteSsoToHttps               bool
-	LockfileEnabled                 bool
-	LockfileName                    string
-	OffloadPackfiles                bool
-	SsoCookiePath                   string
-	Partial                         bool
-	PartialSkip                     []string
-	PrebuiltJSON                    string
-	FetchingAttrs                   string
-	UsingSnapshot                   bool
-	UsingImportOverride             bool
-	OverrideOptional                bool
-	IgnoreLockConflicts             bool
-	Color                           color.Color
-	Logger                          *log.Logger
-	failures                        uint32
-	Attempts                        uint
-	cleanupFuncs                    []func()
-	AnalyticsSession                *analytics_util.AnalyticsSession
-	OverrideWarned                  bool
-	EnableSubmodules                bool
-	ForceDisableSubmodulesInfraOnly bool
-	ExcludeDirs                     []string
+	Root                string
+	Cwd                 string
+	Usage               func(format string, args ...any) error
+	config              *Config
+	Cache               string
+	CipdParanoidMode    bool
+	CipdMaxThreads      int
+	Dissociate          bool
+	Shared              bool
+	Jobs                uint
+	KeepGitHooks        bool
+	RewriteSsoToHttps   bool
+	LockfileEnabled     bool
+	LockfileName        string
+	OffloadPackfiles    bool
+	SsoCookiePath       string
+	Partial             bool
+	PartialSkip         []string
+	PrebuiltJSON        string
+	FetchingAttrs       string
+	UsingSnapshot       bool
+	UsingImportOverride bool
+	OverrideOptional    bool
+	IgnoreLockConflicts bool
+	Color               color.Color
+	Logger              *log.Logger
+	failures            uint32
+	Attempts            uint
+	cleanupFuncs        []func()
+	AnalyticsSession    *analytics_util.AnalyticsSession
+	OverrideWarned      bool
+	EnableSubmodules    bool
+	ExcludeDirs         []string
 }
 
 func (jirix *X) IncrementFailures() {
@@ -309,15 +307,6 @@ func NewX(env *cmdline.Env, flags TopLevelFlags) (*X, error) {
 				return nil, fmt.Errorf("'config>enableSubmodules' flag should be true or false")
 			} else {
 				x.EnableSubmodules = val
-			}
-		}
-		if x.config.ForceDisableSubmodulesInfraOnly != "" {
-			if val, err := strconv.ParseBool(x.config.ForceDisableSubmodulesInfraOnly); err != nil {
-				return nil, fmt.Errorf("'config>forceDisableSubmodulesInfraOnly' flag should be true or false")
-			} else {
-				if val {
-					x.EnableSubmodules = false
-				}
 			}
 		}
 		if x.config.LockfileEnabled == "" {

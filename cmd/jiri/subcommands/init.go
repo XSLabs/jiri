@@ -26,26 +26,25 @@ const (
 type initCmd struct {
 	cmdBase
 
-	cache                           string
-	dissociate                      bool
-	shared                          bool
-	showAnalyticsData               bool
-	analyticsOpt                    string
-	rewriteSsoToHttps               string
-	ssoCookie                       string
-	keepGitHooks                    string
-	enableLockfile                  string
-	lockfileName                    string
-	prebuiltJSON                    string
-	enableSubmodules                string
-	forceDisableSubmodulesInfraOnly string
-	optionalAttrs                   string
-	partial                         bool
-	partialSkip                     arrayFlag
-	offloadPackfiles                bool
-	cipdParanoid                    string
-	cipdMaxThreads                  int
-	excludeDirs                     arrayFlag
+	cache             string
+	dissociate        bool
+	shared            bool
+	showAnalyticsData bool
+	analyticsOpt      string
+	rewriteSsoToHttps string
+	ssoCookie         string
+	keepGitHooks      string
+	enableLockfile    string
+	lockfileName      string
+	prebuiltJSON      string
+	enableSubmodules  string
+	optionalAttrs     string
+	partial           bool
+	partialSkip       arrayFlag
+	offloadPackfiles  bool
+	cipdParanoid      string
+	cipdMaxThreads    int
+	excludeDirs       arrayFlag
 }
 
 func (c *initCmd) Name() string     { return "init" }
@@ -77,8 +76,6 @@ func (c *initCmd) SetFlags(f *flag.FlagSet) {
 	f.StringVar(&c.lockfileName, "lockfile-name", "", "Set up filename of lockfile")
 	f.StringVar(&c.prebuiltJSON, "prebuilt-json", "", "Set up filename for prebuilt json file")
 	f.StringVar(&c.enableSubmodules, "enable-submodules", "", "Enable submodules structure")
-	// Used to forcibly roll out submodules to users while still allowing infra to opt out.
-	f.StringVar(&c.forceDisableSubmodulesInfraOnly, "force-disable-submodules-infra-only", "", "Force disable submodules.")
 	// Empty string is not used as default value for optionalAttrs as we
 	// use empty string to clear existing saved attributes.
 	f.StringVar(&c.optionalAttrs, "fetch-optional", optionalAttrsNotSet, "Set up attributes of optional projects and packages that should be fetched by jiri.")
@@ -190,17 +187,6 @@ func (c *initCmd) run(ctx context.Context, args []string) error {
 			return fmt.Errorf("'enable-submodules' c. should be true or false")
 		} else {
 			config.EnableSubmodules = c.enableSubmodules
-		}
-	}
-
-	// Override EnableSubmodules values with False if ForceDisableSubmodulesInfraOnly c. is True
-	if c.forceDisableSubmodulesInfraOnly != "" {
-		if val, err := strconv.ParseBool(c.forceDisableSubmodulesInfraOnly); err != nil {
-			return fmt.Errorf("'force-disable-submodules-infra-only' c. should be true or false")
-		} else {
-			if val {
-				config.ForceDisableSubmodulesInfraOnly = "true"
-			}
 		}
 	}
 
