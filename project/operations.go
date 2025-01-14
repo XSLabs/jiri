@@ -690,7 +690,7 @@ func (ops operations) Swap(i, j int) {
 // projects.
 // In the case of submodules, computeOperation will check for necessary
 // deletions of jiri projects and initialize submodules in place of projects.
-func computeOperations(jirix *jiri.X, localProjects, remoteProjects Projects, states map[ProjectKey]*ProjectState, rebaseTracked, rebaseUntracked, rebaseAll, rebaseSubmodules, snapshot bool) operations {
+func computeOperations(jirix *jiri.X, localProjects, remoteProjects Projects, states map[ProjectKey]*ProjectState, rebaseTracked, rebaseUntracked, rebaseAll, rebaseSubmodules, snapshot bool) (operations, error) {
 	result := operations{}
 	allProjects := map[ProjectKey]bool{}
 	for _, p := range localProjects {
@@ -701,8 +701,16 @@ func computeOperations(jirix *jiri.X, localProjects, remoteProjects Projects, st
 	}
 	// When we are switching submodules to projects, we deinit all of the current existing local submodules.
 	if !jirix.EnableSubmodules && containLocalSubmodules(localProjects) {
-		scm := gitutil.New(jirix, gitutil.RootDirOpt(jirix.Root))
-		scm.SubmoduleDeinit()
+		for _, project := range localProjects {
+			if !project.GitSubmodules {
+				continue
+			}
+			scm := gitutil.New(jirix, gitutil.RootDirOpt(project.Path))
+			jirix.Logger.Debugf("De-initializing submodules in %s(%s)", project.Name, project.Path)
+			if err := scm.SubmoduleDeinit(); err != nil {
+				return nil, err
+			}
+		}
 	}
 	for key := range allProjects {
 		var local, remote *Project
@@ -724,7 +732,7 @@ func computeOperations(jirix *jiri.X, localProjects, remoteProjects Projects, st
 		result = append(result, computeOp(jirix, local, remote, state, rebaseTracked, rebaseUntracked, rebaseAll, rebaseSubmodules, snapshot))
 	}
 	sort.Sort(result)
-	return result
+	return result, nil
 }
 
 func computeOp(jirix *jiri.X, local, remote *Project, state *ProjectState, rebaseTracked, rebaseUntracked, rebaseAll, rebaseSubmodules, snapshot bool) operation {

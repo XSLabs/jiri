@@ -42,11 +42,18 @@ func jiriInit(t *testing.T, root string, initArgs ...string) func(args ...string
 		finalArgs = append(finalArgs, args...)
 
 		if len(args) > 0 {
-			subcommand := args[0]
+			var subcommand string
+			for _, arg := range args {
+				// Skip over global flags.
+				if !strings.HasPrefix(arg, "-") {
+					subcommand = args[0]
+					break
+				}
+			}
 			switch subcommand {
 			case "update", "run-hooks", "fetch-packages":
-				// Don't do retries with backoff since they make tests slower
-				// and shouldn't be necessary since tests should be hermetic and
+				// Don't do retries with backoff. They make tests slower and
+				// aren't necessary since tests should be hermetic and
 				// deterministic.
 				finalArgs = append(finalArgs, "-attempts", "1")
 			}

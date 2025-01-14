@@ -1896,7 +1896,7 @@ func findLocalProjects(jirix *jiri.X, path string, projects Projects) error {
 				// If local projects contain submodule but in jiri project state, then return error.
 				if !p.IsSubmodule {
 					fmt.Printf("Transitioning to %s submodule in path %s, but currently unable to delete project in the same location. "+
-						"Please check if you have local branches in the project aand upload your changes and remove them. Then rerun `jiri update` \n",
+						"Please check if you have local branches in the project and upload your changes and remove them. Then rerun `jiri update` \n",
 						subm.Name, subm.Path)
 				}
 			}
@@ -2023,8 +2023,9 @@ func syncProjectMaster(jirix *jiri.X, project Project, state ProjectState, rebas
 	if diff, err := scm.FilesWithUncommittedChanges(); err != nil {
 		return fmt.Errorf("Cannot get uncommitted changes for project %q: %s", project.Name, err)
 	} else if len(diff) != 0 {
-		msg := fmt.Sprintf("Project %s(%s) contains uncommitted changes:", project.Name, relativePath)
+		msg := fmt.Sprintf("Project %s(%s) contains uncommitted changes", project.Name, relativePath)
 		if jirix.Logger.LoggerLevel >= log.DebugLevel {
+			msg += ":"
 			for _, item := range diff {
 				msg += "\n" + item
 			}
@@ -2604,7 +2605,10 @@ func updateProjects(jirix *jiri.X, localProjects, remoteProjects Projects, hooks
 		removeSubmodulesFromProjects(remoteProjects)
 	}
 
-	ops := computeOperations(jirix, localProjects, remoteProjects, states, params.RebaseTracked, params.RebaseUntracked, params.RebaseAll, params.RebaseSubmodules, snapshot)
+	ops, err := computeOperations(jirix, localProjects, remoteProjects, states, params.RebaseTracked, params.RebaseUntracked, params.RebaseAll, params.RebaseSubmodules, snapshot)
+	if err != nil {
+		return err
+	}
 
 	batchOps := append(operations(nil), ops...)
 	for len(batchOps) > 0 {

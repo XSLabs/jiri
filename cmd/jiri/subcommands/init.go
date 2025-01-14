@@ -120,6 +120,8 @@ func (c *initCmd) run(ctx context.Context, args []string) error {
 				return err
 			}
 		}
+	} else if c.topLevelFlags.Root != "" {
+		dir = c.topLevelFlags.Root
 	} else {
 		dir, err = os.Getwd()
 		if err != nil {

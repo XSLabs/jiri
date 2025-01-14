@@ -5,10 +5,12 @@
 package integrationtests
 
 import (
+	"fmt"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	"go.fuchsia.dev/jiri/project"
 )
 
@@ -205,7 +207,6 @@ func TestDisablingSubmodules(t *testing.T) {
 					Name:           "submodule",
 					Path:           "manifest_dir/submodule",
 					Remote:         submoduleRemoteDir,
-					GitSubmodules:  true,
 					GitSubmoduleOf: "manifest",
 				},
 			},
@@ -217,12 +218,24 @@ func TestDisablingSubmodules(t *testing.T) {
 	})
 
 	runSubprocess(t, remoteDir, "git", "submodule", "add", submoduleRemoteDir, "submodule")
+	// Set `ignore = all` to mimic fuchsia.git's submodules setup.
+	runSubprocess(t, remoteDir,
+		"git", "config", "--file", ".gitmodules", "submodule.submodule.ignore", "all")
 	runSubprocess(t, remoteDir, "git", "commit", "-a", "-m", "Add submodule")
 
 	root := t.TempDir()
 	jiri := jiriInit(t, root, "-enable-submodules=true")
 	jiri("import", "manifest", remoteDir)
 	jiri("update")
+
+	manifestLocalDir := filepath.Join(root, "manifest_dir")
+
+	if diff := cmp.Diff(
+		fmt.Sprintf(" %s submodule (heads/main)\n", currentRevision(t, submoduleRemoteDir)),
+		runSubprocess(t, manifestLocalDir, "git", "submodule", "status"),
+	); diff != "" {
+		t.Errorf("`git submodule status` diff (-want +got):\n%s", diff)
+	}
 
 	jiri("init", "-enable-submodules=false")
 	jiri("update")
@@ -231,4 +244,14 @@ func TestDisablingSubmodules(t *testing.T) {
 		"manifest_dir/manifest",
 		"manifest_dir/submodule/foo.txt",
 	})
+
+	// The submodule should be de-initialized after disabling submodules and
+	// running `jiri update`. `git submodule status` prints a hyphen at the
+	// start of the line for any uninitialized submodules.
+	if diff := cmp.Diff(
+		fmt.Sprintf("-%s submodule\n", currentRevision(t, submoduleRemoteDir)),
+		runSubprocess(t, manifestLocalDir, "git", "submodule", "status"),
+	); diff != "" {
+		t.Errorf("`git submodule status` diff (-want +got):\n%s", diff)
+	}
 }

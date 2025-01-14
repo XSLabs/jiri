@@ -1593,6 +1593,10 @@ func (g *Git) runGit(stdout, stderr io.Writer, args ...string) error {
 	command.Stderr = io.MultiWriter(stderr, &errbuf)
 	env := g.jirix.Env()
 	env = envvar.MergeMaps(g.opts, env, GitConfigEnvVars(config))
+	// Disable git's advice notices that suggest trying different operations.
+	// Such information isn't useful to show to users, since users aren't
+	// running the commands directly.
+	env["GIT_ADVICE"] = "0"
 	command.Env = envvar.MapToSlice(env)
 	dir := g.rootDir
 	g.jirix.Logger.Tracef("Run: git %s (%s)", strings.Join(args, " "), dir)
