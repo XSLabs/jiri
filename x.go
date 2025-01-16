@@ -290,15 +290,13 @@ func NewX(env *cmdline.Env, flags TopLevelFlags) (*X, error) {
 		x.RewriteSsoToHttps = x.config.RewriteSsoToHttps
 		x.SsoCookiePath = x.config.SsoCookiePath
 		if x.config.EnableSubmodules == "" {
-			if gitConfigSubm, err := GitGetConfig("jiri.enableSubmodules"); err == nil {
-				gitConfigEnableSubm, err := strconv.ParseBool(gitConfigSubm)
-				if err != nil {
-					return nil, fmt.Errorf("jiri.enableSubmodules from git config should be true or false")
-				}
-				x.EnableSubmodules = gitConfigEnableSubm
-				if gitConfigEnableSubm {
-					x.Logger.Debugf("Note: currently enabling submodules in this checkout \n")
-				}
+			// HACK: Enable submodules by default, but only on Google corp
+			// machines, as indicated by the presence of a `git-remote-sso`
+			// binary on $PATH.
+			if _, err := exec.LookPath("git-remote-sso"); err == nil {
+				// TODO(fxbug.dev/386810791) Switch the default to false for
+				// everyone.
+				x.EnableSubmodules = true
 			} else {
 				x.EnableSubmodules = false
 			}
