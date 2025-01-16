@@ -175,13 +175,6 @@ func (c *initCmd) run(ctx context.Context, args []string) error {
 		}
 	}
 
-	if gitConfigSubm, err := jiri.GitGetConfig("jiri.enableSubmodules"); err == nil {
-		if _, err := strconv.ParseBool(gitConfigSubm); err != nil {
-			return fmt.Errorf("'jiri.enableSubmodules' from git config should be true or false")
-		}
-		config.EnableSubmodules = gitConfigSubm
-	}
-
 	if c.enableSubmodules != "" {
 		if _, err := strconv.ParseBool(c.enableSubmodules); err != nil {
 			return fmt.Errorf("'enable-submodules' c. should be true or false")
