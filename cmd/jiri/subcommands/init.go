@@ -169,7 +169,7 @@ func (c *initCmd) run(ctx context.Context, args []string) error {
 
 	if c.keepGitHooks != "" {
 		if val, err := strconv.ParseBool(c.keepGitHooks); err != nil {
-			return fmt.Errorf("'keep-git-hooks' c. should be true or false")
+			return fmt.Errorf("'keep-git-hooks' should be true or false")
 		} else {
 			config.KeepGitHooks = val
 		}
@@ -184,7 +184,7 @@ func (c *initCmd) run(ctx context.Context, args []string) error {
 
 	if c.rewriteSsoToHttps != "" {
 		if val, err := strconv.ParseBool(c.rewriteSsoToHttps); err != nil {
-			return fmt.Errorf("'rewrite-sso-to-https' c. should be true or false")
+			return fmt.Errorf("'rewrite-sso-to-https' should be true or false")
 		} else {
 			config.RewriteSsoToHttps = val
 		}
@@ -220,14 +220,14 @@ func (c *initCmd) run(ctx context.Context, args []string) error {
 
 	if c.enableLockfile != "" {
 		if _, err := strconv.ParseBool(c.enableLockfile); err != nil {
-			return fmt.Errorf("'enable-lockfile' c. should be true or false")
+			return fmt.Errorf("'enable-lockfile' should be true or false")
 		}
 		config.LockfileEnabled = c.enableLockfile
 	}
 
 	if c.cipdParanoid != "" {
 		if _, err := strconv.ParseBool(c.cipdParanoid); err != nil {
-			return fmt.Errorf("'cipd-paranoid-mode' c. should be true or false")
+			return fmt.Errorf("'cipd-paranoid-mode' should be true or false")
 		}
 		config.CipdParanoidMode = c.cipdParanoid
 	}
@@ -236,7 +236,7 @@ func (c *initCmd) run(ctx context.Context, args []string) error {
 
 	if c.analyticsOpt != "" {
 		if val, err := strconv.ParseBool(c.analyticsOpt); err != nil {
-			return fmt.Errorf("'analytics-opt' c. should be true or false")
+			return fmt.Errorf("'analytics-opt' should be true or false")
 		} else {
 			if val {
 				config.AnalyticsOptIn = "yes"
