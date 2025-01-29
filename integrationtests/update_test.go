@@ -148,7 +148,7 @@ func TestSuperprojectChange(t *testing.T) {
 	})
 
 	root := t.TempDir()
-	jiri := jiriInit(t, root, "-enable-submodules=true")
+	jiri := jiriInit(t, root, "-enable-submodules=yes-please")
 	jiri("import", "manifest", remoteDir)
 	jiri("update")
 

@@ -176,11 +176,10 @@ func (c *initCmd) run(ctx context.Context, args []string) error {
 	}
 
 	if c.enableSubmodules != "" {
-		if _, err := strconv.ParseBool(c.enableSubmodules); err != nil {
-			return fmt.Errorf("'enable-submodules' c. should be true or false")
-		} else {
-			config.EnableSubmodules = c.enableSubmodules
+		if c.enableSubmodules != jiri.EnableSubmodulesMagicValue && c.enableSubmodules != "false" {
+			return fmt.Errorf("'enable-submodules' is deprecated")
 		}
+		config.EnableSubmodules = c.enableSubmodules
 	}
 
 	if c.rewriteSsoToHttps != "" {

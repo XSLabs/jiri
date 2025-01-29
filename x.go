@@ -42,6 +42,15 @@ const (
 	// non-empty value, causes jiri tools to use the existing PATH variable,
 	// rather than mutating it.
 	PreservePathEnv = "JIRI_PRESERVE_PATH"
+
+	// EnableSubmodulesMagicValue is the only accepted value of the
+	// -enable-submodules flag to jiri init. "true" is no longer accepted, in
+	// order to force checkouts where the value is "true" to switch back to
+	// Jiri-managed projects. This value is not intended to be used by users,
+	// only by unit tests.
+	// TODO(fxbug.dev/386810791): Delete this once submodule support is fully
+	// removed from Jiri.
+	EnableSubmodulesMagicValue = "yes-please"
 )
 
 // Config represents jiri global config
@@ -280,6 +289,21 @@ func NewX(env *cmdline.Env, flags TopLevelFlags) (*X, error) {
 		if err != nil {
 			return nil, err
 		}
+		// enableSubmodules=true is no longer respected due to the submodules
+		// rollback.
+		//
+		// Only accept a special magic value in order to keep running unit tests
+		// that validate the submodules rollback.
+		// TODO(fxbug.dev/386810791): Delete this once submodule support is
+		// fully removed from Jiri.
+		if x.config.EnableSubmodules != "" && x.config.EnableSubmodules != EnableSubmodulesMagicValue {
+			// Remove the enableSubmodules value from the config file to reflect
+			// that it's no longer supported.
+			x.config.EnableSubmodules = ""
+			if err := x.config.Write(configPath); err != nil {
+				return nil, err
+			}
+		}
 	} else if os.IsNotExist(err) {
 		x.config = &Config{}
 	} else {
@@ -289,24 +313,9 @@ func NewX(env *cmdline.Env, flags TopLevelFlags) (*X, error) {
 		x.KeepGitHooks = x.config.KeepGitHooks
 		x.RewriteSsoToHttps = x.config.RewriteSsoToHttps
 		x.SsoCookiePath = x.config.SsoCookiePath
-		if x.config.EnableSubmodules == "" {
-			// HACK: Enable submodules by default, but only on Google corp
-			// machines, as indicated by the presence of a `git-remote-sso`
-			// binary on $PATH.
-			if _, err := exec.LookPath("git-remote-sso"); err == nil {
-				// TODO(fxbug.dev/386810791) Switch the default to false for
-				// everyone.
-				x.EnableSubmodules = true
-			} else {
-				x.EnableSubmodules = false
-			}
-		} else {
-			if val, err := strconv.ParseBool(x.config.EnableSubmodules); err != nil {
-				return nil, fmt.Errorf("'config>enableSubmodules' flag should be true or false")
-			} else {
-				x.EnableSubmodules = val
-			}
-		}
+
+		x.EnableSubmodules = x.config.EnableSubmodules == EnableSubmodulesMagicValue
+
 		if x.config.LockfileEnabled == "" {
 			x.LockfileEnabled = true
 		} else {

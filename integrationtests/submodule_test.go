@@ -40,7 +40,7 @@ func TestUpdateWithSubmodule(t *testing.T) {
 	runSubprocess(t, remoteDir, "git", "commit", "-a", "-m", "Add submodule")
 
 	root := t.TempDir()
-	jiri := jiriInit(t, root, "-enable-submodules=true")
+	jiri := jiriInit(t, root, "-enable-submodules=yes-please")
 	jiri("import", "manifest", remoteDir)
 	jiri("update")
 
@@ -107,7 +107,7 @@ func TestUpdateWithSubmodulesOnBranch(t *testing.T) {
 	runSubprocess(t, remoteDir, "git", "commit", "-m", "Add submodule")
 
 	root := t.TempDir()
-	jiri := jiriInit(t, root, "-enable-submodules=true")
+	jiri := jiriInit(t, root, "-enable-submodules=yes-please")
 	jiri("import", "manifest", remoteDir)
 	jiri("update")
 
@@ -166,7 +166,7 @@ func TestUpdateAfterLocalChangeToSubmodule(t *testing.T) {
 	runSubprocess(t, remoteDir, "git", "commit", "-a", "-m", "Add submodule")
 
 	root := t.TempDir()
-	jiri := jiriInit(t, root, "-enable-submodules=true")
+	jiri := jiriInit(t, root, "-enable-submodules=yes-please")
 	jiri("import", "manifest", remoteDir)
 	jiri("update")
 
@@ -224,7 +224,7 @@ func TestDisablingSubmodules(t *testing.T) {
 	runSubprocess(t, remoteDir, "git", "commit", "-a", "-m", "Add submodule")
 
 	root := t.TempDir()
-	jiri := jiriInit(t, root, "-enable-submodules=true")
+	jiri := jiriInit(t, root, "-enable-submodules=yes-please")
 	jiri("import", "manifest", remoteDir)
 	jiri("update")
 
