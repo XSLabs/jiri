@@ -800,7 +800,7 @@ func CreateSnapshot(jirix *jiri.X, file string, hooks Hooks, pkgs Packages, loca
 	if jirix.EnableSubmodules != csm {
 		fmt.Fprint(
 			jirix.Stdout(),
-			"Submodules are disabled, but your checkout still contains submodules."+
+			"Submodules are disabled, but your checkout still contains submodules.\n"+
 				"Run `git submodule deinit --all -f` and re-run `jiri update`",
 		)
 	}
