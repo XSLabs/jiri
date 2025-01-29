@@ -798,12 +798,11 @@ func CreateSnapshot(jirix *jiri.X, file string, hooks Hooks, pkgs Packages, loca
 	// jiri local submodule config should always match local submodules state.
 	csm := containSubmodules(jirix, localProjects)
 	if jirix.EnableSubmodules != csm {
-		fmt.Fprintf(
+		fmt.Fprint(
 			jirix.Stdout(),
-			"If not checking out fuchsia, please ignore. "+
-				"Currently, local submodules is %t while user flag is %t, "+
-				"run jiri update or unset EnableSubmodules \n",
-			csm, jirix.EnableSubmodules)
+			"Submodules are disabled, but your checkout still contains submodules."+
+				"Run `git submodule deinit --all -f` and re-run `jiri update`",
+		)
 	}
 	for _, project := range localProjects {
 		manifest.Projects = append(manifest.Projects, project)
