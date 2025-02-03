@@ -165,7 +165,7 @@ func fetchFileWithJar(jirix *jiri.X, gerritHost, path string, jar http.CookieJar
 		// Unexpected response from server, log HTTP headers.
 		if jirix != nil {
 			jirix.Logger.Debugf("got HTTP %d when accessing %q", resp.StatusCode, downloadPath)
-			jirix.Logger.Debugf(dumpHeaders(resp))
+			jirix.Logger.Debugf("%s", dumpHeaders(resp))
 		}
 		if resp.StatusCode == http.StatusForbidden {
 			return nil, ErrHTTPForbidden

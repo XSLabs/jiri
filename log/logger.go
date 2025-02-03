@@ -189,7 +189,7 @@ func (l *Logger) repaintProgressMsgs() {
 func (l *Logger) printProgressMsg(msg string) {
 	// Disable wrap and print progress
 	str := fmt.Sprintf("\033[?7l%s: %s\033[?7h\n", l.color.Green("PROGRESS"), msg)
-	fmt.Printf(str)
+	fmt.Printf("%s", str)
 	l.progressLines++
 }
 
@@ -202,7 +202,7 @@ func (l *Logger) clearProgress() {
 	for i := 0; i < l.progressLines; i++ {
 		buf = buf + "\033[1A\033[2K\r"
 	}
-	fmt.Printf(buf)
+	fmt.Printf("%s", buf)
 	l.progressLines = 0
 }
 

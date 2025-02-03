@@ -25,7 +25,7 @@ func runTimeTracker(loglevel LogLevel, threshold, sleeptime time.Duration, opera
 	logger := NewLogger(loglevel, color.NewColor(color.ColorNever), false, 0, threshold, buf, nil)
 	var tts []*TimeTracker
 	for _, op := range operations {
-		tts = append(tts, logger.TrackTime(op))
+		tts = append(tts, logger.TrackTime("%s", op))
 	}
 	time.Sleep(sleeptime)
 	for _, tt := range tts {

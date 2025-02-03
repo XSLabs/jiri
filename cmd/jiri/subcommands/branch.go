@@ -490,7 +490,7 @@ func (c *branchCmd) deleteBranches(jirix *jiri.X, branchToDelete string) error {
 
 				if err := scm.DeleteBranch(branchToDelete, gitutil.ForceOpt(c.forceDelete)); err != nil {
 					errors = true
-					fmt.Fprintf(jirix.Stdout(), jirix.Color.Red("Error while deleting branch: %s\n", err))
+					fmt.Fprintf(jirix.Stdout(), "%s", jirix.Color.Red("Error while deleting branch: %s\n", err))
 				} else {
 					shortHash, err := scm.ShortHash(branch.Revision)
 					if err != nil {
