@@ -16,10 +16,18 @@ cipd_client_pkg='infra/tools/cipd/${platform}'
 # different version for different platforms, so instead we resolve the
 # git_revision tag of the "latest" version for the current platform and update
 # to that tag for all platforms.
-new_version="$(
+versions="$(
     cipd describe "$cipd_client_pkg" -version latest \
     | grep git_revision \
-    | tail -1)"  # The last tag in the list is the oldest so most likely to exist for all packages.
-new_version="$(echo "$new_version" | xargs)" # Trim whitespace
+    | tail -5)"  # The last tag in the list is the oldest so most likely to exist for all packages.
+versions=($versions)
 
-cipd selfupdate-roll -version-file "$jiri_dir/cipd/cipd_client_version" -version "$new_version"
+success=false
+for ((i=${#versions[@]}-1; i >= 0; i--)); do
+  new_version="${versions[$i]}"
+  new_version="$(echo "$new_version" | xargs)" # Trim whitespace
+  cipd selfupdate-roll -version-file "$jiri_dir/cipd/cipd_client_version" -version "$new_version" && success=true && break || echo "failed with version ${new_version}"
+done
+if [ "$success" = false ]; then
+  exit 1
+fi
