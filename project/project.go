@@ -31,6 +31,7 @@ import (
 	"go.fuchsia.dev/jiri/log"
 	"go.fuchsia.dev/jiri/retry"
 	"golang.org/x/exp/maps"
+	"golang.org/x/sync/errgroup"
 )
 
 var (
@@ -2642,30 +2643,37 @@ func updateProjects(jirix *jiri.X, localProjects, remoteProjects Projects, hooks
 		hasSso = true
 	}
 
-	var wg sync.WaitGroup
+	var eg errgroup.Group
 	for _, op := range ops {
-		wg.Add(1)
 		project := op.Project()
-		go func(jirix *jiri.X, project *Project) {
-			defer wg.Done()
+		eg.Go(func() error {
+			if project.LocalConfig.Ignore || project.LocalConfig.NoUpdate {
+				return nil
+			}
 			// If project directory no longer exist, it was deleted.
-			if _, err := os.Stat(project.Path); os.IsNotExist(err) {
-				return
-			}
-			if !(project.LocalConfig.Ignore || project.LocalConfig.NoUpdate) {
-				project.writeJiriRevisionFiles(jirix)
-				if err := project.setupDefaultPushTarget(jirix); err != nil {
-					jirix.Logger.Debugf("set up default push target failed due to error: %v", err)
+			if _, err := os.Stat(project.Path); err != nil {
+				if !os.IsNotExist(err) {
+					return err
 				}
-				if hasSso {
-					if err := project.setupPushURL(jirix); err != nil {
-						jirix.Logger.Debugf("set up pushurl target failed due to error: %v", err)
-					}
+				return nil
+			}
+			if err := project.writeJiriRevisionFiles(jirix); err != nil {
+				return err
+			}
+			if err := project.setupDefaultPushTarget(jirix); err != nil {
+				return err
+			}
+			if hasSso {
+				if err := project.setupPushURL(jirix); err != nil {
+					return err
 				}
 			}
-		}(jirix, &project)
+			return nil
+		})
 	}
-	wg.Wait()
+	if err := eg.Wait(); err != nil {
+		return err
+	}
 	jirix.TimerPop()
 
 	var wgsm sync.WaitGroup
