@@ -671,6 +671,28 @@ func (p *Project) writeJiriRevisionFiles(jirix *jiri.X) error {
 	return SafeWriteFile(jirix, file, []byte(rev))
 }
 
+func (p *Project) setDefaultConfigs(jirix *jiri.X) error {
+	configs := map[string]string{
+		// Jiri handles installing all necessary dependencies. No project should
+		// ever have submodules enabled, even if the user has submodule
+		// recursion enabled globally.
+		"submodule.recurse": "false",
+	}
+	scm := gitutil.New(jirix, gitutil.RootDirOpt(p.Path))
+	for k, v := range configs {
+		if currentVal, err := scm.ConfigGetKey(k); err != nil {
+			return err
+		} else if currentVal == k {
+			// Already set correctly.
+			continue
+		}
+		if err := scm.Config(k, v); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (p *Project) setupDefaultPushTarget(jirix *jiri.X) error {
 	if p.GerritHost == "" {
 		// Skip projects w/o gerrit host
@@ -2656,6 +2678,9 @@ func updateProjects(jirix *jiri.X, localProjects, remoteProjects Projects, hooks
 					return err
 				}
 				return nil
+			}
+			if err := project.setDefaultConfigs(jirix); err != nil {
+				return err
 			}
 			if err := project.writeJiriRevisionFiles(jirix); err != nil {
 				return err
