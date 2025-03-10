@@ -682,7 +682,7 @@ func (p *Project) setDefaultConfigs(jirix *jiri.X) error {
 	for k, v := range configs {
 		if currentVal, err := scm.ConfigGetKey(k); err != nil {
 			return err
-		} else if currentVal == k {
+		} else if currentVal == v {
 			// Already set correctly.
 			continue
 		}
