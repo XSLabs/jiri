@@ -29,6 +29,7 @@ import (
 	"go.fuchsia.dev/jiri/gerrit"
 	"go.fuchsia.dev/jiri/gitutil"
 	"go.fuchsia.dev/jiri/retry"
+	"golang.org/x/exp/maps"
 	"golang.org/x/net/publicsuffix"
 )
 
@@ -994,6 +995,15 @@ func WritePackageFlags(jirix *jiri.X, pkgs, pkgsWA Packages) error {
 		if err := os.WriteFile(filepath.Join(jirix.Root, k), []byte(v), 0644); err != nil {
 			writeErrorBuf.WriteString(fmt.Sprintf("write package flag %q to file %q failed due to error: %v\n", v, k, err))
 		}
+	}
+	filesList := maps.Keys(flagMap)
+	for i, v := range filesList {
+		filesList[i] = filepath.Join(jirix.Root, v)
+	}
+
+	// For all files jiri creates, we need to exclude in .git/info/exclude.
+	if err := WriteGitExcludeFile(jirix, filesList, "package"); err != nil {
+		return err
 	}
 	if writeErrorBuf.Len() > 0 {
 		return errors.New(writeErrorBuf.String())

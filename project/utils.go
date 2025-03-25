@@ -10,7 +10,9 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"runtime"
+	"strings"
 
 	"go.fuchsia.dev/jiri"
 	"go.fuchsia.dev/jiri/gitutil"
@@ -109,4 +111,36 @@ func fetch(jirix *jiri.X, path, remote string, opts ...gitutil.FetchOpt) error {
 	return retry.Function(jirix, func() error {
 		return gitutil.New(jirix, gitutil.RootDirOpt(path)).Fetch(remote, opts...)
 	}, msg, retry.AttemptsOpt(jirix.Attempts))
+}
+
+// WriteGitExcludeFile adds file to .git/info/exclude. Check if it exists already first.
+func WriteGitExcludeFile(jirix *jiri.X, files []string, tag string) error {
+	// If the file doesn't exist, create it, or append to the file
+	gitExclude := filepath.Join(jirix.Root, ".git/info/exclude")
+	var gitData []byte
+	if _, err := os.Stat(gitExclude); err == nil {
+		if gitData, err = os.ReadFile(gitExclude); err != nil {
+			return err
+		}
+	}
+	s := string(gitData)
+	// Make path start from root of checkout, and end with new line.
+	for i, v := range files {
+		files[i] = fmt.Sprintf("/%s\n", v)
+	}
+	fileString := strings.Join(files, "")
+	beginTag := fmt.Sprintf("# BEGIN jiri %s\n", tag)
+	endTag := fmt.Sprintf("# END jiri %s\n", tag)
+	m := regexp.MustCompile(fmt.Sprintf("(?s)%s(.*)%s", beginTag, endTag))
+	data := fmt.Sprintf("%s%s%s", beginTag, fileString, endTag)
+	if strings.Contains(s, beginTag) {
+		s = m.ReplaceAllString(s, data)
+	} else {
+		if strings.HasSuffix(s, "\n") || (s == "") {
+			s = fmt.Sprintf("%s%s", s, data)
+		} else {
+			s = fmt.Sprintf("%s\n%s", s, data)
+		}
+	}
+	return SafeWriteFile(jirix, gitExclude, []byte(s))
 }

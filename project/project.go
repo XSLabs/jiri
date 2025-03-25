@@ -30,6 +30,7 @@ import (
 	"go.fuchsia.dev/jiri/gitutil"
 	"go.fuchsia.dev/jiri/log"
 	"go.fuchsia.dev/jiri/retry"
+	"golang.org/x/exp/maps"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -353,6 +354,11 @@ func WriteProjectFlags(jirix *jiri.X, projects Projects) error {
 		if err := os.WriteFile(filepath.Join(jirix.Root, k), []byte(v), 0644); err != nil {
 			writeErrorBuf.WriteString(fmt.Sprintf("write package flag %q to file %q failed: %v\n", v, k, err))
 		}
+	}
+	filesList := maps.Keys(flagMap)
+	// For all files jiri creates, we need to exclude in .git/info/exclude.
+	if err := WriteGitExcludeFile(jirix, filesList, "project"); err != nil {
+		return err
 	}
 	if writeErrorBuf.Len() > 0 {
 		return errors.New(writeErrorBuf.String())
@@ -2714,6 +2720,15 @@ func updateProjects(jirix *jiri.X, localProjects, remoteProjects Projects, hooks
 	jirix.TimerPop()
 
 	jirix.TimerPush("jiri project flag files")
+
+	// Set flags for whether or not fuchsia checkout contains submodules in checkout.gni.
+	for k, project := range remoteProjects {
+		if project.Remote == "https://fuchsia.googlesource.com/fuchsia" {
+			project.Flag = fmt.Sprintf("build/checkout.gni|submodules=%t|unused=unused", (jirix.EnableSubmodules && project.GitSubmodules))
+			remoteProjects[k] = project
+			break
+		}
+	}
 
 	if err := WriteProjectFlags(jirix, remoteProjects); err != nil {
 		jirix.Logger.Errorf("failures in write jiri project flag files: %v", err)
