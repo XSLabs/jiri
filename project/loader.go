@@ -544,23 +544,23 @@ func (ld *loader) load(jirix *jiri.X, root, repoPath, file, ref, parentImport st
 	self := ld.importTree.getNode(repoPath, file, ref)
 	self.tag = defaultGitAttrs()
 	// Process remote imports.
-	for _, remote := range m.Imports {
+	for _, imp := range m.Imports {
 		// Apply override if it exists.
-		remote, err := overrideImport(remote, ld.ProjectOverrides, ld.ImportOverrides)
+		imp, err := overrideImport(imp, ld.ProjectOverrides, ld.ImportOverrides)
 		if err != nil {
 			return err
 		}
-		nextRoot := filepath.Join(root, remote.Root)
-		remote.Name = filepath.Join(nextRoot, remote.Name)
-		key := remote.ProjectKey()
+		nextRoot := filepath.Join(root, imp.Root)
+		imp.Name = filepath.Join(nextRoot, imp.Name)
+		key := imp.ProjectKey()
 		p, ok := ld.localProjects[key]
-		cacheDirPath, err := cacheDirPathFromRemote(jirix, remote.Remote)
+		cacheDirPath, err := cacheDirPathFromRemote(jirix, imp.Remote)
 		if err != nil {
 			return err
 		}
 
 		if !ok {
-			if err := ld.cloneManifestRepo(jirix, &remote, cacheDirPath, localManifest); err != nil {
+			if err := ld.cloneManifestRepo(jirix, &imp, cacheDirPath, localManifest); err != nil {
 				return err
 			}
 			p = ld.localProjects[key]
@@ -568,16 +568,16 @@ func (ld *loader) load(jirix *jiri.X, root, repoPath, file, ref, parentImport st
 		// Reset the project to its specified branch and load the next file.  Note
 		// that we call load() recursively, so multiple files may be loaded by
 		// loadImport.
-		p.Revision = remote.Revision
-		p.RemoteBranch = remote.RemoteBranch
+		p.Revision = imp.Revision
+		p.RemoteBranch = imp.RemoteBranch
 		ld.importProjects[key] = p
 		pi := parentImport
 		if pi == "" {
-			pi = fmt.Sprintf("import[manifest=%q, remote=%q]", remote.Manifest, remote.Remote)
+			pi = fmt.Sprintf("import[manifest=%q, remote=%q]", imp.Manifest, imp.Remote)
 		}
 
-		self.addChild(ld.importTree.getNode(repoPath, remote.Manifest, ""))
-		if err := ld.loadImport(jirix, nextRoot, remote.Manifest, remote.cycleKey(), cacheDirPath, pi, p, localManifest); err != nil {
+		self.addChild(ld.importTree.getNode(repoPath, imp.Manifest, ""))
+		if err := ld.loadImport(jirix, nextRoot, imp, cacheDirPath, pi, p, localManifest); err != nil {
 			return err
 		}
 	}
@@ -674,7 +674,7 @@ func (ld *loader) load(jirix *jiri.X, root, repoPath, file, ref, parentImport st
 	return nil
 }
 
-func (ld *loader) loadImport(jirix *jiri.X, root, file, cycleKey, cacheDirPath, parentImport string, project Project, localManifest bool) (e error) {
+func (ld *loader) loadImport(jirix *jiri.X, root string, imp Import, cacheDirPath, parentImport string, project Project, localManifest bool) (e error) {
 	lm := localManifest
 	ref := ""
 
@@ -738,9 +738,9 @@ func (ld *loader) loadImport(jirix *jiri.X, root, file, cycleKey, cacheDirPath, 
 	}
 	if lm {
 		// load from local checked out file
-		return ld.Load(jirix, root, "", filepath.Join(project.Path, file), "", cycleKey, parentImport, false)
+		return ld.Load(jirix, root, "", filepath.Join(project.Path, imp.Manifest), "", imp.cycleKey(), imp.Name, false)
 	}
-	return ld.Load(jirix, root, project.Path, file, ref, cycleKey, parentImport, false)
+	return ld.Load(jirix, root, project.Path, imp.Manifest, ref, imp.cycleKey(), imp.Name, false)
 }
 
 func (ld *loader) GenerateGitAttributesForProjects(jirix *jiri.X) {
