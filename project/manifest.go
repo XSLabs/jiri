@@ -260,6 +260,8 @@ type Import struct {
 	// Root path, prepended to all project paths specified in the manifest file.
 	Root    string   `xml:"root,attr,omitempty"`
 	XMLName struct{} `xml:"import"`
+	// Parent is the name of the parent import, if any.
+	Parent string `xml:"-"`
 }
 
 func (i *Import) fillDefaults() error {
@@ -784,7 +786,7 @@ func (ld *loader) enforceLocks(jirix *jiri.X) error {
 // LoadManifestFile in parallel.
 func LoadManifestFile(jirix *jiri.X, file string, localProjects Projects, localManifest bool) (Projects, Hooks, Packages, error) {
 	ld := newManifestLoader(localProjects, false, file)
-	if err := ld.Load(jirix, "", "", file, "", "", "", localManifest); err != nil {
+	if err := ld.Load(jirix, "", "", file, "", "", nil, localManifest); err != nil {
 		return nil, nil, nil, err
 	}
 	jirix.AddCleanupFunc(ld.cleanup)
@@ -806,7 +808,7 @@ func LoadUpdatedManifest(jirix *jiri.X, localProjects Projects, localManifest bo
 	jirix.TimerPush("load updated manifest")
 	defer jirix.TimerPop()
 	ld := newManifestLoader(localProjects, true, jirix.JiriManifestFile())
-	if err := ld.Load(jirix, "", "", jirix.JiriManifestFile(), "", "", "", localManifest); err != nil {
+	if err := ld.Load(jirix, "", "", jirix.JiriManifestFile(), "", "", nil, localManifest); err != nil {
 		return nil, nil, nil, err
 	}
 	jirix.AddCleanupFunc(ld.cleanup)

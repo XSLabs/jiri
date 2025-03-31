@@ -113,6 +113,9 @@ type Project struct {
 
 	// ManifestPath stores the absolute path of the manifest.
 	ManifestPath string `xml:"-"`
+
+	// ImportedBy is the name of the <import> that pulls in this project.
+	ImportedBy string `xml:"-"`
 }
 
 // ProjectsByPath implements the Sort interface. It sorts Projects by

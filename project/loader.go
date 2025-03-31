@@ -266,7 +266,7 @@ func newManifestLoader(localProjects Projects, update bool, file string) *loader
 // A more complex case would involve a combination of local and remote imports,
 // using the "root" attribute to change paths on the local filesystem.  In this
 // case the key will eventually expose the cycle.
-func (ld *loader) loadNoCycles(jirix *jiri.X, root, repoPath, file, ref, cycleKey, parentImport string, localManifest bool) error {
+func (ld *loader) loadNoCycles(jirix *jiri.X, root, repoPath, file, ref, cycleKey string, parentImport *Import, localManifest bool) error {
 	f := file
 	if repoPath != "" {
 		f = filepath.Join(repoPath, file)
@@ -300,7 +300,7 @@ func shortFileName(root, repoPath, file, ref string) string {
 	return file
 }
 
-func (ld *loader) Load(jirix *jiri.X, root, repoPath, file, ref, cycleKey, parentImport string, localManifest bool) error {
+func (ld *loader) Load(jirix *jiri.X, root, repoPath, file, ref, cycleKey string, parentImport *Import, localManifest bool) error {
 	jirix.TimerPush("load " + shortFileName(jirix.Root, repoPath, file, ref))
 	defer jirix.TimerPop()
 	return ld.loadNoCycles(jirix, root, repoPath, file, ref, cycleKey, parentImport, localManifest)
@@ -456,7 +456,7 @@ func (ld *loader) parseLockData(jirix *jiri.X, data []byte) error {
 	return nil
 }
 
-func (ld *loader) load(jirix *jiri.X, root, repoPath, file, ref, parentImport string, localManifest bool) error {
+func (ld *loader) load(jirix *jiri.X, root, repoPath, file, ref string, parentImport *Import, localManifest bool) error {
 	f := file
 	if repoPath != "" {
 		f = filepath.Join(repoPath, file)
@@ -508,7 +508,7 @@ func (ld *loader) load(jirix *jiri.X, root, repoPath, file, ref, parentImport st
 	}
 
 	// Add override information
-	if parentImport == "" {
+	if parentImport == nil {
 		for _, p := range m.ProjectOverrides {
 			// Reuse the MakeProjectKey function in case it is changed
 			// in the future.
@@ -552,6 +552,9 @@ func (ld *loader) load(jirix *jiri.X, root, repoPath, file, ref, parentImport st
 		}
 		nextRoot := filepath.Join(root, imp.Root)
 		imp.Name = filepath.Join(nextRoot, imp.Name)
+		if parentImport != nil {
+			imp.Parent = parentImport.Name
+		}
 		key := imp.ProjectKey()
 		p, ok := ld.localProjects[key]
 		cacheDirPath, err := cacheDirPathFromRemote(jirix, imp.Remote)
@@ -571,13 +574,9 @@ func (ld *loader) load(jirix *jiri.X, root, repoPath, file, ref, parentImport st
 		p.Revision = imp.Revision
 		p.RemoteBranch = imp.RemoteBranch
 		ld.importProjects[key] = p
-		pi := parentImport
-		if pi == "" {
-			pi = fmt.Sprintf("import[manifest=%q, remote=%q]", imp.Manifest, imp.Remote)
-		}
 
 		self.addChild(ld.importTree.getNode(repoPath, imp.Manifest, ""))
-		if err := ld.loadImport(jirix, nextRoot, imp, cacheDirPath, pi, p, localManifest); err != nil {
+		if err := ld.loadImport(jirix, nextRoot, imp, cacheDirPath, p, localManifest); err != nil {
 			return err
 		}
 	}
@@ -642,6 +641,18 @@ func (ld *loader) load(jirix *jiri.X, root, repoPath, file, ref, parentImport st
 
 		// Record manifest location.
 		project.ManifestPath = f
+		if parentImport != nil {
+			if project.Remote == parentImport.Remote {
+				// Enforce that project and import names always match up, so we can
+				// correctly use localManifestProjects.
+				if project.Name != parentImport.Name {
+					return fmt.Errorf("project name differs from import name for %s", parentImport.Remote)
+				}
+				project.ImportedBy = parentImport.Parent
+			} else {
+				project.ImportedBy = parentImport.Name
+			}
+		}
 
 		// Associate project with importTreeNode for git attributes propagation.
 		ld.importTree.projectKeyMap[key] = self
@@ -674,7 +685,7 @@ func (ld *loader) load(jirix *jiri.X, root, repoPath, file, ref, parentImport st
 	return nil
 }
 
-func (ld *loader) loadImport(jirix *jiri.X, root string, imp Import, cacheDirPath, parentImport string, project Project, localManifest bool) (e error) {
+func (ld *loader) loadImport(jirix *jiri.X, root string, imp Import, cacheDirPath string, project Project, localManifest bool) (e error) {
 	lm := localManifest
 	ref := ""
 
@@ -687,9 +698,9 @@ func (ld *loader) loadImport(jirix *jiri.X, root string, imp Import, cacheDirPat
 			if tref, err := GetHeadRevision(project); err != nil {
 				return err
 			} else if tref != ref {
-				return fmt.Errorf("Conflicting ref for import %s - %q and %q. There are conflicting imports in file:\n%s:\n'%s' and '%s'",
+				return fmt.Errorf("Conflicting ref for import %s - %q and %q. There are conflicting imports in file:\n%s:\n%q and %q",
 					jirix.Color.Red(project.Remote), ref, tref, jirix.Color.Yellow(ld.parentFile),
-					jirix.Color.Yellow(v.parentImport), jirix.Color.Yellow(parentImport))
+					jirix.Color.Yellow(v.parentImport), jirix.Color.Yellow(imp.Parent))
 			}
 		}
 	} else {
@@ -733,14 +744,14 @@ func (ld *loader) loadImport(jirix *jiri.X, root string, imp Import, cacheDirPat
 		ld.importCacheMap[strings.Trim(project.Remote, "/")] = importCache{
 			localManifest: lm,
 			ref:           ref,
-			parentImport:  parentImport,
+			parentImport:  imp.Name,
 		}
 	}
 	if lm {
 		// load from local checked out file
-		return ld.Load(jirix, root, "", filepath.Join(project.Path, imp.Manifest), "", imp.cycleKey(), imp.Name, false)
+		return ld.Load(jirix, root, "", filepath.Join(project.Path, imp.Manifest), "", imp.cycleKey(), &imp, false)
 	}
-	return ld.Load(jirix, root, project.Path, imp.Manifest, ref, imp.cycleKey(), imp.Name, false)
+	return ld.Load(jirix, root, project.Path, imp.Manifest, ref, imp.cycleKey(), &imp, false)
 }
 
 func (ld *loader) GenerateGitAttributesForProjects(jirix *jiri.X) {
