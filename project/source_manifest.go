@@ -141,7 +141,7 @@ func NewSourceManifest(jirix *jiri.X, projects Projects) (*SourceManifest, error
 					continue
 				}
 				if strings.HasPrefix(b, "origin") {
-					gc.FetchRef = "refs/heads/" + strings.TrimLeft(b, "origin/")
+					gc.FetchRef = "refs/heads/" + strings.TrimPrefix(b, "origin/")
 					break
 				}
 			}
