@@ -160,6 +160,9 @@ func (c *projectCmd) runProjectInfo(jirix *jiri.X, args []string) error {
 	}
 	if c.useLocalManifest {
 		projects, _, _, err = project.LoadUpdatedManifest(jirix, projects, c.useLocalManifest)
+		if err != nil {
+			return err
+		}
 		if err := project.FilterOptionalProjectsPackages(jirix, jirix.FetchingAttrs, projects, nil); err != nil {
 			return err
 		}

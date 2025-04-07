@@ -243,7 +243,7 @@ func (c *initCmd) run(ctx context.Context, args []string) error {
 				config.AnalyticsVersion = analytics_util.Version
 
 				bytes := make([]byte, 16)
-				io.ReadFull(rand.Reader, bytes)
+				_, err = io.ReadFull(rand.Reader, bytes)
 				if err != nil {
 					return err
 				}

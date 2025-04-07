@@ -22,7 +22,13 @@ func TestResolveProjects(t *testing.T) {
 		t.Fatalf("%v", err)
 	}
 	localProjects, err := project.LocalProjects(fakeroot.X, project.FastScan)
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
 	projects, _, _, err := project.LoadManifestFile(fakeroot.X, fakeroot.X.JiriManifestFile(), localProjects, false)
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
 	lockPath := filepath.Join(fakeroot.X.Root, "jiri.lock")
 	cmd := resolveCmd{
 		lockFilePath:      lockPath,
