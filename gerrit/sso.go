@@ -116,6 +116,7 @@ func FetchFile(jirix *jiri.X, gerritHost, path string) ([]byte, error) {
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			return http.ErrUseLastResponse
 		},
+		Timeout: 2 * time.Minute,
 	}
 	downloadPath := gerritHost + path
 	// Retry the fetch a hardcoded number of times. jirix.Attempts is intended
