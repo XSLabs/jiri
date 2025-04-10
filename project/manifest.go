@@ -7,6 +7,7 @@ package project
 import (
 	"bytes"
 	"context"
+	_ "embed"
 	"encoding/json"
 	"encoding/xml"
 	"errors"
@@ -31,6 +32,12 @@ import (
 	"go.fuchsia.dev/jiri/retry"
 	"golang.org/x/net/publicsuffix"
 )
+
+// TODO(b/409623497): Go back to fetching the hook from Gerrit after the outage
+// is resolved.
+//
+//go:embed commit-msg
+var commitMsgHookBytes []byte
 
 // Manifest represents a setting used for updating the universe.
 type Manifest struct {
@@ -1350,11 +1357,6 @@ func (f commitMsgFetcher) fetch(jirix *jiri.X, gerritHost, path string) ([]byte,
 func applyGitHooks(jirix *jiri.X, ops []operation) error {
 	jirix.TimerPush("apply githooks")
 	defer jirix.TimerPop()
-	commitMsgFetcher := commitMsgFetcher{}
-	bytes, err := commitMsgFetcher.fetch(jirix, "https://gerrit-review.googlesource.com", "/tools/hooks/commit-msg")
-	if err != nil {
-		return err
-	}
 	for _, op := range ops {
 		// If project directory no longer exist, we don't want to run hooks.
 		if _, err := os.Stat(op.Project().Path); os.IsNotExist(err) {
@@ -1384,7 +1386,7 @@ func applyGitHooks(jirix *jiri.X, ops []operation) error {
 			if err != nil {
 				return fmtError(err)
 			}
-			if _, err := commitHook.Write(bytes); err != nil {
+			if _, err := commitHook.Write(commitMsgHookBytes); err != nil {
 				return err
 			}
 			jirix.Logger.Debugf("Saved commit-msg hook to project %q", op.Project().Path)
