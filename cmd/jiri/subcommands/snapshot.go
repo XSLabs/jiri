@@ -44,5 +44,9 @@ func (c *snapshotCmd) run(jirix *jiri.X, args []string) error {
 	if len(args) != 1 {
 		return jirix.UsageErrorf("unexpected number of arguments")
 	}
-	return project.CreateSnapshot(jirix, args[0], nil, nil, true, c.cipdEnsure)
+	localManifestProjects, err := getDefaultLocalManifestProjects(jirix)
+	if err != nil {
+		return err
+	}
+	return project.CreateSnapshot(jirix, args[0], nil, nil, c.cipdEnsure, localManifestProjects)
 }

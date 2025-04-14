@@ -25,22 +25,23 @@ const (
 type updateCmd struct {
 	cmdBase
 
-	gc               bool
-	localManifest    bool
-	attempts         uint
-	autoupdate       bool
-	forceAutoupdate  bool
-	rebaseUntracked  bool
-	hookTimeout      uint
-	fetchPkgsTimeout uint
-	rebaseAll        bool
-	rebaseCurrent    bool
-	rebaseSubmodules bool
-	rebaseTracked    bool
-	runHooks         bool
-	fetchPkgs        bool
-	overrideOptional bool
-	packagesToSkip   arrayFlag
+	gc                    bool
+	localManifest         bool
+	attempts              uint
+	autoupdate            bool
+	forceAutoupdate       bool
+	rebaseUntracked       bool
+	hookTimeout           uint
+	fetchPkgsTimeout      uint
+	rebaseAll             bool
+	rebaseCurrent         bool
+	rebaseSubmodules      bool
+	rebaseTracked         bool
+	runHooks              bool
+	fetchPkgs             bool
+	overrideOptional      bool
+	packagesToSkip        arrayFlag
+	localManifestProjects arrayFlag
 }
 
 func (c *updateCmd) SetFlags(f *flag.FlagSet) {
@@ -60,6 +61,7 @@ func (c *updateCmd) SetFlags(f *flag.FlagSet) {
 	f.BoolVar(&c.fetchPkgs, "fetch-packages", true, "Use cipd to fetch packages.")
 	f.BoolVar(&c.overrideOptional, "override-optional", false, "Override existing optional attributes in the snapshot file with current jiri settings")
 	f.Var(&c.packagesToSkip, "package-to-skip", "Skip fetching this package. Repeatable.")
+	f.Var(&c.localManifestProjects, "local-manifest-project", "Import projects whose local manifests should be respected. Repeatable.")
 }
 
 func (c *updateCmd) Name() string     { return "update" }
@@ -85,6 +87,10 @@ func (c *updateCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...any) subc
 func (c *updateCmd) run(jirix *jiri.X, args []string) error {
 	if len(args) > 1 {
 		return jirix.UsageErrorf("unexpected number of arguments")
+	}
+
+	if c.localManifest && len(c.localManifestProjects) != 0 {
+		return jirix.UsageErrorf("Please specify either -local-manifest or -local-manifest-project")
 	}
 
 	if c.attempts < 1 {
@@ -120,18 +126,32 @@ func (c *updateCmd) run(jirix *jiri.X, args []string) error {
 			}
 		}
 
+		// Hacky workaround to reduce redundancy while maintaining compatibility
+		// with legacy manifest loading logic and minimizing developer workflow
+		// disruption. Previously, localManifest was a boolean value set by the
+		// -local-manifest flag. To extend functionality for using the local
+		// manifests of import projects, we are passing a list of projects to
+		// use the local manifest for.
+		if c.localManifest && len(c.localManifestProjects) == 0 {
+			defaultLocalManifestProjects, err := getDefaultLocalManifestProjects(jirix)
+			if err != nil {
+				return err
+			}
+			c.localManifestProjects = defaultLocalManifestProjects
+		}
+
 		err := project.UpdateUniverse(jirix, project.UpdateUniverseParams{
-			GC:                   c.gc,
-			LocalManifest:        c.localManifest,
-			RebaseTracked:        c.rebaseTracked,
-			RebaseUntracked:      c.rebaseUntracked,
-			RebaseAll:            c.rebaseAll,
-			RunHooks:             c.runHooks,
-			FetchPackages:        c.fetchPkgs,
-			RebaseSubmodules:     c.rebaseSubmodules,
-			RunHookTimeout:       c.hookTimeout,
-			FetchPackagesTimeout: c.fetchPkgsTimeout,
-			PackagesToSkip:       c.packagesToSkip,
+			GC:                    c.gc,
+			RebaseTracked:         c.rebaseTracked,
+			RebaseUntracked:       c.rebaseUntracked,
+			RebaseAll:             c.rebaseAll,
+			RunHooks:              c.runHooks,
+			FetchPackages:         c.fetchPkgs,
+			RebaseSubmodules:      c.rebaseSubmodules,
+			RunHookTimeout:        c.hookTimeout,
+			FetchPackagesTimeout:  c.fetchPkgsTimeout,
+			PackagesToSkip:        c.packagesToSkip,
+			LocalManifestProjects: c.localManifestProjects,
 		})
 		if err != nil {
 			return err

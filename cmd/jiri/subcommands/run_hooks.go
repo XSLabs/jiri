@@ -16,11 +16,12 @@ import (
 type runHooksCmd struct {
 	cmdBase
 
-	localManifest  bool
-	hookTimeout    uint
-	attempts       uint
-	fetchPackages  bool
-	packagesToSkip arrayFlag
+	localManifest         bool
+	localManifestProjects arrayFlag
+	hookTimeout           uint
+	attempts              uint
+	fetchPackages         bool
+	packagesToSkip        arrayFlag
 }
 
 func (c *runHooksCmd) Name() string     { return "run-hooks" }
@@ -40,6 +41,7 @@ func (c *runHooksCmd) SetFlags(f *flag.FlagSet) {
 	f.UintVar(&c.attempts, "attempts", 1, "Number of attempts before failing.")
 	f.BoolVar(&c.fetchPackages, "fetch-packages", true, "Use fetching packages using jiri.")
 	f.Var(&c.packagesToSkip, "package-to-skip", "Skip fetching this package. Repeatable.")
+	f.Var(&c.localManifestProjects, "local-manifest-project", "Import projects whose local manifests should be respected. Repeatable.")
 }
 
 func (c *runHooksCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...any) subcommands.ExitStatus {
@@ -59,10 +61,19 @@ func (c *runHooksCmd) run(jirix *jiri.X, args []string) (err error) {
 	// Get hooks.
 	var hooks project.Hooks
 	var pkgs project.Packages
+
+	// Similar to project subcommand: do not use updated manifest if localManifestProjects is set. Only use updated manifest if the legacy
+	// local manifest flag is set, to maintain legacy behavior.
 	if !c.localManifest {
-		_, hooks, pkgs, err = project.LoadUpdatedManifest(jirix, localProjects, c.localManifest)
+		_, hooks, pkgs, err = project.LoadUpdatedManifest(jirix, localProjects, c.localManifestProjects)
 	} else {
-		_, hooks, pkgs, err = project.LoadManifestFile(jirix, jirix.JiriManifestFile(), localProjects, c.localManifest)
+		if len(c.localManifestProjects) == 0 {
+			c.localManifestProjects, err = getDefaultLocalManifestProjects(jirix)
+			if err != nil {
+				return err
+			}
+		}
+		_, hooks, pkgs, err = project.LoadManifestFile(jirix, jirix.JiriManifestFile(), localProjects, c.localManifestProjects)
 	}
 	if err != nil {
 		return err

@@ -688,7 +688,7 @@ func LoadManifest(jirix *jiri.X) (Projects, Hooks, Packages, error) {
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	return LoadManifestFile(jirix, file, localProjects, false)
+	return LoadManifestFile(jirix, file, localProjects, nil)
 }
 
 func (ld *loader) warnOverrides(jirix *jiri.X) {
@@ -791,9 +791,9 @@ func (ld *loader) enforceLocks(jirix *jiri.X) error {
 // invokes git operations which require a lock on the filesystem.  If you see
 // errors about ".git/index.lock exists", you are likely calling
 // LoadManifestFile in parallel.
-func LoadManifestFile(jirix *jiri.X, file string, localProjects Projects, localManifest bool) (Projects, Hooks, Packages, error) {
+func LoadManifestFile(jirix *jiri.X, file string, localProjects Projects, localManifestProjects []string) (Projects, Hooks, Packages, error) {
 	ld := newManifestLoader(localProjects, false, file)
-	if err := ld.Load(jirix, "", "", file, "", "", nil, localManifest); err != nil {
+	if err := ld.Load(jirix, "", "", file, "", "", nil, localManifestProjects); err != nil {
 		return nil, nil, nil, err
 	}
 	jirix.AddCleanupFunc(ld.cleanup)
@@ -810,12 +810,12 @@ func LoadManifestFile(jirix *jiri.X, file string, localProjects Projects, localM
 }
 
 // LoadUpdatedManifest loads an updated manifest starting with the .jiri_manifest file for localProjects. It will use
-// local manifest files instead of manifest files in remote repositories if localManifest is set to true.
-func LoadUpdatedManifest(jirix *jiri.X, localProjects Projects, localManifest bool) (Projects, Hooks, Packages, error) {
+// local manifest files instead of manifest files in remote repositories if localManifestProjects exists and is not empty.
+func LoadUpdatedManifest(jirix *jiri.X, localProjects Projects, localManifestProjects []string) (Projects, Hooks, Packages, error) {
 	jirix.TimerPush("load updated manifest")
 	defer jirix.TimerPop()
 	ld := newManifestLoader(localProjects, true, jirix.JiriManifestFile())
-	if err := ld.Load(jirix, "", "", jirix.JiriManifestFile(), "", "", nil, localManifest); err != nil {
+	if err := ld.Load(jirix, "", "", jirix.JiriManifestFile(), "", "", nil, localManifestProjects); err != nil {
 		return nil, nil, nil, err
 	}
 	jirix.AddCleanupFunc(ld.cleanup)

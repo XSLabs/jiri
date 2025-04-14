@@ -108,6 +108,16 @@ func (fake FakeJiriRoot) AddHook(hook project.Hook) error {
 	return fake.WriteRemoteManifest(manifest)
 }
 
+// AddImport adds the given import to a remote manifest.
+func (fake FakeJiriRoot) AddImport(importProject project.Import) error {
+	manifest, err := fake.ReadRemoteManifest()
+	if err != nil {
+		return err
+	}
+	manifest.Imports = append(manifest.Imports, importProject)
+	return fake.WriteRemoteManifest(manifest)
+}
+
 // AddPackage adds the given package to a remote manifest.
 func (fake FakeJiriRoot) AddPackage(pkg project.Package) error {
 	manifest, err := fake.ReadRemoteManifest()

@@ -668,166 +668,8 @@ func TestLoadManifestFileRecursiveImport(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, _, _, err := project.LoadManifestFile(fake.X, fake.X.JiriManifestFile(), localProjects, false); err != nil {
+	if _, _, _, err := project.LoadManifestFile(fake.X, fake.X.JiriManifestFile(), localProjects, nil); err != nil {
 		t.Fatal(err)
-	}
-}
-
-func TestRecursiveImportWithLocalImport(t *testing.T) {
-	_, fake := setupUniverse(t)
-
-	manifest, err := fake.ReadRemoteManifest()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// Remove last project from manifest
-	lastProject := manifest.Projects[len(manifest.Projects)-1]
-	manifest.Projects = manifest.Projects[:len(manifest.Projects)-1]
-	remoteManifestStr := "remotemanifest"
-	if err := fake.CreateRemoteProject(remoteManifestStr); err != nil {
-		t.Fatal(err)
-	}
-	// Fix last project rev
-	lastPRev, _ := gitutil.New(fake.X, gitutil.RootDirOpt(fake.Projects[lastProject.Name])).CurrentRevision()
-	lastProject.Revision = lastPRev
-	remoteManifest := &project.Manifest{
-		Projects: []project.Project{lastProject, {
-			Name:   remoteManifestStr,
-			Path:   remoteManifestStr,
-			Remote: fake.Projects[remoteManifestStr],
-		}},
-	}
-	remoteManifestFile := filepath.Join(fake.Projects[remoteManifestStr], "manifest")
-	if err := remoteManifest.ToFile(fake.X, remoteManifestFile); err != nil {
-		t.Fatal(err)
-	}
-	commitFile(t, fake.X, fake.Projects[remoteManifestStr], "manifest", "1")
-	rev, _ := gitutil.New(fake.X, gitutil.RootDirOpt(fake.Projects[remoteManifestStr])).CurrentRevision()
-	manifest.Imports = []project.Import{{
-		Name:     remoteManifestStr,
-		Remote:   fake.Projects[remoteManifestStr],
-		Manifest: "manifest",
-		Revision: rev,
-	}}
-
-	// unpin last project in next commit
-	remoteManifest.Projects[0].Revision = ""
-	if err := remoteManifest.ToFile(fake.X, remoteManifestFile); err != nil {
-		t.Fatal(err)
-	}
-	commitFile(t, fake.X, fake.Projects[remoteManifestStr], "manifest", "2")
-	// get latest revision
-	rev, _ = gitutil.New(fake.X, gitutil.RootDirOpt(fake.Projects[remoteManifestStr])).CurrentRevision()
-	writeFile(t, fake.X, fake.Projects[lastProject.Name], "file1", "file1")
-	// Get latest last project revision
-	lastPRev, _ = gitutil.New(fake.X, gitutil.RootDirOpt(fake.Projects[lastProject.Name])).CurrentRevision()
-	fake.WriteRemoteManifest(manifest)
-	if err := fake.UpdateUniverse(false); err != nil {
-		t.Fatal(err)
-	}
-
-	// make local change in top level manifest and unpin remote manifest
-	manifest.Imports[0].Revision = ""
-	if err := manifest.ToFile(fake.X, filepath.Join(fake.X.Root, jiritest.ManifestProjectPath, jiritest.ManifestFileName)); err != nil {
-		t.Fatal(err)
-	}
-	if err := project.UpdateUniverse(fake.X, project.UpdateUniverseParams{
-		LocalManifest:        true,
-		RunHookTimeout:       project.DefaultHookTimeout,
-		FetchPackagesTimeout: project.DefaultPackageTimeout,
-	}); err != nil {
-		t.Fatal(err)
-	}
-
-	remoteManifestPath := filepath.Join(fake.X.Root, remoteManifestStr)
-	currentRev, _ := gitutil.New(fake.X, gitutil.RootDirOpt(remoteManifestPath)).CurrentRevision()
-	if currentRev != rev {
-		t.Fatalf("For project remotemanifest expected rev to be %q got %q", rev, currentRev)
-	}
-	// check last project revision
-	currentRev, _ = gitutil.New(fake.X, gitutil.RootDirOpt(filepath.Join(fake.X.Root, lastProject.Path))).CurrentRevision()
-	if currentRev != lastPRev {
-		t.Fatalf("For project %q expected rev to be %q got %q", lastProject.Name, lastPRev, currentRev)
-	}
-}
-
-func TestRecursiveImportWhenOriginalManifestIsImportedAgain(t *testing.T) {
-	_, fake := setupUniverse(t)
-
-	manifest, err := fake.ReadRemoteManifest()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// Remove last project from manifest and add it to local import
-	lastProject := manifest.Projects[len(manifest.Projects)-1]
-	manifest.Projects = manifest.Projects[:len(manifest.Projects)-1]
-	manifest.LocalImports = []project.LocalImport{{
-		File: "localmanifest",
-	}}
-	localManifest := project.Manifest{
-		Projects: []project.Project{lastProject},
-	}
-	localManifestFile := filepath.Join(fake.Projects[jiritest.ManifestProjectName], "localmanifest")
-	if err := localManifest.ToFile(fake.X, localManifestFile); err != nil {
-		t.Fatal(err)
-	}
-	commitFile(t, fake.X, fake.Projects[jiritest.ManifestProjectName], "localmanifest", "1")
-
-	remoteManifestStr := "remotemanifest"
-	if err := fake.CreateRemoteProject(remoteManifestStr); err != nil {
-		t.Fatal(err)
-	}
-	manifest.Imports = []project.Import{{
-		Name:     remoteManifestStr,
-		Remote:   fake.Projects[remoteManifestStr],
-		Manifest: "manifest",
-	}}
-	fake.WriteRemoteManifest(manifest)
-
-	// Fix last project rev
-	remoteManifest := &project.Manifest{
-		Projects: []project.Project{{
-			Name:   remoteManifestStr,
-			Path:   remoteManifestStr,
-			Remote: fake.Projects[remoteManifestStr],
-		}},
-		Imports: []project.Import{{
-			Name:     jiritest.ManifestProjectName,
-			Remote:   fake.Projects[jiritest.ManifestProjectName],
-			Manifest: "localmanifest",
-		}},
-	}
-	remoteManifestFile := filepath.Join(fake.Projects[remoteManifestStr], "manifest")
-	if err := remoteManifest.ToFile(fake.X, remoteManifestFile); err != nil {
-		t.Fatal(err)
-	}
-	commitFile(t, fake.X, fake.Projects[remoteManifestStr], "manifest", "1")
-
-	if err := fake.UpdateUniverse(false); err != nil {
-		t.Fatal(err)
-	}
-	//pin last project and don't commit
-	lastPRev, _ := gitutil.New(fake.X, gitutil.RootDirOpt(fake.Projects[lastProject.Name])).CurrentRevision()
-	localManifest.Projects[0].Revision = lastPRev
-	if err := localManifest.ToFile(fake.X, filepath.Join(fake.X.Root, jiritest.ManifestProjectPath, "localmanifest")); err != nil {
-		t.Fatal(err)
-	}
-
-	// Add new commit to last project
-	writeFile(t, fake.X, fake.Projects[lastProject.Name], "file1", "file1")
-	if err := project.UpdateUniverse(fake.X, project.UpdateUniverseParams{
-		LocalManifest:        true,
-		RunHookTimeout:       project.DefaultHookTimeout,
-		FetchPackagesTimeout: project.DefaultPackageTimeout,
-	}); err != nil {
-		t.Fatal(err)
-	}
-	// check last project revision
-	currentRev, _ := gitutil.New(fake.X, gitutil.RootDirOpt(filepath.Join(fake.X.Root, lastProject.Path))).CurrentRevision()
-	if currentRev != lastPRev {
-		t.Fatalf("For project %q expected rev to be %q got %q", lastProject.Name, lastPRev, currentRev)
 	}
 }
 
@@ -862,7 +704,7 @@ func TestLocalProjectWithConfig(t *testing.T) {
 	if err := fake.UpdateUniverse(false); err != nil {
 		t.Fatal(err)
 	}
-	project.WriteUpdateHistorySnapshot(fake.X, nil, nil, false)
+	project.WriteUpdateHistorySnapshot(fake.X, nil, nil, nil)
 
 	lc := project.LocalConfig{Ignore: true}
 	project.WriteLocalConfig(fake.X, localProjects[1], lc)
@@ -2926,5 +2768,29 @@ func TestFilterPackagesByName(t *testing.T) {
 	project.FilterPackagesByName(jirix, pkgs, pkgsToSkip)
 	if !reflect.DeepEqual(pkgs, expected) {
 		t.Errorf("filter packages got %v, want %v", pkgs, expected)
+	}
+}
+
+// TestUpdateUniverseWithInvalidLocalManifests tests that UpdateUniverse will pull remote projects
+// locally, and that jiri metadata is ignored in the repos.
+func TestUpdateUniverseWithInvalidLocalManifests(t *testing.T) {
+	_, fake := setupUniverse(t)
+
+	err := fake.AddImport(project.Import{
+		Manifest: "manifest",
+		Name:     "import",
+		Remote:   "remote",
+	})
+
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := project.UpdateUniverse(fake.X, project.UpdateUniverseParams{
+		RebaseTracked:         true,
+		RunHookTimeout:        project.DefaultHookTimeout,
+		FetchPackagesTimeout:  project.DefaultPackageTimeout,
+		LocalManifestProjects: []string{"fake"},
+	}); err == nil {
+		t.Fatal(err)
 	}
 }

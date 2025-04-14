@@ -17,14 +17,15 @@ import (
 type resolveCmd struct {
 	cmdBase
 
-	lockFilePath         string
-	localManifestFlag    bool
-	enablePackageLock    bool
-	enableProjectLock    bool
-	enablePackageVersion bool
-	allowFloatingRefs    bool
-	fullResolve          bool
-	hostnameAllowList    string
+	lockFilePath          string
+	localManifestFlag     bool
+	enablePackageLock     bool
+	enableProjectLock     bool
+	enablePackageVersion  bool
+	allowFloatingRefs     bool
+	fullResolve           bool
+	hostnameAllowList     string
+	localManifestProjects arrayFlag
 }
 
 func (c *resolveCmd) AllowFloatingRefs() bool {
@@ -37,6 +38,10 @@ func (c *resolveCmd) LockFilePath() string {
 
 func (c *resolveCmd) LocalManifest() bool {
 	return c.localManifestFlag
+}
+
+func (c *resolveCmd) LocalManifestProjects() []string {
+	return c.localManifestProjects
 }
 
 func (c *resolveCmd) EnablePackageLock() bool {
@@ -85,6 +90,7 @@ func (c *resolveCmd) SetFlags(f *flag.FlagSet) {
 	f.BoolVar(&c.allowFloatingRefs, "allow-floating-refs", false, "Allow packages to be pinned to floating refs such as \"latest\"")
 	f.StringVar(&c.hostnameAllowList, "allow-hosts", "", "List of hostnames that can be used in the url of a repository, separated by comma. It will not be enforced if it is left empty.")
 	f.BoolVar(&c.fullResolve, "full-resolve", false, "Resolve all project and packages, not just those are changed.")
+	f.Var(&c.localManifestProjects, "local-manifest-project", "Import projects whose local manifests should be respected. Repeatable.")
 }
 
 func (c *resolveCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...any) subcommands.ExitStatus {
@@ -101,6 +107,12 @@ func (c *resolveCmd) run(jirix *jiri.X, args []string) error {
 			manifestFiles = append(manifestFiles, m)
 		}
 	}
+	if c.localManifestFlag && len(c.localManifestProjects) == 0 {
+		c.localManifestProjects, _ = getDefaultLocalManifestProjects(jirix)
+	} else if !c.localManifestFlag {
+		c.localManifestProjects = nil
+	}
+
 	// While revision pins for projects can be updated by 'jiri edit',
 	// instance IDs of packages can only be updated by 'jiri resolve' due
 	// to the way how cipd works. Since roller is using 'jiri resolve'

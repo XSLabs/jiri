@@ -177,7 +177,7 @@ func (c *uploadCmd) run(jirix *jiri.X, args []string) error {
 		relativePath string
 	}
 	var gerritPushOptions []GerritPushOption
-	remoteProjects, _, _, err := project.LoadManifestFile(jirix, jirix.JiriManifestFile(), localProjects, false /*localManifest*/)
+	remoteProjects, _, _, err := project.LoadManifestFile(jirix, jirix.JiriManifestFile(), localProjects, nil)
 	if err != nil {
 		return err
 	}

@@ -71,7 +71,7 @@ func (c *statusCmd) run(jirix *jiri.X, args []string) error {
 	if err != nil {
 		return err
 	}
-	remoteProjects, _, _, err := project.LoadManifestFile(jirix, jirix.JiriManifestFile(), localProjects, false /*localManifest*/)
+	remoteProjects, _, _, err := project.LoadManifestFile(jirix, jirix.JiriManifestFile(), localProjects, nil)
 	if err != nil {
 		return err
 	}

@@ -35,3 +35,18 @@ func currentProject(jirix *jiri.X) (project.Project, error) {
 	}
 	return project.Project{}, fmt.Errorf("directory %q is not contained in a project", dir)
 }
+
+// getDefaultLocalManifestProjects essentially converts the boolean `-local-manifest=true`
+// flag to the repeated `-local-manifest-project` flag. The default is to only include
+// the root manifest project.
+func getDefaultLocalManifestProjects(jirix *jiri.X) ([]string, error) {
+	manifest, err := project.ManifestFromFile(jirix, jirix.JiriManifestFile())
+	if err != nil {
+		return nil, err
+	}
+	var localManifestProjects []string
+	for _, imp := range manifest.Imports {
+		localManifestProjects = append(localManifestProjects, imp.Name)
+	}
+	return localManifestProjects, nil
+}

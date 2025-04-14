@@ -71,7 +71,11 @@ func (c *packageCmd) run(jirix *jiri.X, args []string) error {
 	if err != nil {
 		return err
 	}
-	_, _, pkgs, err := project.LoadManifestFile(jirix, jirix.JiriManifestFile(), projects, true)
+	localManifestProjects, err := getDefaultLocalManifestProjects(jirix)
+	if err != nil {
+		return err
+	}
+	_, _, pkgs, err := project.LoadManifestFile(jirix, jirix.JiriManifestFile(), projects, localManifestProjects)
 	if err != nil {
 		return err
 	}

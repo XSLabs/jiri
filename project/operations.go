@@ -9,9 +9,11 @@ import (
 	"hash/fnv"
 	"io"
 	"io/ioutil"
+	"maps"
 	"os"
 	"path"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -690,14 +692,25 @@ func (ops operations) Swap(i, j int) {
 // projects.
 // In the case of submodules, computeOperation will check for necessary
 // deletions of jiri projects and initialize submodules in place of projects.
-func computeOperations(jirix *jiri.X, localProjects, remoteProjects Projects, states map[ProjectKey]*ProjectState, rebaseTracked, rebaseUntracked, rebaseAll, rebaseSubmodules, snapshot bool) (operations, error) {
+func computeOperations(
+	jirix *jiri.X,
+	localProjects,
+	remoteProjects Projects,
+	states map[ProjectKey]*ProjectState,
+	rebaseTracked,
+	rebaseUntracked,
+	rebaseAll,
+	rebaseSubmodules,
+	snapshot bool,
+	localManifestProjects []string,
+) (operations, error) {
 	result := operations{}
-	allProjects := map[ProjectKey]bool{}
+	allProjects := map[ProjectKey]Project{}
 	for _, p := range localProjects {
-		allProjects[p.Key()] = true
+		allProjects[p.Key()] = p
 	}
 	for _, p := range remoteProjects {
-		allProjects[p.Key()] = true
+		allProjects[p.Key()] = p
 	}
 	// When we are switching submodules to projects, we deinit all of the current existing local submodules.
 	if !jirix.EnableSubmodules && containLocalSubmodules(localProjects) {
@@ -712,7 +725,16 @@ func computeOperations(jirix *jiri.X, localProjects, remoteProjects Projects, st
 			}
 		}
 	}
+
+	skipProjects, err := getProjectsToSkip(slices.Collect(maps.Values(allProjects)), localManifestProjects)
+	if err != nil {
+		return nil, err
+	}
+
 	for key := range allProjects {
+		if skipProjects[key] {
+			continue
+		}
 		var local, remote *Project
 		var state *ProjectState
 		if project, ok := localProjects[key]; ok {
@@ -733,6 +755,47 @@ func computeOperations(jirix *jiri.X, localProjects, remoteProjects Projects, st
 	}
 	sort.Sort(result)
 	return result, nil
+}
+
+// Based on localManifestProjects, determine which projects to skip updating.
+// A project will be skipped unless it is in localManifestProjects, or is a
+// dependency of one of the localManifestProjects.
+func getProjectsToSkip(allProjects []Project, localManifestProjects []string) (map[ProjectKey]bool, error) {
+	skipProjects := make(map[ProjectKey]bool)
+	if len(localManifestProjects) == 0 {
+		return skipProjects, nil
+	}
+
+	projectsByName := make(map[string]Project)
+	for _, proj := range allProjects {
+		projectsByName[proj.Name] = proj
+	}
+
+	// Validate local manifest projects.
+	for _, imp := range localManifestProjects {
+		if _, ok := projectsByName[imp]; !ok {
+			return nil, fmt.Errorf("Local manifest project %q doesn't exist.", imp)
+		}
+	}
+
+	// For each project, skip it if it's not a local manifest project or a
+	// dependency of a local manifest project.
+	for _, proj := range allProjects {
+		skip := true
+		// Traverse up the import graph to see if `proj` is a dependency of a
+		// local manifest project.
+		for curr := proj.Name; curr != ""; curr = projectsByName[curr].ImportedBy {
+			if slices.Contains(localManifestProjects, curr) {
+				skip = false
+				break
+			}
+		}
+		if skip {
+			skipProjects[proj.Key()] = true
+		}
+	}
+
+	return skipProjects, nil
 }
 
 func computeOp(jirix *jiri.X, local, remote *Project, state *ProjectState, rebaseTracked, rebaseUntracked, rebaseAll, rebaseSubmodules, snapshot bool) operation {

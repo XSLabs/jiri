@@ -24,13 +24,14 @@ import (
 type projectCmd struct {
 	cmdBase
 
-	cleanAll          bool
-	cleanup           bool
-	jsonOutput        string
-	regexp            bool
-	template          string
-	useLocalManifest  bool
-	useRemoteProjects bool
+	cleanAll              bool
+	cleanup               bool
+	jsonOutput            string
+	regexp                bool
+	template              string
+	useLocalManifest      bool
+	useRemoteProjects     bool
+	localManifestProjects arrayFlag
 }
 
 func (c *projectCmd) Name() string     { return "project" }
@@ -60,6 +61,7 @@ func (c *projectCmd) SetFlags(f *flag.FlagSet) {
 	f.BoolVar(&c.regexp, "regexp", false, "Use argument as regular expression.")
 	f.StringVar(&c.template, "template", "", "The template for the fields to display.")
 	f.BoolVar(&c.useLocalManifest, "local-manifest", false, "List project status based on local manifest.")
+	f.Var(&c.localManifestProjects, "local-manifest-project", "Import projects whose local manifests should be respected. Repeatable.")
 	f.BoolVar(&c.useRemoteProjects, "list-remote-projects", false, "List remote projects instead of local projects.")
 }
 
@@ -158,17 +160,19 @@ func (c *projectCmd) runProjectInfo(jirix *jiri.X, args []string) error {
 	if err != nil {
 		return err
 	}
+
+	// Similar to run-hooks logic: do not use updated manifest if localManifestProjects
+	// is set. Only use updated manifest if the legacy local manifest flag is set, to
+	// maintain legacy behavior.
 	if c.useLocalManifest {
-		projects, _, _, err = project.LoadUpdatedManifest(jirix, projects, c.useLocalManifest)
-		if err != nil {
-			return err
-		}
+		projects, _, _, err = project.LoadUpdatedManifest(jirix, projects, c.localManifestProjects)
 		if err := project.FilterOptionalProjectsPackages(jirix, jirix.FetchingAttrs, projects, nil); err != nil {
 			return err
 		}
 	}
+
 	if c.useRemoteProjects {
-		projects, _, _, err = project.LoadManifestFile(jirix, jirix.JiriManifestFile(), projects, false)
+		projects, _, _, err = project.LoadManifestFile(jirix, jirix.JiriManifestFile(), projects, nil)
 		if err != nil {
 			return err
 		}

@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 
 	"go.fuchsia.dev/jiri"
@@ -266,7 +267,7 @@ func newManifestLoader(localProjects Projects, update bool, file string) *loader
 // A more complex case would involve a combination of local and remote imports,
 // using the "root" attribute to change paths on the local filesystem.  In this
 // case the key will eventually expose the cycle.
-func (ld *loader) loadNoCycles(jirix *jiri.X, root, repoPath, file, ref, cycleKey string, parentImport *Import, localManifest bool) error {
+func (ld *loader) loadNoCycles(jirix *jiri.X, root, repoPath, file, ref, cycleKey string, parentImport *Import, localManifestProjects []string) error {
 	f := file
 	if repoPath != "" {
 		f = filepath.Join(repoPath, file)
@@ -281,7 +282,7 @@ func (ld *loader) loadNoCycles(jirix *jiri.X, root, repoPath, file, ref, cycleKe
 		}
 	}
 	ld.cycleStack = append(ld.cycleStack, info)
-	if err := ld.load(jirix, root, repoPath, file, ref, parentImport, localManifest); err != nil {
+	if err := ld.load(jirix, root, repoPath, file, ref, parentImport, localManifestProjects); err != nil {
 		return err
 	}
 	ld.cycleStack = ld.cycleStack[:len(ld.cycleStack)-1]
@@ -300,10 +301,10 @@ func shortFileName(root, repoPath, file, ref string) string {
 	return file
 }
 
-func (ld *loader) Load(jirix *jiri.X, root, repoPath, file, ref, cycleKey string, parentImport *Import, localManifest bool) error {
+func (ld *loader) Load(jirix *jiri.X, root, repoPath, file, ref, cycleKey string, parentImport *Import, localManifestProjects []string) error {
 	jirix.TimerPush("load " + shortFileName(jirix.Root, repoPath, file, ref))
 	defer jirix.TimerPop()
-	return ld.loadNoCycles(jirix, root, repoPath, file, ref, cycleKey, parentImport, localManifest)
+	return ld.loadNoCycles(jirix, root, repoPath, file, ref, cycleKey, parentImport, localManifestProjects)
 }
 
 func (ld *loader) cloneManifestRepo(jirix *jiri.X, remote *Import, cacheDirPath string, localManifest bool) error {
@@ -311,8 +312,9 @@ func (ld *loader) cloneManifestRepo(jirix *jiri.X, remote *Import, cacheDirPath 
 		jirix.Logger.Warningf("import %q not found locally, getting from server. Please check your manifest file (default: .jiri_manifest).\nMake sure that the 'name' attributes on the 'import' and 'project' tags match and that there is a corresponding 'project' tag for every 'import' tag.\n\n", remote.Name)
 	}
 	jirix.Logger.Debugf("clone manifest project %q", remote.Name)
-	// The remote manifest project doesn't exist locally.  Clone it into a
-	// temp directory, and add it to ld.localProjects.
+	// The remote manifest project doesn't exist locally. Clone it into a
+	// temp directory that will be deleted after the Jiri operation, and add it
+	// to ld.localProjects.
 	if ld.TmpDir == "" {
 		var err error
 		if ld.TmpDir, err = os.MkdirTemp("", "jiri-load"); err != nil {
@@ -456,7 +458,7 @@ func (ld *loader) parseLockData(jirix *jiri.X, data []byte) error {
 	return nil
 }
 
-func (ld *loader) load(jirix *jiri.X, root, repoPath, file, ref string, parentImport *Import, localManifest bool) error {
+func (ld *loader) load(jirix *jiri.X, root, repoPath, file, ref string, parentImport *Import, localManifestProjects []string) error {
 	f := file
 	if repoPath != "" {
 		f = filepath.Join(repoPath, file)
@@ -563,7 +565,8 @@ func (ld *loader) load(jirix *jiri.X, root, repoPath, file, ref string, parentIm
 		}
 
 		if !ok {
-			if err := ld.cloneManifestRepo(jirix, &imp, cacheDirPath, localManifest); err != nil {
+			lm := slices.Contains(localManifestProjects, imp.Name)
+			if err := ld.cloneManifestRepo(jirix, &imp, cacheDirPath, lm); err != nil {
 				return err
 			}
 			p = ld.localProjects[key]
@@ -576,7 +579,7 @@ func (ld *loader) load(jirix *jiri.X, root, repoPath, file, ref string, parentIm
 		ld.importProjects[key] = p
 
 		self.addChild(ld.importTree.getNode(repoPath, imp.Manifest, ""))
-		if err := ld.loadImport(jirix, nextRoot, imp, cacheDirPath, p, localManifest); err != nil {
+		if err := ld.loadImport(jirix, nextRoot, imp, cacheDirPath, p, localManifestProjects); err != nil {
 			return err
 		}
 	}
@@ -585,7 +588,7 @@ func (ld *loader) load(jirix *jiri.X, root, repoPath, file, ref string, parentIm
 	for _, local := range m.LocalImports {
 		nextFile := filepath.Join(filepath.Dir(file), local.File)
 		self.addChild(ld.importTree.getNode(repoPath, nextFile, ref))
-		if err := ld.Load(jirix, root, repoPath, nextFile, ref, "", parentImport, localManifest); err != nil {
+		if err := ld.Load(jirix, root, repoPath, nextFile, ref, "", parentImport, localManifestProjects); err != nil {
 			return err
 		}
 	}
@@ -685,8 +688,8 @@ func (ld *loader) load(jirix *jiri.X, root, repoPath, file, ref string, parentIm
 	return nil
 }
 
-func (ld *loader) loadImport(jirix *jiri.X, root string, imp Import, cacheDirPath string, project Project, localManifest bool) (e error) {
-	lm := localManifest
+func (ld *loader) loadImport(jirix *jiri.X, root string, imp Import, cacheDirPath string, project Project, localManifestProjects []string) (e error) {
+	lm := slices.Contains(localManifestProjects, project.Name)
 	ref := ""
 
 	if v, ok := ld.importCacheMap[strings.Trim(project.Remote, "/")]; ok {
@@ -723,6 +726,10 @@ func (ld *loader) loadImport(jirix *jiri.X, root string, imp Import, cacheDirPat
 							return err
 						}
 					}
+					// Fetch state from the remote so we can read the updated
+					// manifest later using `git show`, but don't change the
+					// current checkout state of the imported repo. That will be
+					// handled later when updating projects.
 					if err := fetchAll(jirix, project); err != nil {
 						return fmt.Errorf("Fetch failed for project(%s), %s", project.Path, err)
 					}
@@ -747,11 +754,11 @@ func (ld *loader) loadImport(jirix *jiri.X, root string, imp Import, cacheDirPat
 			parentImport:  imp.Name,
 		}
 	}
+	// Only recursively load import project's local manifest if it is explicitly passed to -local-manifest-project
 	if lm {
-		// load from local checked out file
-		return ld.Load(jirix, root, "", filepath.Join(project.Path, imp.Manifest), "", imp.cycleKey(), &imp, false)
+		return ld.Load(jirix, root, "", filepath.Join(project.Path, imp.Manifest), "", imp.cycleKey(), &imp, localManifestProjects)
 	}
-	return ld.Load(jirix, root, project.Path, imp.Manifest, ref, imp.cycleKey(), &imp, false)
+	return ld.Load(jirix, root, project.Path, imp.Manifest, ref, imp.cycleKey(), &imp, localManifestProjects)
 }
 
 func (ld *loader) GenerateGitAttributesForProjects(jirix *jiri.X) {

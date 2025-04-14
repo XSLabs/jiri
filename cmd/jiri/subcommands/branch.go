@@ -156,7 +156,7 @@ func (c *branchCmd) deleteMergedBranches(jirix *jiri.X, branchToDelete string, d
 	}
 	jirix.TimerPop()
 
-	remoteProjects, _, _, err := project.LoadManifestFile(jirix, jirix.JiriManifestFile(), localProjects, false /*localManifest*/)
+	remoteProjects, _, _, err := project.LoadManifestFile(jirix, jirix.JiriManifestFile(), localProjects, nil)
 	if err != nil {
 		return err
 	}

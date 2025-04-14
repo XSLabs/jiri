@@ -482,7 +482,7 @@ func (p PackageLock) LockEqual(other PackageLock) bool {
 type ResolveConfig interface {
 	AllowFloatingRefs() bool
 	LockFilePath() string
-	LocalManifest() bool
+	LocalManifestProjects() []string
 	EnablePackageLock() bool
 	EnableProjectLock() bool
 	HostnameAllowList() []string
@@ -798,7 +798,7 @@ func (sm ScanMode) String() string {
 // HEAD of all projects and writes this snapshot out to the given file.
 // if hooks are not passed, jiri will read JiriManifestFile and get hooks from there,
 // so always pass hooks incase updating from a snapshot
-func CreateSnapshot(jirix *jiri.X, file string, hooks Hooks, pkgs Packages, localManifest bool, cipdEnsure bool) error {
+func CreateSnapshot(jirix *jiri.X, file string, hooks Hooks, pkgs Packages, cipdEnsure bool, localManifestProjects []string) error {
 	jirix.TimerPush("create snapshot")
 	defer jirix.TimerPop()
 
@@ -829,7 +829,7 @@ func CreateSnapshot(jirix *jiri.X, file string, hooks Hooks, pkgs Packages, loca
 	}
 
 	if hooks == nil || pkgs == nil {
-		_, tmpHooks, tmpPkgs, err := LoadManifestFile(jirix, jirix.JiriManifestFile(), localProjects, localManifest)
+		_, tmpHooks, tmpPkgs, err := LoadManifestFile(jirix, jirix.JiriManifestFile(), localProjects, localManifestProjects)
 		if err != nil {
 			return err
 		}
@@ -946,7 +946,7 @@ func LoadSnapshotFile(jirix *jiri.X, snapshot string) (Projects, Hooks, Packages
 		return nil, nil, nil, errVersionMismatch
 	}
 
-	return LoadManifestFile(jirix, snapshot, nil, false)
+	return LoadManifestFile(jirix, snapshot, nil, nil)
 }
 
 // CurrentProject gets the current project from the current directory by
@@ -1145,7 +1145,7 @@ func MatchLocalWithRemote(localProjects, remoteProjects Projects) {
 	}
 }
 
-func loadManifestFiles(jirix *jiri.X, manifestFiles []string, localManifest bool) (Projects, Packages, error) {
+func loadManifestFiles(jirix *jiri.X, manifestFiles []string, localManifestProjects []string) (Projects, Packages, error) {
 	localProjects, err := LocalProjects(jirix, FastScan)
 	if err != nil {
 		return nil, nil, err
@@ -1183,9 +1183,8 @@ func loadManifestFiles(jirix *jiri.X, manifestFiles []string, localManifest bool
 		}
 		return nil
 	}
-
 	for _, manifestFile := range manifestFiles {
-		remoteProjects, _, pkgs, err := LoadManifestFile(jirix, manifestFile, localProjects, localManifest)
+		remoteProjects, _, pkgs, err := LoadManifestFile(jirix, manifestFile, localProjects, localManifestProjects)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -1348,8 +1347,8 @@ func getChangedLocksPkgs(ePkgLocks PackageLocks, pkgs Packages) (PackageLocks, P
 func GenerateJiriLockFile(jirix *jiri.X, manifestFiles []string, resolveConfig ResolveConfig) error {
 	jirix.Logger.Debugf("Generate jiri lockfile for manifests %v to %q", manifestFiles, resolveConfig.LockFilePath())
 
-	resolveLocks := func(jirix *jiri.X, manifestFiles []string, localManifest bool, resolveFully bool, ePkgLocks PackageLocks) (projectLocks ProjectLocks, pkgLocks PackageLocks, err error) {
-		projects, pkgs, err := loadManifestFiles(jirix, manifestFiles, localManifest)
+	resolveLocks := func(jirix *jiri.X, manifestFiles []string, resolveFully bool, ePkgLocks PackageLocks) (projectLocks ProjectLocks, pkgLocks PackageLocks, err error) {
+		projects, pkgs, err := loadManifestFiles(jirix, manifestFiles, resolveConfig.LocalManifestProjects())
 		if err != nil {
 			return nil, nil, err
 		}
@@ -1478,7 +1477,7 @@ func GenerateJiriLockFile(jirix *jiri.X, manifestFiles []string, resolveConfig R
 	}
 	resolveFully = resolveFully || resolveConfig.FullResolve()
 
-	projectLocks, pkgLocks, err := resolveLocks(jirix, manifestFiles, resolveConfig.LocalManifest(), resolveFully, ePkgLocks)
+	projectLocks, pkgLocks, err := resolveLocks(jirix, manifestFiles, resolveFully, ePkgLocks)
 	if err != nil {
 		return err
 	}
@@ -1486,17 +1485,17 @@ func GenerateJiriLockFile(jirix *jiri.X, manifestFiles []string, resolveConfig R
 }
 
 type UpdateUniverseParams struct {
-	GC                   bool
-	LocalManifest        bool
-	RebaseTracked        bool
-	RebaseUntracked      bool
-	RebaseAll            bool
-	RunHooks             bool
-	FetchPackages        bool
-	RebaseSubmodules     bool
-	RunHookTimeout       uint
-	FetchPackagesTimeout uint
-	PackagesToSkip       []string
+	GC                    bool
+	RebaseTracked         bool
+	RebaseUntracked       bool
+	RebaseAll             bool
+	RunHooks              bool
+	FetchPackages         bool
+	RebaseSubmodules      bool
+	RunHookTimeout        uint
+	FetchPackagesTimeout  uint
+	PackagesToSkip        []string
+	LocalManifestProjects []string
 }
 
 // UpdateUniverse updates all local projects and tools to match the remote
@@ -1524,7 +1523,7 @@ func UpdateUniverse(jirix *jiri.X, params UpdateUniverseParams) (e error) {
 		}
 
 		// Determine the set of remote projects and match them up with the locals.
-		remoteProjects, hooks, pkgs, err := LoadUpdatedManifest(jirix, localProjects, params.LocalManifest)
+		remoteProjects, hooks, pkgs, err := LoadUpdatedManifest(jirix, localProjects, params.LocalManifestProjects)
 		MatchLocalWithRemote(localProjects, remoteProjects)
 
 		if err != nil {
@@ -1600,9 +1599,9 @@ func WriteUpdateHistoryLog(jirix *jiri.X) error {
 
 // WriteUpdateHistorySnapshot creates a snapshot of the current state of all
 // projects and writes it to the update history directory.
-func WriteUpdateHistorySnapshot(jirix *jiri.X, hooks Hooks, pkgs Packages, localManifest bool) error {
+func WriteUpdateHistorySnapshot(jirix *jiri.X, hooks Hooks, pkgs Packages, localManifestProjects []string) error {
 	snapshotFile := filepath.Join(jirix.UpdateHistoryDir(), time.Now().Format(time.RFC3339))
-	if err := CreateSnapshot(jirix, snapshotFile, hooks, pkgs, localManifest, false); err != nil {
+	if err := CreateSnapshot(jirix, snapshotFile, hooks, pkgs, false, localManifestProjects); err != nil {
 		return err
 	}
 
@@ -2624,7 +2623,7 @@ func updateProjects(jirix *jiri.X, localProjects, remoteProjects Projects, hooks
 		removeSubmodulesFromProjects(remoteProjects)
 	}
 
-	ops, err := computeOperations(jirix, localProjects, remoteProjects, states, params.RebaseTracked, params.RebaseUntracked, params.RebaseAll, params.RebaseSubmodules, snapshot)
+	ops, err := computeOperations(jirix, localProjects, remoteProjects, states, params.RebaseTracked, params.RebaseUntracked, params.RebaseAll, params.RebaseSubmodules, snapshot, params.LocalManifestProjects)
 	if err != nil {
 		return err
 	}
@@ -2758,7 +2757,7 @@ func updateProjects(jirix *jiri.X, localProjects, remoteProjects Projects, hooks
 	}
 
 	// Generate snapshot before running hooks so hooks can depend on the snapshot
-	if err := WriteUpdateHistorySnapshot(jirix, hooks, pkgs, params.LocalManifest); err != nil {
+	if err := WriteUpdateHistorySnapshot(jirix, hooks, pkgs, params.LocalManifestProjects); err != nil {
 		return err
 	}
 

@@ -16,7 +16,6 @@ import (
 type fetchPkgsCmd struct {
 	cmdBase
 
-	localManifest     bool
 	fetchPkgsTimeout  uint
 	attempts          uint
 	skipLocalProjects bool
@@ -37,7 +36,6 @@ Usage:
 }
 
 func (c *fetchPkgsCmd) SetFlags(f *flag.FlagSet) {
-	f.BoolVar(&c.localManifest, "local-manifest", false, "Use local checked out manifest.")
 	f.UintVar(&c.fetchPkgsTimeout, "fetch-packages-timeout", project.DefaultPackageTimeout, "Timeout in minutes for fetching prebuilt packages using cipd.")
 	f.UintVar(&c.attempts, "attempts", 1, "Number of attempts before failing.")
 	f.BoolVar(&c.skipLocalProjects, "skip-local-projects", false, "Skip checking local project state.")
@@ -63,18 +61,11 @@ func (c *fetchPkgsCmd) run(jirix *jiri.X, args []string) (err error) {
 
 	// Get pkgs.
 	var pkgs project.Packages
-	if !c.localManifest {
-		_, _, pkgs, err = project.LoadUpdatedManifest(jirix, localProjects, c.localManifest)
-	} else {
-		_, _, pkgs, err = project.LoadManifestFile(jirix, jirix.JiriManifestFile(), localProjects, c.localManifest)
-	}
-	if err != nil {
-		return err
-	}
+	_, _, pkgs, err = project.LoadManifestFile(jirix, jirix.JiriManifestFile(), localProjects, nil)
 	if err := project.FilterOptionalProjectsPackages(jirix, jirix.FetchingAttrs, nil, pkgs); err != nil {
 		return err
-
 	}
+
 	project.FilterPackagesByName(jirix, pkgs, c.packagesToSkip)
 	if len(pkgs) > 0 {
 		return project.FetchPackages(jirix, pkgs, c.fetchPkgsTimeout)
