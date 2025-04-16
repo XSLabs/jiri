@@ -82,7 +82,9 @@ func setup(t *testing.T, fake *jiritest.FakeJiriRoot) {
 			t.Fatal(err)
 		}
 		git := gitutil.New(fake.X, gitutil.RootDirOpt(project.Path))
-		git.Add(path)
+		if err := git.Add(path); err != nil {
+			t.Fatal(err)
+		}
 	}
 }
 func TestGrep(t *testing.T) {
