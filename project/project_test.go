@@ -150,6 +150,8 @@ func checkProjectsMatchPaths(t *testing.T, gotProjects project.Projects, wantPro
 // TestProjectKeysMatch tests that projects with same remote match when
 // accessed with different URL schemes.
 func TestProjectKeysMatch(t *testing.T) {
+	t.Parallel()
+
 	expected := project.Project{
 		Name:   "project1",
 		Remote: "https://fuchsia.googlesource.com/project1",
@@ -193,6 +195,8 @@ func TestProjectKeysMatch(t *testing.T) {
 // TestLocalProjects tests the behavior of the LocalProjects method with
 // different ScanModes.
 func TestLocalProjects(t *testing.T) {
+	t.Parallel()
+
 	jirix := xtest.NewX(t)
 
 	// Create some projects.
@@ -324,6 +328,8 @@ func setupUniverse(t *testing.T) ([]project.Project, *jiritest.FakeJiriRoot) {
 // TestUpdateUniverseSimple tests that UpdateUniverse will pull remote projects
 // locally, and that jiri metadata is ignored in the repos.
 func TestUpdateUniverseSimple(t *testing.T) {
+	t.Parallel()
+
 	localProjects, fake := setupUniverse(t)
 
 	// Check that calling UpdateUniverse() creates local copies of the remote
@@ -346,6 +352,8 @@ func TestUpdateUniverseSimple(t *testing.T) {
 }
 
 func TestUpdateUniverseWhenLocalTracksLocal(t *testing.T) {
+	t.Parallel()
+
 	localProjects, fake := setupUniverse(t)
 
 	// Check that calling UpdateUniverse() creates local copies of the remote
@@ -387,6 +395,8 @@ func TestUpdateUniverseWhenLocalTracksLocal(t *testing.T) {
 }
 
 func TestUpdateUniverseWhenLocalTracksEachOther(t *testing.T) {
+	t.Parallel()
+
 	localProjects, fake := setupUniverse(t)
 
 	// Check that calling UpdateUniverse() creates local copies of the remote
@@ -438,6 +448,8 @@ func TestUpdateUniverseWhenLocalTracksEachOther(t *testing.T) {
 // TestUpdateUniverseWithCache checks that UpdateUniverse can clone and pull
 // from a cache.
 func TestUpdateUniverseWithCache(t *testing.T) {
+	t.Parallel()
+
 	// TODO(olivernewman): Support for a cache directory is broken. Fix it and
 	// re-enable this test, or else remove the cache directory feature.
 	t.Skip("`jiri init -cache` is broken")
@@ -498,6 +510,8 @@ func TestUpdateUniverseWithCache(t *testing.T) {
 }
 
 func TestProjectUpdateWhenNoUpdate(t *testing.T) {
+	t.Parallel()
+
 	localProjects, fake := setupUniverse(t)
 
 	if err := fake.UpdateUniverse(false); err != nil {
@@ -523,6 +537,8 @@ func TestProjectUpdateWhenNoUpdate(t *testing.T) {
 }
 
 func TestRecursiveImport(t *testing.T) {
+	t.Parallel()
+
 	localProjects, fake := setupUniverse(t)
 
 	manifest, err := fake.ReadRemoteManifest()
@@ -615,6 +631,8 @@ func TestRecursiveImport(t *testing.T) {
 }
 
 func TestLoadManifestFileRecursiveImport(t *testing.T) {
+	t.Parallel()
+
 	_, fake := setupUniverse(t)
 
 	manifest, err := fake.ReadRemoteManifest()
@@ -674,6 +692,8 @@ func TestLoadManifestFileRecursiveImport(t *testing.T) {
 }
 
 func TestProjectUpdateWhenIgnore(t *testing.T) {
+	t.Parallel()
+
 	localProjects, fake := setupUniverse(t)
 
 	if err := fake.UpdateUniverse(false); err != nil {
@@ -699,6 +719,8 @@ func TestProjectUpdateWhenIgnore(t *testing.T) {
 }
 
 func TestLocalProjectWithConfig(t *testing.T) {
+	t.Parallel()
+
 	localProjects, fake := setupUniverse(t)
 
 	if err := fake.UpdateUniverse(false); err != nil {
@@ -732,6 +754,8 @@ func TestLocalProjectWithConfig(t *testing.T) {
 }
 
 func TestProjectUpdateWhenNoRebase(t *testing.T) {
+	t.Parallel()
+
 	localProjects, fake := setupUniverse(t)
 
 	if err := fake.UpdateUniverse(false); err != nil {
@@ -757,6 +781,8 @@ func TestProjectUpdateWhenNoRebase(t *testing.T) {
 }
 
 func TestBranchUpdateWhenNoRebase(t *testing.T) {
+	t.Parallel()
+
 	localProjects, fake := setupUniverse(t)
 
 	if err := fake.UpdateUniverse(false); err != nil {
@@ -785,6 +811,8 @@ func TestBranchUpdateWhenNoRebase(t *testing.T) {
 // TestHookLoadSimple tests that manifest is loaded correctly
 // with correct project path in hook
 func TestHookLoadSimple(t *testing.T) {
+	t.Parallel()
+
 	p, fake := setupUniverse(t)
 
 	err := fake.AddHook(project.Hook{Name: "hook1",
@@ -802,6 +830,8 @@ func TestHookLoadSimple(t *testing.T) {
 
 // TestRunHookFlag tests that hook is not executed when flag is false
 func TestRunHookFlag(t *testing.T) {
+	t.Parallel()
+
 	p, fake := setupUniverse(t)
 
 	err := fake.AddHook(project.Hook{Name: "hook1",
@@ -823,6 +853,8 @@ func TestRunHookFlag(t *testing.T) {
 // TestHookLoadError tests that manifest load
 // throws error for invalid hook
 func TestHookLoadError(t *testing.T) {
+	t.Parallel()
+
 	_, fake := setupUniverse(t)
 
 	err := fake.AddHook(project.Hook{Name: "hook1",
@@ -844,6 +876,8 @@ func TestHookLoadError(t *testing.T) {
 // TestUpdateUniverseWithRevision checks that UpdateUniverse will pull remote
 // projects at the specified revision.
 func TestUpdateUniverseWithRevision(t *testing.T) {
+	t.Parallel()
+
 	localProjects, fake := setupUniverse(t)
 
 	// Set project 1's revision in the manifest to the current revision.
@@ -930,6 +964,8 @@ func commitChanges(t *testing.T, jirix *jiri.X, dir string) {
 // TestSubDirToNestedProj checks that UpdateUniverse will correctly update when
 // nested folder is converted to nested project
 func TestSubDirToNestedProj(t *testing.T) {
+	t.Parallel()
+
 	localProjects, fake := setupUniverse(t)
 
 	folderName := "nested_folder"
@@ -965,6 +1001,8 @@ func TestSubDirToNestedProj(t *testing.T) {
 
 // TestMoveNestedProjects checks that UpdateUniverse will correctly move nested projects
 func TestMoveNestedProjects(t *testing.T) {
+	t.Parallel()
+
 	localProjects, fake := setupUniverse(t)
 
 	folderName := "nested_proj"
@@ -1023,6 +1061,8 @@ func TestMoveNestedProjects(t *testing.T) {
 // for pointing the main branch to a fixed revision does not lose work in
 // progress.
 func TestUpdateUniverseWithUncommitted(t *testing.T) {
+	t.Parallel()
+
 	localProjects, fake := setupUniverse(t)
 
 	if err := fake.UpdateUniverse(false); err != nil {
@@ -1049,6 +1089,8 @@ func TestUpdateUniverseWithUncommitted(t *testing.T) {
 // TestUpdateUniverseMovedProject checks that UpdateUniverse can move a
 // project.
 func TestUpdateUniverseMovedProject(t *testing.T) {
+	t.Parallel()
+
 	localProjects, fake := setupUniverse(t)
 
 	if err := fake.UpdateUniverse(false); err != nil {
@@ -1089,6 +1131,8 @@ func TestUpdateUniverseMovedProject(t *testing.T) {
 // TestUpdateUniverseMovedProjectSelf checks that UpdateUniverse can move a
 // project to a path currently nested within itself.
 func TestUpdateUniverseMovedProjectSelf(t *testing.T) {
+	t.Parallel()
+
 	localProjects, fake := setupUniverse(t)
 
 	if err := fake.UpdateUniverse(false); err != nil {
@@ -1126,6 +1170,8 @@ func TestUpdateUniverseMovedProjectSelf(t *testing.T) {
 // TestUpdateUniverseChangeRemote checks that UpdateUniverse can change remote
 // of a project.
 func TestUpdateUniverseChangeRemote(t *testing.T) {
+	t.Parallel()
+
 	localProjects, fake := setupUniverse(t)
 
 	if err := fake.UpdateUniverse(false); err != nil {
@@ -1163,6 +1209,8 @@ func TestUpdateUniverseChangeRemote(t *testing.T) {
 }
 
 func TestIgnoredProjectsNotMoved(t *testing.T) {
+	t.Parallel()
+
 	localProjects, fake := setupUniverse(t)
 
 	if err := fake.UpdateUniverse(false); err != nil {
@@ -1205,6 +1253,8 @@ func TestIgnoredProjectsNotMoved(t *testing.T) {
 // TestUpdateUniverseRenamedProject checks that UpdateUniverse can update
 // renamed project.
 func TestUpdateUniverseRenamedProject(t *testing.T) {
+	t.Parallel()
+
 	localProjects, fake := setupUniverse(t)
 
 	if err := fake.UpdateUniverse(false); err != nil {
@@ -1316,12 +1366,16 @@ func testUpdateUniverseDeletedProject(t *testing.T, testDirtyProjectDelete, test
 }
 
 func TestUpdateUniverseDeletedProject(t *testing.T) {
+	t.Parallel()
+
 	testUpdateUniverseDeletedProject(t, false, false)
 	testUpdateUniverseDeletedProject(t, true, false)
 	testUpdateUniverseDeletedProject(t, false, true)
 }
 
 func TestIgnoredProjectsNotDeleted(t *testing.T) {
+	t.Parallel()
+
 	localProjects, fake := setupUniverse(t)
 
 	if err := fake.UpdateUniverse(false); err != nil {
@@ -1357,6 +1411,8 @@ func TestIgnoredProjectsNotDeleted(t *testing.T) {
 // TestUpdateUniverseNewProjectSamePath checks that UpdateUniverse can handle a
 // new project with the same path as a deleted project, but a different path.
 func TestUpdateUniverseNewProjectSamePath(t *testing.T) {
+	t.Parallel()
+
 	localProjects, fake := setupUniverse(t)
 
 	if err := fake.UpdateUniverse(false); err != nil {
@@ -1391,6 +1447,8 @@ func TestUpdateUniverseNewProjectSamePath(t *testing.T) {
 // TestUpdateUniverseRemoteBranch checks that UpdateUniverse can pull from a
 // non-main remote branch.
 func TestUpdateUniverseRemoteBranch(t *testing.T) {
+	t.Parallel()
+
 	localProjects, fake := setupUniverse(t)
 
 	if err := fake.UpdateUniverse(false); err != nil {
@@ -1429,6 +1487,8 @@ func TestUpdateUniverseRemoteBranch(t *testing.T) {
 }
 
 func TestUpdatedUniverseEnabledSubmodules(t *testing.T) {
+	t.Parallel()
+
 	localProjects, fake := setupUniverse(t)
 
 	// Check that calling UpdateUniverse() creates local copies of the remote
@@ -1483,6 +1543,8 @@ func TestUpdatedUniverseEnabledSubmodules(t *testing.T) {
 // non-main remote branch if the local changes were rebased somewhere else(gerrit)
 // before being pushed to remote
 func TestUpdateWhenRemoteChangesRebased(t *testing.T) {
+	t.Parallel()
+
 	localProjects, fake := setupUniverse(t)
 
 	if err := fake.UpdateUniverse(false); err != nil {
@@ -1539,6 +1601,8 @@ func TestUpdateWhenRemoteChangesRebased(t *testing.T) {
 }
 
 func TestUpdateWhenConflictMerge(t *testing.T) {
+	t.Parallel()
+
 	localProjects, fake := setupUniverse(t)
 
 	if err := fake.UpdateUniverse(false); err != nil {
@@ -1589,6 +1653,8 @@ func TestUpdateWhenConflictMerge(t *testing.T) {
 }
 
 func TestTagNotContainedInBranch(t *testing.T) {
+	t.Parallel()
+
 	localProjects, fake := setupUniverse(t)
 
 	if err := fake.UpdateUniverse(false); err != nil {
@@ -1645,11 +1711,15 @@ func TestTagNotContainedInBranch(t *testing.T) {
 
 // TestCheckoutSnapshotUrl tests checking out snapshot functionality from a url
 func TestCheckoutSnapshotUrl(t *testing.T) {
+	t.Parallel()
+
 	testCheckoutSnapshot(t, true)
 }
 
 // TestCheckoutSnapshotFileSystem tests checking out snapshot functionality from filesystem
 func TestCheckoutSnapshotFileSystem(t *testing.T) {
+	t.Parallel()
+
 	testCheckoutSnapshot(t, false)
 }
 
@@ -1828,28 +1898,38 @@ func testLocalBranchesAreUpdated(t *testing.T, shouldLocalBeOnABranch, rebaseAll
 // TestLocalBranchesAreUpdatedWhenOnHead test that all the local branches are
 // updated on jiri update when local repo is on detached head
 func TestLocalBranchesAreUpdatedWhenOnHead(t *testing.T) {
+	t.Parallel()
+
 	testLocalBranchesAreUpdated(t, false, true)
 }
 
 // TestLocalBranchesAreUpdatedWhenOnBranch test that all the local branches are
 // updated on jiri update when local repo is on a branch
 func TestLocalBranchesAreUpdatedWhenOnBranch(t *testing.T) {
+	t.Parallel()
+
 	testLocalBranchesAreUpdated(t, true, true)
 }
 
 // TestLocalBranchesNotUpdatedWhenOnHead test that all the local branches are not
 // updated on jiri update when local repo is on detached head and rebaseAll is false
 func TestLocalBranchesNotUpdatedWhenOnHead(t *testing.T) {
+	t.Parallel()
+
 	testLocalBranchesAreUpdated(t, false, false)
 }
 
 // TestLocalBranchesAreUpdatedWhenOnBranch test that all the local branches are not
 // updated on jiri update when local repo is on a branch and rebaseAll is false
 func TestLocalBranchesNotUpdatedWhenOnBranch(t *testing.T) {
+	t.Parallel()
+
 	testLocalBranchesAreUpdated(t, true, false)
 }
 
 func TestFileImportCycle(t *testing.T) {
+	t.Parallel()
+
 	jirix := xtest.NewX(t)
 
 	// Set up the cycle .jiri_manifest -> A -> B -> A
@@ -1891,6 +1971,8 @@ func TestFileImportCycle(t *testing.T) {
 }
 
 func TestRemoteImportCycle(t *testing.T) {
+	t.Parallel()
+
 	fake := jiritest.NewFakeJiriRoot(t)
 
 	// Set up two remote manifest projects, remote1 and remote1.
@@ -1941,6 +2023,8 @@ func TestRemoteImportCycle(t *testing.T) {
 }
 
 func TestFileAndRemoteImportCycle(t *testing.T) {
+	t.Parallel()
+
 	fake := jiritest.NewFakeJiriRoot(t)
 
 	// Set up two remote manifest projects, remote1 and remote2.
@@ -2011,6 +2095,7 @@ func TestFileAndRemoteImportCycle(t *testing.T) {
 
 func TestManifestToFromBytes(t *testing.T) {
 	t.Parallel()
+
 	tests := []struct {
 		Manifest project.Manifest
 		XML      string
@@ -2114,6 +2199,8 @@ func TestManifestToFromBytes(t *testing.T) {
 }
 
 func TestProjectToFromFile(t *testing.T) {
+	t.Parallel()
+
 	jirix := xtest.NewX(t)
 
 	tests := []struct {
@@ -2256,6 +2343,7 @@ func TestMarshalAndUnmarshalLockEntries(t *testing.T) {
 
 func TestGetPath(t *testing.T) {
 	t.Parallel()
+
 	testPkgs := []project.Package{
 		{Name: "test0", Version: "version", Path: "A/test0"},
 		{Name: "test1/${platform}", Version: "version", Path: ""},
@@ -2284,6 +2372,8 @@ func TestGetPath(t *testing.T) {
 }
 
 func TestWritePackageFlags(t *testing.T) {
+	t.Parallel()
+
 	jirix := xtest.NewX(t)
 
 	testPkgsWAS := []project.Package{
@@ -2327,6 +2417,8 @@ func TestWritePackageFlags(t *testing.T) {
 }
 
 func TestWriteProjectFlags(t *testing.T) {
+	t.Parallel()
+
 	jirix := xtest.NewX(t)
 
 	testProjsList := []project.Project{
@@ -2358,6 +2450,8 @@ func TestWriteProjectFlags(t *testing.T) {
 }
 
 func TestOptionalProjectsAndPackages(t *testing.T) {
+	t.Parallel()
+
 	fake := jiritest.NewFakeJiriRoot(t)
 
 	// Set up projects and packages with explicit attributes
@@ -2470,6 +2564,8 @@ func TestOptionalProjectsAndPackages(t *testing.T) {
 }
 
 func TestMultiplePackageVersions(t *testing.T) {
+	t.Parallel()
+
 	fake := jiritest.NewFakeJiriRoot(t)
 
 	pkg0 := project.Package{
@@ -2508,6 +2604,8 @@ func TestMultiplePackageVersions(t *testing.T) {
 }
 
 func TestPackageConflics(t *testing.T) {
+	t.Parallel()
+
 	fake := jiritest.NewFakeJiriRoot(t)
 
 	pkg0 := project.Package{
@@ -2534,6 +2632,8 @@ func TestPackageConflics(t *testing.T) {
 }
 
 func TestOverrideImport(t *testing.T) {
+	t.Parallel()
+
 	_, fake := setupUniverse(t)
 
 	// override the import
@@ -2557,6 +2657,8 @@ func TestOverrideImport(t *testing.T) {
 }
 
 func TestOverrideProject(t *testing.T) {
+	t.Parallel()
+
 	localProjects, fake := setupUniverse(t)
 
 	// override localProjects 1
@@ -2580,6 +2682,7 @@ func TestOverrideProject(t *testing.T) {
 
 func TestHostnameAllowed(t *testing.T) {
 	t.Parallel()
+
 	tests := map[string]bool{
 		"*.google.com,fuchsia.google.com":       true,
 		"*.google.com,fuchsia.dev.google.com":   true,
@@ -2606,6 +2709,7 @@ func TestHostnameAllowed(t *testing.T) {
 
 func TestCheckProjectsHostnames(t *testing.T) {
 	t.Parallel()
+
 	allowList := []string{
 		"*.googlesource.com",
 		"fuchsia-internal",
@@ -2669,6 +2773,8 @@ func TestCheckProjectsHostnames(t *testing.T) {
 }
 
 func TestPrefixTree(t *testing.T) {
+	t.Parallel()
+
 	jirix := xtest.NewX(t)
 
 	projectList := []project.Project{
@@ -2742,6 +2848,8 @@ func TestPrefixTree(t *testing.T) {
 }
 
 func TestFilterPackagesByName(t *testing.T) {
+	t.Parallel()
+
 	jirix := xtest.NewX(t)
 
 	p := []project.Package{
@@ -2774,6 +2882,8 @@ func TestFilterPackagesByName(t *testing.T) {
 // TestUpdateUniverseWithInvalidLocalManifests tests that UpdateUniverse will pull remote projects
 // locally, and that jiri metadata is ignored in the repos.
 func TestUpdateUniverseWithInvalidLocalManifests(t *testing.T) {
+	t.Parallel()
+
 	_, fake := setupUniverse(t)
 
 	err := fake.AddImport(project.Import{
