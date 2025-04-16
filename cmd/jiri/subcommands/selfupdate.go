@@ -33,7 +33,7 @@ func (c *selfUpdateCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...any) 
 	return errToExitStatus(ctx, c.run(ctx, f.Args()))
 }
 
-func (c *selfUpdateCmd) run(ctx context.Context, args []string) error {
+func (c *selfUpdateCmd) run(_ context.Context, args []string) error {
 	if len(args) > 0 {
 		return fmt.Errorf("unexpected number of arguments")
 	}

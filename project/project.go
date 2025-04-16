@@ -11,7 +11,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
@@ -369,9 +368,7 @@ type attributes map[string]bool
 // which is used in Project and Package objects.
 func newAttributes(attrs string) attributes {
 	retMap := make(attributes)
-	if strings.HasPrefix(attrs, "+") {
-		attrs = attrs[1:]
-	}
+	attrs = strings.TrimPrefix(attrs, "+")
 	for _, v := range strings.Split(attrs, ",") {
 		key := strings.TrimSpace(v)
 		if key != "" {
@@ -715,10 +712,10 @@ func (p *Project) setupDefaultPushTarget(jirix *jiri.X) error {
 
 func (p *Project) setupPushURL(jirix *jiri.X) error {
 	scm := gitutil.New(jirix, gitutil.RootDirOpt(p.Path))
-	if err := scm.Config("remote.origin.pushurl", rewriteHTTPSToSSO(jirix, p.Remote)); err != nil {
+	if err := scm.Config("remote.origin.pushurl", rewriteHTTPSToSSO(p.Remote)); err != nil {
 		return fmt.Errorf("not able to set remote.origin.pushurl for project %s(%s) due to error: %v", p.Name, p.Path, err)
 	}
-	jirix.Logger.Debugf("set remote.origin.pushurl to %s for project %s(%s)", rewriteHTTPSToSSO(jirix, p.Remote), p.Name, p.Path)
+	jirix.Logger.Debugf("set remote.origin.pushurl to %s for project %s(%s)", rewriteHTTPSToSSO(p.Remote), p.Name, p.Path)
 	return nil
 }
 
@@ -744,15 +741,6 @@ func (p *Project) IsOnJiriHead(jirix *jiri.X) (bool, error) {
 
 // Projects maps ProjectKeys to Projects.
 type Projects map[ProjectKey]Project
-
-// toSlice returns a slice of Projects in the Projects map.
-func (ps Projects) toSlice() []Project {
-	var pSlice []Project
-	for _, p := range ps {
-		pSlice = append(pSlice, p)
-	}
-	return pSlice
-}
 
 // FindUnique returns the project in Projects with the given key or name, and
 // returns an error if none or multiple matching projects are found.
@@ -985,7 +973,7 @@ func setProjectRevisions(jirix *jiri.X, projects Projects) (Projects, error) {
 	return projects, nil
 }
 
-func rewriteHTTPSToSSO(jirix *jiri.X, remote string) string {
+func rewriteHTTPSToSSO(remote string) string {
 	if strings.HasPrefix(remote, "sso://") {
 		return remote
 	}
@@ -1240,10 +1228,7 @@ func HostnameAllowed(reference, hostname string) bool {
 		i--
 		j--
 	}
-	if i >= 0 {
-		return false
-	}
-	return true
+	return i < 0
 }
 
 // CheckProjectsHostnames checks if the hostname of every project is allowed
@@ -1841,7 +1826,7 @@ func findLocalProjects(jirix *jiri.X, path string, projects Projects) error {
 			if path != project.Path {
 				logs := []string{
 					fmt.Sprintf("Project %q has path %s, but was found in %s.", project.Name, project.Path, path),
-					fmt.Sprintf("jiri will treat it as a stale project. To remove this warning please delete this or move it out of your root folder\n\n"),
+					"jiri will treat it as a stale project. To remove this warning please delete this or move it out of your root folder\n\n",
 				}
 				log <- strings.Join(logs, "\n")
 				return
@@ -1857,13 +1842,13 @@ func findLocalProjects(jirix *jiri.X, path string, projects Projects) error {
 		}
 
 		// Recurse into all the sub directories.
-		fileInfos, err := ioutil.ReadDir(path)
+		fileInfos, err := os.ReadDir(path)
 		if err != nil && !os.IsPermission(err) {
 			errs <- fmt.Errorf("cannot read dir %q: %v", path, err)
 			return
 		}
 		pwg.Add(1)
-		go func(fileInfos []os.FileInfo) {
+		go func(fileInfos []os.DirEntry) {
 			defer pwg.Done()
 			for _, fileInfo := range fileInfos {
 				shouldProcess := false
@@ -2048,7 +2033,7 @@ func syncProjectMaster(jirix *jiri.X, project Project, state ProjectState, rebas
 				msg += "\n" + item
 			}
 		}
-		msg += fmt.Sprintf("\nCommit or discard the changes and try again.\n\n")
+		msg += "\nCommit or discard the changes and try again.\n\n"
 		jirix.Logger.Errorf("%s", msg)
 		jirix.IncrementFailures()
 		return nil
@@ -2249,7 +2234,7 @@ func syncProjectMaster(jirix *jiri.X, project Project, state ProjectState, rebas
 				rebaseUntrackedMessage = true
 				gitCommand := jirix.Color.Yellow("git -C %q checkout %s && git -C %q rebase %s", relativePath, branch.Name, relativePath, headRevision)
 				msg := fmt.Sprintf("For Project %q, branch %q does not track any remote branch.", project.Name, branch.Name)
-				msg += fmt.Sprintf("\nTo rebase it update with -rebase-untracked flag, or to rebase it manually run")
+				msg += "\nTo rebase it update with -rebase-untracked flag, or to rebase it manually run"
 				if project.GitSubmodules && jirix.EnableSubmodules {
 					msg += "\nPlease run 'git submodule update --init' after rebasing manually.\n\n"
 				}

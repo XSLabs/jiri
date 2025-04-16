@@ -103,7 +103,6 @@ var (
 	endHookBytes        = []byte("></hook>\n")
 	endPackageBytes     = []byte("></package>\n")
 
-	endImportSoloBytes  = []byte("></import>")
 	endProjectSoloBytes = []byte("></project>")
 	endElemSoloBytes    = []byte("/>")
 )
@@ -1295,7 +1294,7 @@ func RunHooks(jirix *jiri.X, hooks Hooks, runHookTimeout uint) error {
 
 type commitMsgFetcher map[string][]byte
 
-func (f commitMsgFetcher) fetch(jirix *jiri.X, gerritHost, path string) ([]byte, error) {
+func (f commitMsgFetcher) fetch(jirix *jiri.X, gerritHost string) ([]byte, error) {
 	bytes, ok := f[gerritHost]
 	if !ok {
 		jirix.Logger.Debugf("Fetching %q", gerritHost+"/tools/hooks/commit-msg")

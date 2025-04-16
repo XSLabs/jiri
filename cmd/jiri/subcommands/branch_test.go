@@ -207,7 +207,7 @@ func testDeleteBranchWithProjectConfig(t *testing.T, overridePC bool) {
 	// test project states
 	for i = 0; i < numProjects; i++ {
 		localProject := localProjects[i]
-		state, _ := states[localProject.Key()]
+		state := states[localProject.Key()]
 		branchFound := false
 		for _, branch := range state.Branches {
 			if branch.Name == testBranch {
@@ -282,7 +282,7 @@ func TestDeleteBranch(t *testing.T) {
 	// test project states
 	for i = 0; i < numProjects; i++ {
 		localProject := localProjects[i]
-		state, _ := states[localProject.Key()]
+		state := states[localProject.Key()]
 		branchFound := false
 		for _, branch := range state.Branches {
 			if branch.Name == testBranch {
@@ -307,7 +307,7 @@ func TestDeleteBranch(t *testing.T) {
 	// test project states
 	for i = 0; i < numProjects; i++ {
 		localProject := localProjects[i]
-		state, _ := states[localProject.Key()]
+		state := states[localProject.Key()]
 		branchFound := false
 		for _, branch := range state.Branches {
 			if branch.Name == testBranch {
@@ -338,7 +338,7 @@ func TestDeleteBranch(t *testing.T) {
 	// test project states
 	for i = 0; i < numProjects; i++ {
 		localProject := localProjects[i]
-		state, _ := states[localProject.Key()]
+		state := states[localProject.Key()]
 		branchFound := false
 		for _, branch := range state.Branches {
 			if branch.Name == testBranch {
@@ -511,8 +511,8 @@ func TestDeleteMergedClsBranch(t *testing.T) {
 	// test project states
 	for i = 0; i < numProjects; i++ {
 		localProject := localProjects[i]
-		oldstate, _ := oldstates[localProject.Key()]
-		newstate, _ := newstates[localProject.Key()]
+		oldstate := oldstates[localProject.Key()]
+		newstate := newstates[localProject.Key()]
 		newBranchMap := make(map[string]bool)
 		for _, newb := range newstate.Branches {
 			newBranchMap[newb.Name] = true
@@ -618,8 +618,8 @@ func testDeleteMergedBranch(t *testing.T, overridePC bool) {
 	for i = 0; i < numProjects; i++ {
 		localProject := localProjects[i]
 		dontdelete := localProject.LocalConfig.NoUpdate && !overridePC
-		oldstate, _ := oldstates[localProject.Key()]
-		newstate, _ := newstates[localProject.Key()]
+		oldstate := oldstates[localProject.Key()]
+		newstate := newstates[localProject.Key()]
 		newBranchMap := make(map[string]bool)
 		for _, newb := range newstate.Branches {
 			newBranchMap[newb.Name] = true
@@ -676,7 +676,7 @@ func testDeleteMergedBranch(t *testing.T, overridePC bool) {
 	for i = 0; i <= 4; i++ {
 		localProject := localProjects[i]
 		dontdelete := localProject.LocalConfig.NoUpdate && !overridePC
-		newstate, _ := newstates[localProject.Key()]
+		newstate := newstates[localProject.Key()]
 		newBranchMap := make(map[string]bool)
 		for _, newb := range newstate.Branches {
 			newBranchMap[newb.Name] = true

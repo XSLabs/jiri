@@ -355,7 +355,7 @@ func NewX(env *cmdline.Env, flags TopLevelFlags) (*X, error) {
 			x.ExcludeDirs = append(x.ExcludeDirs, "prebuilt")
 		}
 	}
-	x.Cache, err = findCache(root, x.config)
+	x.Cache, err = findCache(x.config)
 	if err != nil {
 		return nil, err
 	}
@@ -389,7 +389,7 @@ func cleanPath(path string) (string, error) {
 	return filepath.Clean(result), nil
 }
 
-func findCache(root string, config *Config) (string, error) {
+func findCache(config *Config) (string, error) {
 	// Use flag variable if set.
 	if config != nil && config.CachePath != "" {
 		return cleanPath(config.CachePath)

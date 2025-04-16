@@ -266,17 +266,3 @@ func submoduleToProject(subm Submodule) Project {
 	}
 	return project
 }
-
-// submodulesToProject converts submodules to project map with path as key.
-func submodulesToProjects(submodules Submodules, initOnly bool) map[string]Project {
-	projects := make(map[string]Project)
-	for _, subm := range submodules {
-		// When initOnly is flagged, we only include submodules that are initialized.
-		if initOnly && subm.Prefix == "-" {
-			continue
-		}
-		project := submoduleToProject(subm)
-		projects[project.Path] = project
-	}
-	return projects
-}

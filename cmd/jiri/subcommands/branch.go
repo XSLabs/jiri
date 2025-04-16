@@ -163,7 +163,7 @@ func (c *branchCmd) deleteMergedBranches(jirix *jiri.X, branchToDelete string, d
 
 	jirix.TimerPush("Process")
 	processProject := func(key project.ProjectKey) {
-		state, _ := states[key]
+		state := states[key]
 		remote, ok := remoteProjects[key]
 		relativePath, err := filepath.Rel(cDir, state.Project.Path)
 		if err != nil {

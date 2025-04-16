@@ -144,7 +144,7 @@ func (c *projectCmd) runProjectInfo(jirix *jiri.X, args []string) error {
 
 	regexps := []*regexp.Regexp{}
 	if len(args) > 0 && c.regexp {
-		regexps = make([]*regexp.Regexp, len(args), len(args))
+		regexps = make([]*regexp.Regexp, len(args))
 		for i, a := range args {
 			re, err := regexp.Compile(a)
 			if err != nil {

@@ -45,7 +45,6 @@ var (
 	CipdPlatform   Platform
 	cipdOS         string
 	cipdArch       string
-	cipdBinary     string
 	selfUpdateOnce sync.Once
 	templateRE     = regexp.MustCompile(`\${[^}]*}`)
 
@@ -269,7 +268,7 @@ func fetchFile(jirix *jiri.X, url string) ([]byte, error) {
 		}
 		contents, err = io.ReadAll(resp.Body)
 		return err
-	}, fmt.Sprintf("bootstrapping cipd binary"), retry.AttemptsOpt(maxAttempts)); err != nil {
+	}, "bootstrapping cipd binary", retry.AttemptsOpt(maxAttempts)); err != nil {
 		jirix.Logger.Errorf("error: failed to download cipd client: %v\n", err)
 		return nil, err
 	}
@@ -326,7 +325,6 @@ func checkPackageACL(jirix *jiri.X, cipdPath, jsonDir string, c chan<- packageAC
 
 	// Package can be accessed.
 	c <- packageACL{path: cipdPath, access: true}
-	return
 }
 
 // CheckPackageACL checks cipd's access to packages in map "pkgs". The package
@@ -587,12 +585,6 @@ func parseVersions(file string) ([]PackageInstance, error) {
 		}
 	}
 	return output, nil
-}
-
-type packageFloatingRef struct {
-	pkg      PackageInstance
-	err      error
-	floating bool
 }
 
 // CheckFloatingRefs determines if pkgs contains a floating ref which shouldn't

@@ -47,7 +47,7 @@ func fileExists(dirname string) error {
 	return nil
 }
 
-func checkReadme(t *testing.T, jirix *jiri.X, p project.Project, message string) {
+func checkReadme(t *testing.T, p project.Project, message string) {
 	if _, err := os.Stat(p.Path); err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -56,12 +56,12 @@ func checkReadme(t *testing.T, jirix *jiri.X, p project.Project, message string)
 	if err != nil {
 		t.Fatalf("ReadFile(%v) failed: %v", readmeFile, err)
 	}
-	if got, want := data, []byte(message); bytes.Compare(got, want) != 0 {
+	if got, want := data, []byte(message); !bytes.Equal(got, want) {
 		t.Fatalf("unexpected content in project %v:\ngot\n%s\nwant\n%s\n", p.Name, got, want)
 	}
 }
 
-func checkJiriRevFiles(t *testing.T, jirix *jiri.X, p project.Project) {
+func checkJiriRevFiles(t *testing.T, p project.Project) {
 	fake := jiritest.NewFakeJiriRoot(t)
 
 	g := gitutil.New(fake.X, gitutil.RootDirOpt(p.Path))
@@ -346,8 +346,8 @@ func TestUpdateUniverseSimple(t *testing.T) {
 		} else if len(branches) != 0 {
 			t.Fatalf("expected project %s(%s) to contain no branches but it contains %s", p.Name, p.Path, branches)
 		}
-		checkReadme(t, fake.X, p, "initial readme")
-		checkJiriRevFiles(t, fake.X, p)
+		checkReadme(t, p, "initial readme")
+		checkJiriRevFiles(t, p)
 	}
 }
 
@@ -472,8 +472,8 @@ func TestUpdateUniverseWithCache(t *testing.T) {
 		} else if err == nil {
 			t.Fatalf("expected %v to not exist, but found", p.Path+"/.git/objects/info/alternates")
 		}
-		checkReadme(t, fake.X, p, "initial readme")
-		checkJiriRevFiles(t, fake.X, p)
+		checkReadme(t, p, "initial readme")
+		checkJiriRevFiles(t, p)
 	}
 
 	// Commit to main branch of a project 1.
@@ -491,8 +491,8 @@ func TestUpdateUniverseWithCache(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	checkReadme(t, fake.X, localProjects[1], "main commit")
-	checkJiriRevFiles(t, fake.X, localProjects[1])
+	checkReadme(t, localProjects[1], "main commit")
+	checkJiriRevFiles(t, localProjects[1])
 
 	// Check that cache was updated
 	cacheDirPath, err := localProjects[1].CacheDirPath(fake.X)
@@ -593,7 +593,7 @@ func TestRecursiveImport(t *testing.T) {
 		if err := dirExists(p.Path); err != nil {
 			t.Fatalf("expected project to exist at path %q but none found", p.Path)
 		}
-		checkReadme(t, fake.X, p, "initial readme")
+		checkReadme(t, p, "initial readme")
 	}
 
 	// check that remotemanifest is at correct revision
@@ -912,9 +912,9 @@ func TestUpdateUniverseWithRevision(t *testing.T) {
 	}
 	for i, p := range localProjects {
 		if i == 1 {
-			checkReadme(t, fake.X, p, "initial readme")
+			checkReadme(t, p, "initial readme")
 		} else {
-			checkReadme(t, fake.X, p, "new revision")
+			checkReadme(t, p, "new revision")
 		}
 	}
 }
@@ -996,7 +996,7 @@ func TestSubDirToNestedProj(t *testing.T) {
 	if err := fake.UpdateUniverse(false); err != nil {
 		t.Fatal(err)
 	}
-	checkReadme(t, fake.X, p, "nested folder")
+	checkReadme(t, p, "nested folder")
 }
 
 // TestMoveNestedProjects checks that UpdateUniverse will correctly move nested projects
@@ -1049,8 +1049,8 @@ func TestMoveNestedProjects(t *testing.T) {
 	if err := fake.UpdateUniverse(false); err != nil {
 		t.Fatal(err)
 	}
-	checkReadme(t, fake.X, localProjects[1], "initial readme")
-	checkReadme(t, fake.X, p, "nested folder")
+	checkReadme(t, localProjects[1], "initial readme")
+	checkReadme(t, p, "nested folder")
 	if err := dirExists(oldProjectPath); err == nil {
 		t.Fatalf("expected project %q at path %q not to exist but it did", localProjects[1].Name, oldProjectPath)
 	}
@@ -1081,7 +1081,7 @@ func TestUpdateUniverseWithUncommitted(t *testing.T) {
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
-	if bytes.Compare(got, want) != 0 {
+	if !bytes.Equal(got, want) {
 		t.Fatalf("unexpected content %v:\ngot\n%s\nwant\n%s\n", localProjects[1], got, want)
 	}
 }
@@ -1125,7 +1125,7 @@ func TestUpdateUniverseMovedProject(t *testing.T) {
 	if err := dirExists(localProjects[2].Path); err != nil {
 		t.Fatalf("expected project %q at path %q to exist but it did not", localProjects[1].Name, localProjects[1].Path)
 	}
-	checkReadme(t, fake.X, localProjects[1], "initial readme")
+	checkReadme(t, localProjects[1], "initial readme")
 }
 
 // TestUpdateUniverseMovedProjectSelf checks that UpdateUniverse can move a
@@ -1164,7 +1164,7 @@ func TestUpdateUniverseMovedProjectSelf(t *testing.T) {
 	if err := dirExists(localProjects[2].Path); err != nil {
 		t.Fatalf("expected project %q at path %q to exist but it did not", localProjects[1].Name, localProjects[1].Path)
 	}
-	checkReadme(t, fake.X, localProjects[1], "initial readme")
+	checkReadme(t, localProjects[1], "initial readme")
 }
 
 // TestUpdateUniverseChangeRemote checks that UpdateUniverse can change remote
@@ -1205,7 +1205,7 @@ func TestUpdateUniverseChangeRemote(t *testing.T) {
 	if err := fake.UpdateUniverse(false); err != nil {
 		t.Fatal(err)
 	}
-	checkReadme(t, fake.X, localProjects[1], "new commit")
+	checkReadme(t, localProjects[1], "new commit")
 }
 
 func TestIgnoredProjectsNotMoved(t *testing.T) {
@@ -1346,7 +1346,7 @@ func testUpdateUniverseDeletedProject(t *testing.T, testDirtyProjectDelete, test
 		if err := dirExists(localProjects[i].Path); err != nil {
 			t.Fatalf("expected project %q at path %q to exist but it did not", localProjects[i].Name, localProjects[i].Path)
 		}
-		checkReadme(t, fake.X, localProjects[i], "initial readme")
+		checkReadme(t, localProjects[i], "initial readme")
 	}
 	// Check that UpdateUniverse() with gc=true does delete the local copy of
 	// the project.
@@ -1483,7 +1483,7 @@ func TestUpdateUniverseRemoteBranch(t *testing.T) {
 	if err := fake.UpdateUniverse(false); err != nil {
 		t.Fatal(err)
 	}
-	checkReadme(t, fake.X, localProjects[1], "non-main commit")
+	checkReadme(t, localProjects[1], "non-main commit")
 }
 
 func TestUpdatedUniverseEnabledSubmodules(t *testing.T) {
@@ -1649,7 +1649,7 @@ func TestUpdateWhenConflictMerge(t *testing.T) {
 	if rev != localRev {
 		t.Fatalf("Current commit is %v, it should be %v\n", localRev, rev)
 	}
-	checkJiriRevFiles(t, fake.X, localProjects[1])
+	checkJiriRevFiles(t, localProjects[1])
 }
 
 func TestTagNotContainedInBranch(t *testing.T) {
@@ -1759,9 +1759,7 @@ func testCheckoutSnapshot(t *testing.T, testURL bool) {
 	}
 	dir := t.TempDir()
 	manifest := &project.Manifest{Version: project.ManifestVersion}
-	for _, localProject := range localProjects {
-		manifest.Projects = append(manifest.Projects, localProject)
-	}
+	manifest.Projects = append(manifest.Projects, localProjects...)
 	manifest.Projects[0].Revision = oldCommitRevs[0]
 	manifest.Projects[1].Revision = oldCommitRevs[1]
 

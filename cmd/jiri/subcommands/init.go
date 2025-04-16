@@ -92,7 +92,7 @@ func (c *initCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...any) subcom
 	return errToExitStatus(ctx, c.run(ctx, f.Args()))
 }
 
-func (c *initCmd) run(ctx context.Context, args []string) error {
+func (c *initCmd) run(_ context.Context, args []string) error {
 	if len(args) > 1 {
 		return fmt.Errorf("wrong number of arguments")
 	}

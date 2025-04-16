@@ -34,7 +34,7 @@ func (c *versionCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...any) sub
 	return errToExitStatus(ctx, c.run(ctx, f.Args()))
 }
 
-func (c *versionCmd) run(ctx context.Context, args []string) error {
+func (c *versionCmd) run(_ context.Context, _ []string) error {
 	var versionString bytes.Buffer
 	fmt.Fprintf(&versionString, "Jiri")
 

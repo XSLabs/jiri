@@ -18,7 +18,7 @@ import (
 	"go.fuchsia.dev/jiri/tool"
 )
 
-func checkReadme(t *testing.T, jirix *jiri.X, project, message string) {
+func checkReadme(t *testing.T, project, message string) {
 	if _, err := os.Stat(project); err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -27,7 +27,7 @@ func checkReadme(t *testing.T, jirix *jiri.X, project, message string) {
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
-	if got, want := data, []byte(message); bytes.Compare(got, want) != 0 {
+	if got, want := data, []byte(message); !bytes.Equal(got, want) {
 		t.Fatalf("unexpected content %v:\ngot\n%s\nwant\n%s\n", project, got, want)
 	}
 }
@@ -114,7 +114,7 @@ func TestSnapshot(t *testing.T) {
 	}
 	for i := range remoteProjects {
 		localProject := filepath.Join(fake.X.Root, localProjectName(i))
-		checkReadme(t, fake.X, localProject, "revision 1")
+		checkReadme(t, localProject, "revision 1")
 	}
 }
 

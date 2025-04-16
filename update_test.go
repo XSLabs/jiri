@@ -74,7 +74,7 @@ func TestDownloadBinary(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if want, got := []byte("jiri"), b; bytes.Compare(want, got) != 0 {
+	if want, got := []byte("jiri"), b; !bytes.Equal(want, got) {
 		t.Errorf("wrong file content, want: %s, got: %s\n", want, got)
 	}
 }
@@ -104,7 +104,7 @@ func TestUpdateExecutable(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if want, got := []byte("new"), b; bytes.Compare(want, got) != 0 {
+	if want, got := []byte("new"), b; !bytes.Equal(want, got) {
 		t.Errorf("wrong file content, want: %s, got: %s\n", want, got)
 	}
 }

@@ -103,9 +103,7 @@ func (c *resolveCmd) run(jirix *jiri.X, args []string) error {
 		// Use .jiri_manifest if no manifest file path is present
 		manifestFiles = append(manifestFiles, jirix.JiriManifestFile())
 	} else {
-		for _, m := range args {
-			manifestFiles = append(manifestFiles, m)
-		}
+		manifestFiles = append(manifestFiles, args...)
 	}
 	if c.localManifestFlag && len(c.localManifestProjects) == 0 {
 		c.localManifestProjects, _ = getDefaultLocalManifestProjects(jirix)
