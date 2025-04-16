@@ -1192,8 +1192,9 @@ func (g *Git) Pull(remote, branch string) error {
 		// This command is expected to fail (with desirable side effects).
 		// Use exec.Command instead of runner to prevent this failure from
 		// showing up in the console and confusing people.
-		command := exec.Command("git", "pull")
-		command.Run()
+		if err := g.runInteractive("pull"); err != nil {
+			return err
+		}
 	}
 	return nil
 }
