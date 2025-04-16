@@ -41,8 +41,7 @@ func Error(output, errorOutput string, err error, root string, args ...string) G
 }
 
 func (ge GitError) Error() string {
-	result := fmt.Sprintf("(%s)", ge.Root)
-	result = "'git "
+	result := fmt.Sprintf("(%s) git", ge.Root)
 	result += strings.Join(ge.Args, " ")
 	result += "' failed:\n"
 	result += "stdout:\n"
