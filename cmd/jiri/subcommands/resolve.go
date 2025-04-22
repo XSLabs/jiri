@@ -106,9 +106,11 @@ func (c *resolveCmd) run(jirix *jiri.X, args []string) error {
 		manifestFiles = append(manifestFiles, args...)
 	}
 	if c.localManifestFlag && len(c.localManifestProjects) == 0 {
-		c.localManifestProjects, _ = getDefaultLocalManifestProjects(jirix)
-	} else if !c.localManifestFlag {
-		c.localManifestProjects = nil
+		var err error
+		c.localManifestProjects, err = getDefaultLocalManifestProjects(jirix)
+		if err != nil {
+			return err
+		}
 	}
 
 	// While revision pins for projects can be updated by 'jiri edit',
