@@ -882,8 +882,8 @@ func (g *Git) FetchRefspec(remote, refspec string, opts ...FetchOpt) error {
 	}
 	args := []string{}
 	args = append(args, "fetch")
-	if !recurseSubmodules {
-		args = append(args, "--recurse-submodules=no")
+	if recurseSubmodules {
+		args = append(args, "--recurse-submodules")
 	}
 	if prune {
 		args = append(args, "-p")
