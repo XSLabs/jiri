@@ -1081,7 +1081,7 @@ func generateEnsureFile(jirix *jiri.X, pkgs Packages, ignoreCryptoCheck bool, ve
 	cipdDecls := make([]string, 0, len(pkgs))
 	for _, pkg := range pkgs {
 
-		cipdDecl, err := pkg.cipdDecl(jirix)
+		cipdDecl, err := pkg.cipdDecl(jirix, cipd.CipdPlatform)
 		if err != nil {
 			return "", err
 		}
@@ -1103,7 +1103,21 @@ func generateEnsureFile(jirix *jiri.X, pkgs Packages, ignoreCryptoCheck bool, ve
 	return ensureFilePath, nil
 }
 
-func (p *Package) cipdDecl(jirix *jiri.X) (string, error) {
+func (p *Package) cipdDecl(jirix *jiri.X, currentPlatform cipd.Platform) (string, error) {
+	// Write package version line to cipd declaration
+	plats, err := p.GetPlatforms()
+	if err != nil {
+		return "", err
+	}
+	cipdPath, err := cipd.Decl(currentPlatform, p.Name, plats)
+	if err != nil {
+		if err == cipd.ErrSkipTemplate {
+			return "", nil
+		} else {
+			return "", err
+		}
+	}
+
 	var buf bytes.Buffer
 	// Write "@Subdir" line to cipd declaration
 	subdir, err := p.GetPath()
@@ -1117,20 +1131,10 @@ func (p *Package) cipdDecl(jirix *jiri.X) (string, error) {
 	var subdirBuf bytes.Buffer
 	// subdir is using fuchsia platform format instead of
 	// using cipd platform format
-	tmpl.Execute(&subdirBuf, cipd.FuchsiaPlatform(cipd.CipdPlatform))
+	tmpl.Execute(&subdirBuf, cipd.FuchsiaPlatform(currentPlatform))
 	subdir = subdirBuf.String()
 	buf.WriteString(fmt.Sprintf("@Subdir %s\n", subdir))
-	// Write package version line to cipd declaration
-	plats, err := p.GetPlatforms()
-	if err != nil {
-		return "", err
-	}
-	var cipdPath, version string
-	version = p.Version
-	cipdPath, err = cipd.Decl(p.Name, plats)
-	if err != nil {
-		return "", err
-	}
+	version := p.Version
 	if jirix.UsingSnapshot && len(p.Instances) != 0 {
 		candPath, err := cipd.Expand(p.Name, []cipd.Platform{cipd.CipdPlatform})
 		if err != nil {

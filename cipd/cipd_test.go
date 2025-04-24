@@ -416,27 +416,88 @@ func TestMustExpand(t *testing.T) {
 
 func TestDecl(t *testing.T) {
 	t.Parallel()
-	platforms := []Platform{
-		{"linux", "amd64"},
-		{"linux", "arm64"},
-		{"mac", "amd64"},
+	currentPlatform := Platform{
+		OS:   "linux",
+		Arch: "amd64",
+	}
+	tests := []struct {
+		path         string
+		platforms    []Platform
+		expectedPath string
+		expectedErr  error
+	}{
+		{
+			path:         "fuchsia/clang/${platform}",
+			platforms:    []Platform{},
+			expectedPath: "fuchsia/clang/${platform}",
+		},
+		{
+			path:         "fuchsia/clang/linux-amd64",
+			platforms:    []Platform{},
+			expectedPath: "fuchsia/clang/linux-amd64",
+		},
+		{
+			path: "fuchsia/clang/${platform}",
+			platforms: []Platform{
+				{"linux", "amd64"},
+				{"linux", "arm64"},
+				{"mac", "amd64"},
+			},
+			expectedPath: "fuchsia/clang/${platform=linux-amd64,linux-arm64,mac-amd64}",
+		},
+		{
+			path: "fuchsia/clang/${os}-${arch}",
+			platforms: []Platform{
+				{"linux", "amd64"},
+				{"linux", "arm64"},
+				{"mac", "amd64"},
+			},
+			expectedPath: "fuchsia/clang/${os=linux,mac}-${arch=amd64,arm64}",
+		},
+		{
+			path: "fuchsia/clang/${os=linux}-${arch}",
+			platforms: []Platform{
+				{"linux", "amd64"},
+				{"linux", "arm64"},
+				{"mac", "amd64"},
+			},
+			expectedPath: "fuchsia/clang/${os=linux}-${arch=amd64,arm64}",
+		},
+		{
+			path: "fuchsia/clang/${os=linux}-${arch=amd64}",
+			platforms: []Platform{
+				{"linux", "amd64"},
+				{"linux", "arm64"},
+				{"mac", "amd64"},
+			},
+			expectedPath: "fuchsia/clang/${os=linux}-${arch=amd64}",
+		},
+		{
+			path: "fuchsia/clang/linux-amd64",
+			platforms: []Platform{
+				{"linux", "amd64"},
+				{"linux", "arm64"},
+			},
+			expectedPath: "fuchsia/clang/linux-amd64",
+		},
+		{
+			path: "fuchsia/clang/linux-amd64",
+			platforms: []Platform{
+				{"mac", "amd64"},
+			},
+			expectedPath: "",
+			expectedErr:  ErrSkipTemplate,
+		},
 	}
 
-	tests := map[string]string{
-		"fuchsia/clang/${platform}":               "fuchsia/clang/${platform=linux-amd64,linux-arm64,mac-amd64}",
-		"fuchsia/clang/${os}-${arch}":             "fuchsia/clang/${os=linux,mac}-${arch=amd64,arm64}",
-		"fuchsia/clang/${os=linux}-${arch}":       "fuchsia/clang/${os=linux}-${arch=amd64,arm64}",
-		"fuchsia/clang/${os=linux}-${arch=amd64}": "fuchsia/clang/${os=linux}-${arch=amd64}",
-		"fuchsia/clang/linux-amd64":               "fuchsia/clang/linux-amd64",
-	}
+	for _, test := range tests {
+		cipdPath, err := Decl(currentPlatform, test.path, test.platforms)
 
-	for k, v := range tests {
-		cipdPath, err := Decl(k, platforms)
-		if err != nil {
-			t.Errorf("Decl failed on cipdPath %q due to error: %v", k, err)
+		if err != test.expectedErr {
+			t.Errorf("Decl failed on cipdPath %q, expecting error %q, got error %q", test.path, test.expectedErr, err)
 		}
-		if cipdPath != v {
-			t.Errorf("test on %q failed: expecting %q, got %q", k, v, cipdPath)
+		if cipdPath != test.expectedPath {
+			t.Errorf("Decl failed on cipdPath %q, expecting %q, got %q", test.path, test.expectedPath, cipdPath)
 		}
 	}
 }
