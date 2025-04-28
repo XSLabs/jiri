@@ -752,41 +752,20 @@ func Expand(cipdPath string, platforms []Platform) ([]string, error) {
 	return output, nil
 }
 
-// Decl method generates a single cipd declaration for a cipdPath that's
-// constrained to the passed in platforms. This is different from the Expand
-// method, which returns a list of expanded cipd paths.
-//
-// It applies the following rules:
-//
-//   - If the platforms slice is empty, the cipdPath is returned unmodified.
-
-//   - If the platforms slice is not empty and the cipdPath does not contain
-//     ${platform}, ${os}, ${arch} substitutions, this will return
-//     ErrSkipTemplate if the currentPlatform does not match one of the passed
-//     in platforms.
-
-//   - If the platforms slice is not empty and the cipdPath does contain
-//     ${platform}, ${os}, ${arch} substitutions, it will modify the
-//     substitutions to be constrained to the platform. For example, if
-//     platforms For example, if platforms contain "linux-amd64" and
-//     "linux-arm64", ${platform} will be replaced to
-//     ${platform=linux-amd64,linux-arm64}.
-//
-// This is a workaround for a limitation in 'cipd ensure-file-resolve' which
-// requires the header of '.ensure' file to contain all available platforms. But
-// in some cases, a package may miss a particular platform, which will cause a
-// crash on this cipd command. By explicitly list all supporting platforms in
-// the cipdPath, we can avoid crashing cipd.
-func Decl(currentPlatform Platform, cipdPath string, platforms []Platform) (string, error) {
-	if len(platforms) == 0 {
+// Decl method expands a cipdPath that contains ${platform}, ${os}, ${arch}
+// with information in platforms. Unlike the Expand method which
+// returns a list of expanded cipd paths, the Decl method only returns a
+// single path containing all platforms. For example, if platforms contain
+// "linux-amd64" and "linux-arm64", ${platform} will be replaced to
+// ${platform=linux-amd64,linux-arm64}. This is a workaround for a limitation
+// in 'cipd ensure-file-resolve' which requires the header of '.ensure' file
+// to contain all available platforms. But in some cases, a package may miss
+// a particular platform, which will cause a crash on this cipd command. By
+// explicitly list all supporting platforms in the cipdPath, we can avoid
+// crashing cipd.
+func Decl(cipdPath string, platforms []Platform) (string, error) {
+	if !MustExpand(cipdPath) || len(platforms) == 0 {
 		return cipdPath, nil
-	} else if !MustExpand(cipdPath) {
-		for _, platform := range platforms {
-			if currentPlatform.Arch == platform.Arch && currentPlatform.OS == platform.OS {
-				return cipdPath, nil
-			}
-		}
-		return "", ErrSkipTemplate
 	}
 
 	osMap := make(map[string]bool)
