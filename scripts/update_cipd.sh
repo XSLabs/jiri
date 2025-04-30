@@ -16,13 +16,14 @@ cipd_client_pkg='infra/tools/cipd/${platform}'
 # different version for different platforms, so instead we resolve the
 # git_revision tag of the "latest" version for the current platform and update
 # to that tag for all platforms.
-versions="$(
-    cipd describe "$cipd_client_pkg" -version latest \
-    | grep git_revision \
-    | tail -5)"  # The last tag in the list is the oldest so most likely to exist for all packages.
+versions="$(cipd describe "$cipd_client_pkg" -version latest | grep git_revision)"
 versions=($versions)
 
 success=false
+# There may be multiple git_revision tags that all point to the "latest" ref. Some
+# platforms get built less frequently, and may not have a build for each git_revision.
+# Iterate through all the versions until we find a single one that has a build for
+# all platforms.
 for ((i=${#versions[@]}-1; i >= 0; i--)); do
   new_version="${versions[$i]}"
   new_version="$(echo "$new_version" | xargs)" # Trim whitespace
