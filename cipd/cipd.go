@@ -403,10 +403,12 @@ func Ensure(jirix *jiri.X, file, projectRoot string, timeout uint) error {
 		"-max-threads", strconv.Itoa(jirix.CipdMaxThreads),
 	}
 
-	// If jiri is *not* running with -v, use the less verbose cipd "warning"
-	// log-level.
-	if jirix.Logger.LoggerLevel < log.DebugLevel {
+	if (jirix.Logger.LoggerLevel <= log.WarningLevel) || (!jirix.Logger.IsProgressEnabled()) {
+		// If jiri is running with -quiet or -show-progess=false, use cipd's "warning" log-level.
 		args = append(args, "-log-level", "warning")
+	} else if jirix.Logger.LoggerLevel >= log.DebugLevel {
+		// If jiri is running with -v or louder, use cipd's "debug" log-level.
+		args = append(args, "-log-level", "debug")
 	}
 
 	task := jirix.Logger.AddTaskMsg("Fetching CIPD packages")
@@ -437,10 +439,13 @@ func EnsureFileVerify(jirix *jiri.X, file string) error {
 		"ensure-file-verify",
 		"-ensure-file", file,
 	}
-	// If jiri is *not* running with -v, use the less verbose cipd "warning"
-	// log-level.
-	if jirix.Logger.LoggerLevel < log.DebugLevel {
+
+	if (jirix.Logger.LoggerLevel <= log.WarningLevel) || (!jirix.Logger.IsProgressEnabled()) {
+		// If jiri is running with -quiet or -show-progess=false, use cipd's "warning" log-level.
 		args = append(args, "-log-level", "warning")
+	} else if jirix.Logger.LoggerLevel >= log.DebugLevel {
+		// If jiri is running with -v or louder, use cipd's "debug" log-level.
+		args = append(args, "-log-level", "debug")
 	}
 
 	task := jirix.Logger.AddTaskMsg("Verifying CIPD ensure file")
