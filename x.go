@@ -568,7 +568,9 @@ func setupAnalytics(x *X, env *cmdline.Env) {
 	id := as.AddCommand(env.CommandName, env.CommandFlags)
 
 	x.AddCleanupFunc(func() {
-		x.Logger.Tracef("Finalizing analytics session (if enabled)")
+		if enabledAnalytics {
+			x.Logger.Tracef("Finalizing analytics session")
+		}
 		as.Done(id)
 		as.SendAllAndWaitToFinish()
 	})
