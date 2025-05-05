@@ -34,10 +34,10 @@ Usage:
 func (c *bootstrapCmd) SetFlags(f *flag.FlagSet) {}
 
 func (c *bootstrapCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...any) subcommands.ExitStatus {
-	return errToExitStatus(ctx, c.run(ctx, f.Args()))
+	return executeWrapper(ctx, c.run, c.topLevelFlags, f.Args())
 }
 
-func (c *bootstrapCmd) run(ctx context.Context, args []string) error {
+func (c *bootstrapCmd) run(jirix *jiri.X, args []string) error {
 	if len(args) == 0 {
 		// Currently it only supports cipd. We may add more packages from buildtools in the future.
 		fmt.Printf("Supported package(s):\n\tcipd\n")
@@ -46,10 +46,6 @@ func (c *bootstrapCmd) run(ctx context.Context, args []string) error {
 	for _, v := range args {
 		switch strings.ToLower(v) {
 		case "cipd":
-			jirix, err := jiri.NewXFromContext(ctx, c.topLevelFlags)
-			if err != nil {
-				return err
-			}
 			if err := cipd.Bootstrap(jirix); err != nil {
 				return err
 			}
