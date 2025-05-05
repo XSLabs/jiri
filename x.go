@@ -375,6 +375,11 @@ func NewX(env *cmdline.Env, flags TopLevelFlags) (*X, error) {
 		}
 	}
 	setupAnalytics(x, env)
+	x.AddCleanupFunc(func() {
+		// When an error interrupts program execution, there may be lingering progress messages.
+		// During cleanup, call the DisableProgress function to clear them in case they are present.
+		x.Logger.DisableProgress()
+	})
 	return x, nil
 }
 
@@ -562,8 +567,9 @@ func setupAnalytics(x *X, env *cmdline.Env) {
 	x.AnalyticsSession = as
 	id := as.AddCommand(env.CommandName, env.CommandFlags)
 
-	x.Logger.DisableProgress()
-
-	as.Done(id)
-	as.SendAllAndWaitToFinish()
+	x.AddCleanupFunc(func() {
+		x.Logger.Tracef("Finalizing analytics session (if enabled)")
+		as.Done(id)
+		as.SendAllAndWaitToFinish()
+	})
 }
