@@ -164,7 +164,13 @@ func (c *projectCmd) runProjectInfo(jirix *jiri.X, args []string) error {
 	// Similar to run-hooks logic: do not use updated manifest if localManifestProjects
 	// is set. Only use updated manifest if the legacy local manifest flag is set, to
 	// maintain legacy behavior.
-	if c.useLocalManifest {
+	if c.useLocalManifest || len(c.localManifestProjects) != 0 {
+		if len(c.localManifestProjects) == 0 {
+			c.localManifestProjects, err = getDefaultLocalManifestProjects(jirix)
+			if err != nil {
+				return err
+			}
+		}
 		projects, _, _, err = project.LoadUpdatedManifest(jirix, projects, c.localManifestProjects)
 		if err := project.FilterOptionalProjectsPackages(jirix, jirix.FetchingAttrs, projects, nil); err != nil {
 			return err
