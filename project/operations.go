@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"hash/fnv"
 	"io"
-	"io/ioutil"
 	"maps"
 	"os"
 	"path"
@@ -410,21 +409,44 @@ func (op moveOperation) Test(jirix *jiri.X) error {
 		}
 		return fmtError(err)
 	}
+
 	if _, err := os.Stat(op.destination); err != nil {
 		if !os.IsNotExist(err) {
 			return fmtError(err)
 		}
-	} else {
-		// Check if the destination is our parent, and if we are the only child.
-		// This allows `jiri` to move repositories up a directory.
-		files, err := ioutil.ReadDir(op.destination)
-		if err != nil {
-			return fmtError(err)
-		}
-		if len(files) > 1 || (len(files) > 0 && filepath.Join(op.destination, files[0].Name()) != op.source) {
+		// The destination doesn't exist so the move should succeed, no further
+		// validation necessary.
+		return nil
+	}
+
+	// If we get here, it means the destination already exists. This may be
+	// acceptable under certain conditions, which we proceed to check for.
+
+	// Check if the project is being moved down a directory, i.e. the
+	// destination is a subdirectory of the source.
+	// TODO(olivernewman): This is only safe as long as the source directory
+	// doesn't contain any nested projects, since any nested projects will also
+	// be moved even if their paths were not updated. In practice it should be
+	// quite rare to change the path of a project that contains nested projects,
+	// so we don't bother handling that case.
+	if strings.HasPrefix(op.destination, op.source+string(filepath.Separator)) {
+		return nil
+	}
+
+	// Check if the project is being moved up a directory.
+	files, err := os.ReadDir(op.destination)
+	if err != nil {
+		return fmtError(err)
+	}
+	for _, file := range files {
+		// If we find any file in the destination directory besides the source
+		// directory, it's not safe to move the source directory to the
+		// destination.
+		if filepath.Join(op.destination, file.Name()) != op.source {
 			return fmt.Errorf("cannot move %q to %q as the destination already exists", op.source, op.destination)
 		}
 	}
+
 	return nil
 }
 

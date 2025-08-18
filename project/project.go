@@ -2619,11 +2619,13 @@ func updateProjects(jirix *jiri.X, localProjects, remoteProjects Projects, hooks
 		opType := fmt.Sprintf("%T", batchOps[0])
 		batchOps = batchOps[1:]
 		for len(batchOps) > 0 && opType == fmt.Sprintf("%T", batchOps[0]) {
-			if err := batchOps[0].Test(jirix); err != nil {
-				return err
-			}
 			batch = append(batch, batchOps[0])
 			batchOps = batchOps[1:]
+		}
+		for _, op := range batch {
+			if err := op.Test(jirix); err != nil {
+				return err
+			}
 		}
 		if err := runBatch(jirix, params.GC, batch); err != nil {
 			return err

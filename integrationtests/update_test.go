@@ -6,6 +6,7 @@ package integrationtests
 
 import (
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -462,4 +463,51 @@ func TestUpdateOnlyImport(t *testing.T) {
 	if newRev != oldRev {
 		t.Errorf("Root project revision incorrect; want %q, got %q. Git log:\n%s", oldRev, newRev, log)
 	}
+}
+
+// Test that it's possible to change the path of a project to a subdirectory of
+// the old path, even if that subdirectory already existed.
+func TestMovingProjectIntoSubdir(t *testing.T) {
+	t.Parallel()
+
+	aRemoteDir := t.TempDir()
+	setupGitRepo(t, aRemoteDir, map[string]any{
+		// project A contains a "src" subdirectory, which shouldn't stop us from
+		// moving project A into the "src" subdirectory of its original
+		// path.
+		"src/foo.txt": "foo\n",
+	})
+
+	bRemoteDir := t.TempDir()
+	setupGitRepo(t, bRemoteDir, map[string]any{
+		"manifest": project.Manifest{
+			Projects: []project.Project{
+				{
+					Name:   "a",
+					Path:   "path_to_a",
+					Remote: aRemoteDir,
+				},
+			},
+		},
+	})
+
+	root := t.TempDir()
+	jiri := jiriInit(t, root)
+	jiri("import", "manifest", bRemoteDir)
+	jiri("update")
+	checkDirContents(t, root, []string{
+		"path_to_a/src/foo.txt",
+	})
+
+	manifestPath := filepath.Join(bRemoteDir, "manifest")
+	manifestContents := readFile(t, manifestPath)
+	// Update project a's path from `path_to_a` to `path_to_a/src`, which is a
+	// directory that already exists (but as a subdirectory of project a).
+	writeFile(t, manifestPath, strings.ReplaceAll(manifestContents, "path_to_a", "path_to_a/src"))
+	runSubprocess(t, bRemoteDir, "git", "commit", "-am", "Update project a's path")
+
+	jiri("update")
+	checkDirContents(t, root, []string{
+		"path_to_a/src/src/foo.txt",
+	})
 }
