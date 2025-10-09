@@ -403,12 +403,22 @@ func Ensure(jirix *jiri.X, file, projectRoot string, timeout uint) error {
 		"-max-threads", strconv.Itoa(jirix.CipdMaxThreads),
 	}
 
-	if (jirix.Logger.LoggerLevel <= log.WarningLevel) || (!jirix.Logger.IsProgressEnabled()) {
-		// If jiri is running with -quiet or -show-progess=false, use cipd's "warning" log-level.
+	if jirix.Logger.LoggerLevel <= log.WarningLevel {
+		// If jiri is running with -quiet, use cipd's "warning" log-level.
 		args = append(args, "-log-level", "warning")
 	} else if jirix.Logger.LoggerLevel >= log.DebugLevel {
 		// If jiri is running with -v or louder, use cipd's "debug" log-level.
 		args = append(args, "-log-level", "debug")
+	}
+
+	env := os.Environ()
+	// Add User-Agent info for cipd
+	env = append(env, "CIPD_HTTP_USER_AGENT_PREFIX="+getUserAgent())
+	if !jirix.Logger.IsProgressEnabled() {
+		// Force CIPD to use the simple UI (without progress bars) when Jiri
+		// progress bars are disabled. See
+		// https://chromium.googlesource.com/infra/luci/luci-go/+/59c5d4cd5499a35251cad9e0bcad659766f0e411/cipd/client/cli/main.go#70
+		env = append(env, "CIPD_SIMPLE_TERMINAL_UI=1")
 	}
 
 	task := jirix.Logger.AddTaskMsg("Fetching CIPD packages")
@@ -417,8 +427,7 @@ func Ensure(jirix *jiri.X, file, projectRoot string, timeout uint) error {
 
 	// Construct arguments and invoke cipd for ensure file
 	command := exec.CommandContext(ctx, jirix.CIPDPath(), args...)
-	// Add User-Agent info for cipd
-	command.Env = append(os.Environ(), "CIPD_HTTP_USER_AGENT_PREFIX="+getUserAgent())
+	command.Env = env
 	command.Stdin = os.Stdin
 	command.Stdout = os.Stdout
 	command.Stderr = os.Stderr
