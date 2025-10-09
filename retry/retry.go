@@ -33,14 +33,14 @@ const (
 )
 
 type exponentialBackoff struct {
-	InitialInterval float64
-	MaxInterval     float64
+	InitialInterval time.Duration
+	MaxInterval     time.Duration
 	Multiplier      float64
 	Iteration       int
 	Rand            *rand.Rand
 }
 
-func newExponentialBackoff(initialInterval float64, maxInterval float64, multiplier float64) *exponentialBackoff {
+func newExponentialBackoff(initialInterval time.Duration, maxInterval time.Duration, multiplier float64) *exponentialBackoff {
 	e := &exponentialBackoff{
 		InitialInterval: initialInterval,
 		MaxInterval:     maxInterval,
@@ -52,12 +52,14 @@ func newExponentialBackoff(initialInterval float64, maxInterval float64, multipl
 }
 
 func (e *exponentialBackoff) nextBackoff() time.Duration {
-	next := e.InitialInterval*math.Pow(e.Multiplier, float64(e.Iteration)) + 10*e.Rand.Float64()
+	const randomOffsetBase = 10 * time.Second
+	next := time.Duration(float64(e.InitialInterval)*math.Pow(e.Multiplier, float64(e.Iteration)) +
+		float64(randomOffsetBase)*e.Rand.Float64())
 	e.Iteration++
 	if next > e.MaxInterval {
 		next = e.MaxInterval
 	}
-	return time.Duration(float64(time.Second) * next)
+	return next
 }
 
 // Function retries the given function for the given number of
@@ -73,7 +75,8 @@ func Function(jirix *jiri.X, fn func() error, task string, opts ...RetryOpt) err
 		}
 	}
 
-	backoff := newExponentialBackoff(float64(interval), 64, 2)
+	const maxInterval = 64 * time.Second
+	backoff := newExponentialBackoff(interval, maxInterval, 2 /* multiplier */)
 	var err error
 	for i := 1; i <= attempts; i++ {
 		if i > 1 {
