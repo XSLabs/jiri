@@ -9,13 +9,10 @@ import (
 	"fmt"
 )
 
-// LINT.IfChange
 var (
 	GitCommit string
 	BuildTime string
 )
-
-// LINT.ThenChange(isatty/isatty.go)
 
 func FormattedVersion() string {
 	var versionString bytes.Buffer
