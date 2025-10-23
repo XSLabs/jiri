@@ -9,7 +9,6 @@ package retry
 import (
 	"fmt"
 	"math"
-	"math/rand"
 	"time"
 
 	"go.fuchsia.dev/jiri"
@@ -37,7 +36,6 @@ type exponentialBackoff struct {
 	MaxInterval     time.Duration
 	Multiplier      float64
 	Iteration       int
-	Rand            *rand.Rand
 }
 
 func newExponentialBackoff(initialInterval time.Duration, maxInterval time.Duration, multiplier float64) *exponentialBackoff {
@@ -46,15 +44,12 @@ func newExponentialBackoff(initialInterval time.Duration, maxInterval time.Durat
 		MaxInterval:     maxInterval,
 		Multiplier:      multiplier,
 		Iteration:       0,
-		Rand:            rand.New(rand.NewSource(time.Now().UnixNano())),
 	}
 	return e
 }
 
 func (e *exponentialBackoff) nextBackoff() time.Duration {
-	const randomOffsetBase = 10 * time.Second
-	next := time.Duration(float64(e.InitialInterval)*math.Pow(e.Multiplier, float64(e.Iteration)) +
-		float64(randomOffsetBase)*e.Rand.Float64())
+	next := time.Duration(float64(e.InitialInterval)*math.Pow(e.Multiplier, float64(e.Iteration)))
 	e.Iteration++
 	if next > e.MaxInterval {
 		next = e.MaxInterval
