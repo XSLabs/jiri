@@ -310,8 +310,6 @@ func TestUpdateDuplicateRevision(t *testing.T) {
 `
 
 	for k, v := range tests {
-		k := k
-		v := v
 		t.Run(fmt.Sprintf("%v", k), func(t *testing.T) {
 			t.Parallel()
 			if res, err := updateRevision(manifestContent, "project", k.OldRev, k.NewRev, k.Name); err != nil {

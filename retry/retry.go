@@ -51,10 +51,7 @@ func newExponentialBackoff(initialInterval time.Duration, maxInterval time.Durat
 func (e *exponentialBackoff) nextBackoff() time.Duration {
 	next := time.Duration(float64(e.InitialInterval)*math.Pow(e.Multiplier, float64(e.Iteration)))
 	e.Iteration++
-	if next > e.MaxInterval {
-		next = e.MaxInterval
-	}
-	return next
+	return min(next, e.MaxInterval)
 }
 
 // Function retries the given function for the given number of

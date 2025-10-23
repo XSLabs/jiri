@@ -39,7 +39,6 @@ func TestErrToExitStatus(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			tc := tc
 			t.Parallel()
 			got := errToExitStatus(context.Background(), tc.err)
 			if got != tc.want {
