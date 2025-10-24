@@ -38,7 +38,7 @@ func TestResolveProjects(t *testing.T) {
 		t.Fatalf("%+v", err)
 	}
 
-	projLocks, _, err := project.UnmarshalLockEntries(data)
+	projLocks, _, _, err := project.UnmarshalLockEntries(data)
 	if err != nil {
 		t.Fatalf("parse generated lockfile failed due to error: %v", err)
 	}
@@ -118,7 +118,7 @@ func TestResolvePackages(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read generated lockfile failed due to error: %v", err)
 	}
-	_, pkgLocks, err := project.UnmarshalLockEntries(data)
+	_, pkgLocks, _, err := project.UnmarshalLockEntries(data)
 	if err != nil {
 		t.Fatalf("parse generated lockfile failed due to error: %v", err)
 	}
@@ -128,7 +128,7 @@ func TestResolvePackages(t *testing.T) {
 	for _, v := range expectedLocks {
 		if pkgLock, ok := pkgLocks[v.Key()]; ok {
 			if pkgLock != v {
-				t.Errorf("expecting instance id %q for package %q, got %q", v.InstanceID, v.PackageName, pkgLock.InstanceID)
+				t.Errorf("expecting instance id %v for package %q, got %v", v, v.PackageName, pkgLock)
 			}
 		} else {
 			t.Errorf("package %q not found in generated lockfile", v.PackageName)
@@ -224,7 +224,7 @@ func TestResolvePackagesPartial(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read generated lockfile failed due to error: %v", err)
 	}
-	_, pkgLocks, err := project.UnmarshalLockEntries(data)
+	_, pkgLocks, _, err := project.UnmarshalLockEntries(data)
 	if err != nil {
 		t.Fatalf("parse generated lockfile failed due to error: %v", err)
 	}
@@ -234,7 +234,7 @@ func TestResolvePackagesPartial(t *testing.T) {
 	for _, v := range expectedLocks {
 		if pkgLock, ok := pkgLocks[v.Key()]; ok {
 			if pkgLock != v {
-				t.Errorf("expecting instance id %q for package %q, got %q", v.InstanceID, v.PackageName, pkgLock.InstanceID)
+				t.Errorf("expecting instance %v for package %q, got %v", v, v.PackageName, pkgLock)
 			}
 		} else {
 			t.Errorf("package %q not found in generated lockfile", v.PackageName)
