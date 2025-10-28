@@ -2296,15 +2296,19 @@ func TestMarshalAndUnmarshalLockEntries(t *testing.T) {
 		pkgLock0.Key(): pkgLock0,
 	}
 
-	jsonData, err := project.MarshalLockEntries(testProjectLocks0, testPkgLocks0)
+	jsonData, err := project.MarshalLockEntries(testProjectLocks0, testPkgLocks0, "0.0")
 
 	if err != nil {
 		t.Errorf("marshalling lockfile failed due to error: %v", err)
 	}
 
-	projectLocks, pkgLocks, err := project.UnmarshalLockEntries(jsonData)
+	projectLocks, pkgLocks, version, err := project.UnmarshalLockEntries(jsonData)
 	if err != nil {
 		t.Errorf("unmarshalling lockfile failed due to error: %v", err)
+	}
+
+	if version != "0.0" {
+		t.Errorf("unmarshalled lockfile version does not match test data, expecting %q, got %q", "0.0", version)
 	}
 
 	if !reflect.DeepEqual(projectLocks, testProjectLocks0) {
@@ -2313,6 +2317,64 @@ func TestMarshalAndUnmarshalLockEntries(t *testing.T) {
 
 	if !reflect.DeepEqual(pkgLocks, testPkgLocks0) {
 		t.Errorf("unmarshalled locks do not match test data, expecting %v, got %v", testPkgLocks0, pkgLocks)
+	}
+
+	jsonDataV1 := []byte(`{
+		"version": "1.0",
+		"projects": [
+			{
+				"repository_url": "https://fuchsia.googlesource.com/fuchsia",
+				"name": "fuchsia",
+				"revision": "abcdef123456"
+			}
+		],
+		"packages": [
+			{
+				"package": "fuchsia/go/mac-amd64",
+				"version": "git_revision:b8bd7d94a2ae6c80ab8b6ed5900d3eeba8a777c3",
+				"instance_id": "3c33b55c1a75b900536c91181805bb8668857341",
+				"path": "prebuilt/tools/go/mac-x64",
+				"attributes": "os:mac,arch:x64"
+			}
+		]
+	}`)
+
+	projectLocksV1, pkgLocksV1, versionV1, err := project.UnmarshalLockEntries(jsonDataV1)
+	if err != nil {
+		t.Errorf("unmarshalling lockfile v1 failed due to error: %v", err)
+	}
+
+	if versionV1 != "1.0" {
+		t.Errorf("unmarshalled lockfile version v1 does not match test data, expecting %q, got %q", "1.0", versionV1)
+	}
+
+	projectLock0 = project.ProjectLock{
+		Remote:   "https://fuchsia.googlesource.com/fuchsia",
+		Name:     "fuchsia",
+		Revision: "abcdef123456",
+	}
+
+	pkgLock0 = project.PackageLock{
+		PackageName: "fuchsia/go/mac-amd64",
+		VersionTag:  "git_revision:b8bd7d94a2ae6c80ab8b6ed5900d3eeba8a777c3",
+		InstanceID:  "3c33b55c1a75b900536c91181805bb8668857341",
+		LocalPath:   "prebuilt/tools/go/mac-x64",
+		Attributes:  "os:mac,arch:x64",
+	}
+
+	testProjectLocksV1 := project.ProjectLocks{
+		projectLock0.Key(): projectLock0,
+	}
+	testPkgLocksV1 := project.PackageLocks{
+		pkgLock0.Key(): pkgLock0,
+	}
+
+	if !reflect.DeepEqual(projectLocksV1, testProjectLocksV1) {
+		t.Errorf("unmarshalled project locks v1 do not match test data, expecting %v, got %v", testProjectLocksV1, projectLocksV1)
+	}
+
+	if !reflect.DeepEqual(pkgLocksV1, testPkgLocksV1) {
+		t.Errorf("unmarshalled package locks v1 do not match test data, expecting %v, got %v", testPkgLocksV1, pkgLocksV1)
 	}
 
 	jsonData = []byte(`
@@ -2329,7 +2391,7 @@ func TestMarshalAndUnmarshalLockEntries(t *testing.T) {
 	}
 ]`)
 
-	if _, _, err := project.UnmarshalLockEntries(jsonData); err == nil {
+	if _, _, _, err := project.UnmarshalLockEntries(jsonData); err == nil {
 		t.Errorf("unmarshalling lockfile with conflicting data should fail but it did not happen")
 	} else {
 		if !strings.Contains(err.Error(), "has more than 1") {

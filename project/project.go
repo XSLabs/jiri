@@ -447,6 +447,7 @@ type PackageLock struct {
 	LocalPath   string `json:"path,omitempty"`
 	VersionTag  string `json:"version"`
 	InstanceID  string `json:"instance_id"`
+	Attributes  string `json:"attributes,omitempty"`
 }
 
 // PackageLockKey defines the key used in PackageLocks type
@@ -486,15 +487,58 @@ type ResolveConfig interface {
 	FullResolve() bool
 }
 
+// LockFile represents the structure of the lock file.
+type LockFile struct {
+	Version  string        `json:"version"`
+	Projects []ProjectLock `json:"projects,omitempty"`
+	Packages []PackageLock `json:"packages,omitempty"`
+}
+
 // UnmarshalLockEntries unmarshals project locks and package locks from
 // jsonData.
-func UnmarshalLockEntries(jsonData []byte) (ProjectLocks, PackageLocks, error) {
+func UnmarshalLockEntries(jsonData []byte) (ProjectLocks, PackageLocks, string, error) {
 	projectLocks := make(ProjectLocks)
 	pkgLocks := make(PackageLocks)
 	var entries []map[string]string
-	if err := json.Unmarshal(jsonData, &entries); err != nil {
-		return nil, nil, err
+	var version string
+
+	// Attempt to unmarshal as new format
+	var lockfile LockFile
+	if err := json.Unmarshal(jsonData, &lockfile); err == nil {
+		version = lockfile.Version
+		for _, p := range lockfile.Projects {
+			if v, ok := projectLocks[p.Key()]; ok {
+				if v != p {
+					return nil, nil, "", fmt.Errorf("package %q has more than 1 revision lock %q, %q", p.Remote, v.Revision, p.Revision)
+				}
+			}
+			projectLocks[p.Key()] = p
+		}
+		for _, p := range lockfile.Packages {
+			if v, ok := pkgLocks[p.Key()]; ok {
+				// HACK: allow the same package to be pinned to the same version
+				// at two different paths by only checking equality of the
+				// InstanceID instead of the entire structs.
+				//
+				// A better way to do this would be to include the `LocalPath`
+				// in the inputs to the PackageLock key, but that would require
+				// adding `path` fields to all existing lockfiles.
+				if v.InstanceID != p.InstanceID {
+					return nil, nil, "", fmt.Errorf("package %q has more than 1 version lock %q, %q", p.PackageName, v.InstanceID, p.InstanceID)
+				}
+			}
+			pkgLocks[p.Key()] = p
+		}
+		return projectLocks, pkgLocks, version, nil
 	}
+
+	// Attempt to unmarshal as old format
+	if err := json.Unmarshal(jsonData, &entries); err == nil {
+		version = "0.0"
+	} else {
+		return nil, nil, "", fmt.Errorf("invalid lock file format: failed to unmarshal as LockFile or list: %v", err)
+	}
+
 	for _, entry := range entries {
 		if pkgName, ok := entry["package"]; ok {
 			pkgLock := PackageLock{
@@ -502,6 +546,7 @@ func UnmarshalLockEntries(jsonData []byte) (ProjectLocks, PackageLocks, error) {
 				VersionTag:  entry["version"],
 				InstanceID:  entry["instance_id"],
 				LocalPath:   entry["path"],
+				Attributes:  entry["attributes"],
 			}
 			if v, ok := pkgLocks[pkgLock.Key()]; ok {
 				// HACK: allow the same package to be pinned to the same version
@@ -512,7 +557,7 @@ func UnmarshalLockEntries(jsonData []byte) (ProjectLocks, PackageLocks, error) {
 				// in the inputs to the PackageLock key, but that would require
 				// adding `path` fields to all existing lockfiles.
 				if v.InstanceID != pkgLock.InstanceID {
-					return nil, nil, fmt.Errorf("package %q has more than 1 version lock %q, %q", pkgName, v.InstanceID, pkgLock.InstanceID)
+					return nil, nil, "", fmt.Errorf("package %q has more than 1 version lock %q, %q", pkgName, v.InstanceID, pkgLock.InstanceID)
 				}
 			}
 			pkgLocks[pkgLock.Key()] = pkgLock
@@ -524,19 +569,19 @@ func UnmarshalLockEntries(jsonData []byte) (ProjectLocks, PackageLocks, error) {
 			}
 			if v, ok := projectLocks[projectLock.Key()]; ok {
 				if v != projectLock {
-					return nil, nil, fmt.Errorf("package %q has more than 1 revision lock %q, %q", repoURL, v.Revision, projectLock.Revision)
+					return nil, nil, "", fmt.Errorf("project %q has more than 1 revision lock %q, %q", repoURL, v.Revision, projectLock.Revision)
 				}
 			}
 			projectLocks[projectLock.Key()] = projectLock
 		}
 		// Ignore unknown lockfile entries without raising an error
 	}
-	return projectLocks, pkgLocks, nil
+	return projectLocks, pkgLocks, version, nil
 }
 
 // MarshalLockEntries marshals project locks and package locks into
 // json format data.
-func MarshalLockEntries(projectLocks ProjectLocks, pkgLocks PackageLocks) ([]byte, error) {
+func MarshalLockEntries(projectLocks ProjectLocks, pkgLocks PackageLocks, version string) ([]byte, error) {
 	entries := make([]any, len(projectLocks)+len(pkgLocks))
 	projEntries := make([]ProjectLock, len(projectLocks))
 	pkgEntries := make([]PackageLock, len(pkgLocks))
@@ -578,7 +623,19 @@ func MarshalLockEntries(projectLocks ProjectLocks, pkgLocks PackageLocks) ([]byt
 		i++
 	}
 
-	jsonData, err := json.MarshalIndent(&entries, "", "    ")
+	var jsonData []byte
+	var err error
+	if version == "0.0" {
+		jsonData, err = json.MarshalIndent(&entries, "", "    ")
+	} else {
+		lock := LockFile{
+			Version:  version,
+			Projects: projEntries,
+			Packages: pkgEntries,
+		}
+		jsonData, err = json.MarshalIndent(&lock, "", "    ")
+	}
+
 	if err != nil {
 		return nil, err
 	}
@@ -1187,8 +1244,8 @@ func loadManifestFiles(jirix *jiri.X, manifestFiles []string, localManifestProje
 	return allProjects, allPkgs, nil
 }
 
-func writeLockFile(jirix *jiri.X, lockfilePath string, projectLocks ProjectLocks, pkgLocks PackageLocks) error {
-	data, err := MarshalLockEntries(projectLocks, pkgLocks)
+func writeLockFile(jirix *jiri.X, lockfilePath string, projectLocks ProjectLocks, pkgLocks PackageLocks, version string) error {
+	data, err := MarshalLockEntries(projectLocks, pkgLocks, version)
 	if err != nil {
 		return err
 	}
@@ -1332,7 +1389,7 @@ func getChangedLocksPkgs(ePkgLocks PackageLocks, pkgs Packages) (PackageLocks, P
 func GenerateJiriLockFile(jirix *jiri.X, manifestFiles []string, resolveConfig ResolveConfig) error {
 	jirix.Logger.Debugf("Generate jiri lockfile for manifests %v to %q", manifestFiles, resolveConfig.LockFilePath())
 
-	resolveLocks := func(jirix *jiri.X, manifestFiles []string, resolveFully bool, ePkgLocks PackageLocks) (projectLocks ProjectLocks, pkgLocks PackageLocks, err error) {
+	resolveLocks := func(jirix *jiri.X, manifestFiles []string, resolveFully bool, ePkgLocks PackageLocks, version string) (projectLocks ProjectLocks, pkgLocks PackageLocks, err error) {
 		projects, pkgs, err := loadManifestFiles(jirix, manifestFiles, resolveConfig.LocalManifestProjects())
 		if err != nil {
 			return nil, nil, err
@@ -1388,20 +1445,6 @@ func GenerateJiriLockFile(jirix *jiri.X, manifestFiles []string, resolveConfig R
 					}
 				}
 			}
-			pkgsWithMultiVersionsMap := make(map[string]map[string]bool)
-			for _, v := range pkgsToProcess {
-				versionMap := make(map[string]bool)
-				if _, ok := pkgsWithMultiVersionsMap[v.Name]; ok {
-					versionMap = pkgsWithMultiVersionsMap[v.Name]
-				}
-				versionMap[v.Version] = true
-				pkgsWithMultiVersionsMap[v.Name] = versionMap
-			}
-			for k := range pkgsWithMultiVersionsMap {
-				if len(pkgsWithMultiVersionsMap[k]) <= 1 {
-					delete(pkgsWithMultiVersionsMap, k)
-				}
-			}
 			pkgLocks, err = resolvePackageLocks(jirix, pkgsToProcess)
 			if err != nil {
 				return
@@ -1425,25 +1468,26 @@ func GenerateJiriLockFile(jirix *jiri.X, manifestFiles []string, resolveConfig R
 			})
 			for _, k := range pkgKeys {
 				v := pkgs[k]
-				if _, ok := pkgsWithMultiVersionsMap[v.Name]; ok {
-					plats, err := v.GetPlatforms()
-					if err != nil {
-						return nil, nil, err
+				plats, err := v.GetPlatforms()
+				if err != nil {
+					return nil, nil, err
+				}
+				expandedNames, err := cipd.Expand(v.Name, plats)
+				if err != nil {
+					return nil, nil, err
+				}
+				for _, expandedName := range expandedNames {
+					lockKey := MakePackageLockKey(expandedName, v.Version)
+					lockEntry, ok := pkgLocks[lockKey]
+					if !ok {
+						jirix.Logger.Debugf("lock key not found in pkgLocks: %v, package: %+v", lockKey, v)
+						continue
 					}
-					expandedNames, err := cipd.Expand(v.Name, plats)
-					if err != nil {
-						return nil, nil, err
-					}
-					for _, expandedName := range expandedNames {
-						lockKey := MakePackageLockKey(expandedName, v.Version)
-						lockEntry, ok := pkgLocks[lockKey]
-						if !ok {
-							jirix.Logger.Errorf("lock key not found in pkgLocks: %v, package: %+v", lockKey, v)
-							return nil, nil, err
-						}
+					if version != "0.0" {
 						lockEntry.LocalPath = v.Path
-						pkgLocks[lockKey] = lockEntry
+						lockEntry.Attributes = v.Attributes
 					}
+					pkgLocks[lockKey] = lockEntry
 				}
 			}
 		}
@@ -1452,21 +1496,25 @@ func GenerateJiriLockFile(jirix *jiri.X, manifestFiles []string, resolveConfig R
 
 	resolveFully := false
 	var ePkgLocks PackageLocks
+	var version string
 	// Read existing lockfile.
 	jsonData, err := os.ReadFile(resolveConfig.LockFilePath())
 	if err == nil {
-		_, ePkgLocks, err = UnmarshalLockEntries(jsonData)
+		_, ePkgLocks, version, err = UnmarshalLockEntries(jsonData)
 	}
 	if err != nil {
 		resolveFully = true
 	}
 	resolveFully = resolveFully || resolveConfig.FullResolve()
+	if resolveFully {
+		version = "1.0"
+	}
 
-	projectLocks, pkgLocks, err := resolveLocks(jirix, manifestFiles, resolveFully, ePkgLocks)
+	projectLocks, pkgLocks, err := resolveLocks(jirix, manifestFiles, resolveFully, ePkgLocks, version)
 	if err != nil {
 		return err
 	}
-	return writeLockFile(jirix, resolveConfig.LockFilePath(), projectLocks, pkgLocks)
+	return writeLockFile(jirix, resolveConfig.LockFilePath(), projectLocks, pkgLocks, version)
 }
 
 type UpdateUniverseParams struct {

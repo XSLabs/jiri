@@ -38,7 +38,7 @@ func TestResolveProjects(t *testing.T) {
 		t.Fatalf("%+v", err)
 	}
 
-	projLocks, _, err := project.UnmarshalLockEntries(data)
+	projLocks, _, _, err := project.UnmarshalLockEntries(data)
 	if err != nil {
 		t.Fatalf("parse generated lockfile failed due to error: %v", err)
 	}
@@ -83,21 +83,25 @@ func TestResolvePackages(t *testing.T) {
 			PackageName: "gn/gn/linux-amd64",
 			VersionTag:  "git_revision:bdb0fd02324b120cacde634a9235405061c8ea06",
 			InstanceID:  "0uGjKAZkJXPZjtYktgEwHiNbwsut_qRsk7ZCGGxi82IC",
+			LocalPath: "buildtools/{{.OS}}-x64",
 		},
 		{
 			PackageName: "gn/gn/mac-amd64",
 			VersionTag:  "git_revision:bdb0fd02324b120cacde634a9235405061c8ea06",
 			InstanceID:  "rN2F641yR4Bj-H1q8OwC_RiqRpUYxy3hryzRfPER9wcC",
+			LocalPath: "buildtools/{{.OS}}-x64",
 		},
 		{
 			PackageName: "infra/tools/luci/vpython/linux-amd64",
 			VersionTag:  "git_revision:9a931a5307c46b16b1c12e01e8239d4a73830b89",
 			InstanceID:  "uCjugbKg6wMIF6_H_BHECZQdcGRebhnZ6LzSodPHQ7AC",
+			LocalPath: "buildtools/{{.OS}}-x64",
 		},
 		{
 			PackageName: "infra/tools/luci/vpython/mac-amd64",
 			VersionTag:  "git_revision:9a931a5307c46b16b1c12e01e8239d4a73830b89",
 			InstanceID:  "yAdok-mh5vfwq1vCAHprmejM9iE7R1t9Wn6RxrWmAAEC",
+			LocalPath: "buildtools/{{.OS}}-x64",
 		},
 	}
 	if err := os.WriteFile(fakeroot.X.JiriManifestFile(), pkgData, 0644); err != nil {
@@ -118,7 +122,7 @@ func TestResolvePackages(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read generated lockfile failed due to error: %v", err)
 	}
-	_, pkgLocks, err := project.UnmarshalLockEntries(data)
+	_, pkgLocks, _, err := project.UnmarshalLockEntries(data)
 	if err != nil {
 		t.Fatalf("parse generated lockfile failed due to error: %v", err)
 	}
@@ -128,7 +132,7 @@ func TestResolvePackages(t *testing.T) {
 	for _, v := range expectedLocks {
 		if pkgLock, ok := pkgLocks[v.Key()]; ok {
 			if pkgLock != v {
-				t.Errorf("expecting instance id %q for package %q, got %q", v.InstanceID, v.PackageName, pkgLock.InstanceID)
+				t.Errorf("expecting instance id %v for package %q, got %v", v, v.PackageName, pkgLock)
 			}
 		} else {
 			t.Errorf("package %q not found in generated lockfile", v.PackageName)
@@ -224,7 +228,7 @@ func TestResolvePackagesPartial(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read generated lockfile failed due to error: %v", err)
 	}
-	_, pkgLocks, err := project.UnmarshalLockEntries(data)
+	_, pkgLocks, _, err := project.UnmarshalLockEntries(data)
 	if err != nil {
 		t.Fatalf("parse generated lockfile failed due to error: %v", err)
 	}
@@ -234,7 +238,7 @@ func TestResolvePackagesPartial(t *testing.T) {
 	for _, v := range expectedLocks {
 		if pkgLock, ok := pkgLocks[v.Key()]; ok {
 			if pkgLock != v {
-				t.Errorf("expecting instance id %q for package %q, got %q", v.InstanceID, v.PackageName, pkgLock.InstanceID)
+				t.Errorf("expecting instance %v for package %q, got %v", v, v.PackageName, pkgLock)
 			}
 		} else {
 			t.Errorf("package %q not found in generated lockfile", v.PackageName)

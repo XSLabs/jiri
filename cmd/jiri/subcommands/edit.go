@@ -171,7 +171,7 @@ func updateLocks(jirix *jiri.X, tempDir, lockfile string, backup, projects map[s
 		return err
 	}
 
-	projectLocks, packageLocks, err := project.UnmarshalLockEntries(bin)
+	projectLocks, packageLocks, version, err := project.UnmarshalLockEntries(bin)
 	if err != nil {
 		return err
 	}
@@ -196,7 +196,7 @@ func updateLocks(jirix *jiri.X, tempDir, lockfile string, backup, projects map[s
 			return err
 		}
 		backup[lockfile] = backupName
-		ebin, err := project.MarshalLockEntries(projectLocks, packageLocks)
+		ebin, err := project.MarshalLockEntries(projectLocks, packageLocks, version)
 		if err != nil {
 			return err
 		}

@@ -428,7 +428,7 @@ func (ld *loader) loadLockFile(jirix *jiri.X, repoPath, dir, lockFileName, ref s
 }
 
 func (ld *loader) parseLockData(jirix *jiri.X, data []byte) error {
-	projectLocks, pkgLocks, err := UnmarshalLockEntries(data)
+	projectLocks, pkgLocks, _, err := UnmarshalLockEntries(data)
 	if err != nil {
 		return err
 	}
