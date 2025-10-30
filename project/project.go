@@ -1334,7 +1334,7 @@ func getChangedLocksPkgs(ePkgLocks PackageLocks, pkgs Packages) (PackageLocks, P
 		if err != nil {
 			return nil, nil, err
 		}
-		expandedNames, err := cipd.Expand(v.Name, plats)
+		expandedNames, err := cipd.ResolvePlatforms(v.Name, plats)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -1467,25 +1467,25 @@ func GenerateJiriLockFile(jirix *jiri.X, manifestFiles []string, resolveConfig R
 				return pkgKeys[i].Less(pkgKeys[j])
 			})
 			for _, k := range pkgKeys {
-				v := pkgs[k]
-				plats, err := v.GetPlatforms()
+				pkg := pkgs[k]
+				plats, err := pkg.GetPlatforms()
 				if err != nil {
 					return nil, nil, err
 				}
-				expandedNames, err := cipd.Expand(v.Name, plats)
+				expandedNames, err := cipd.ResolvePlatforms(pkg.Name, plats)
 				if err != nil {
 					return nil, nil, err
 				}
 				for _, expandedName := range expandedNames {
-					lockKey := MakePackageLockKey(expandedName, v.Version)
+					lockKey := MakePackageLockKey(expandedName, pkg.Version)
 					lockEntry, ok := pkgLocks[lockKey]
 					if !ok {
-						jirix.Logger.Debugf("lock key not found in pkgLocks: %v, package: %+v", lockKey, v)
+						jirix.Logger.Debugf("lock key not found in pkgLocks: %v, package: %+v", lockKey, pkg)
 						continue
 					}
 					if version != "0.0" {
-						lockEntry.LocalPath = v.Path
-						lockEntry.Attributes = v.Attributes
+						lockEntry.LocalPath = pkg.Path
+						lockEntry.Attributes = pkg.Attributes
 					}
 					pkgLocks[lockKey] = lockEntry
 				}

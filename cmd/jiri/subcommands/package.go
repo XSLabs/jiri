@@ -98,7 +98,7 @@ func (c *packageCmd) run(jirix *jiri.X, args []string) error {
 	info := make([]packageInfoOutput, 0)
 	for _, key := range keys {
 		pkg := pkgs[key]
-		pkgPath, err := pkg.GetPath()
+		pkgPath, err := pkg.ResolvePath()
 		if err != nil {
 			return err
 		}
@@ -109,7 +109,7 @@ func (c *packageCmd) run(jirix *jiri.X, args []string) error {
 		var subdirBuf bytes.Buffer
 		// subdir is using fuchsia platform format instead of
 		// using cipd platform format
-		tmpl.Execute(&subdirBuf, cipd.FuchsiaPlatform(cipd.CipdPlatform))
+		tmpl.Execute(&subdirBuf, cipd.FuchsiaPlatform(cipd.CurrentPlatform))
 		pkgPath = filepath.Join(jirix.Root, subdirBuf.String())
 
 		platforms, err := pkg.GetPlatforms()

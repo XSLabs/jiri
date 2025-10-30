@@ -176,7 +176,7 @@ func TestSelfUpdate(t *testing.T) {
 	tmpDir := t.TempDir()
 	// Bootstrap cipd to version A
 	cipdPath := path.Join(tmpDir, "cipd")
-	if err := fetchBinaryImpl(fakex, cipdPath, CipdPlatform.String(), cipdVersionForTestA, digestMapA[CipdPlatform.String()]); err != nil {
+	if err := fetchBinaryImpl(fakex, cipdPath, CurrentPlatform.String(), cipdVersionForTestA, digestMapA[CurrentPlatform.String()]); err != nil {
 		t.Fatalf("failed to bootstrap cipd with version %q: %v", cipdVersionForTestA, err)
 	}
 	// Perform cipd self update to version B
@@ -188,9 +188,9 @@ func TestSelfUpdate(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to read self-updated cipd binary: %v", err)
 	}
-	verified, err := verifyDigest(cipdData, digestMapB[CipdPlatform.String()])
+	verified, err := verifyDigest(cipdData, digestMapB[CurrentPlatform.String()])
 	if err != nil {
-		t.Fatalf("digest failed verification for platform %q on version %q", CipdPlatform.String(), cipdVersionForTestB)
+		t.Fatalf("digest failed verification for platform %q on version %q", CurrentPlatform.String(), cipdVersionForTestB)
 	}
 	if !verified {
 		t.Errorf("self-updated cipd failed integrity test")
@@ -356,7 +356,7 @@ gn/gn/${platform} git_revision:bdb0fd02324b120cacde634a9235405061c8ea06
 	}
 
 	testEnsureFile.Sync()
-	instances, err := Resolve(fakex, testEnsureFile.Name())
+	instances, err := ResolveEnsureFile(fakex, testEnsureFile.Name())
 	if err != nil {
 		t.Fatalf("resolve failed due to error: %v", err)
 	}
@@ -387,7 +387,7 @@ func TestExpand(t *testing.T) {
 	}
 
 	for k, p := range tests {
-		pkgs, err := Expand(k, platforms)
+		pkgs, err := ResolvePlatforms(k, platforms)
 		if err != nil {
 			t.Errorf("Expand faild on path %q due to error: %v", p, err)
 		}
@@ -408,8 +408,8 @@ func TestMustExpand(t *testing.T) {
 		"fuchsia/clang/linux-amd64":               false,
 	}
 	for k, v := range tests {
-		if MustExpand(k) != v {
-			t.Errorf("MustExpand failed on package %q, expecting %v got %v", k, v, MustExpand(k))
+		if IsPlatformSpecific(k) != v {
+			t.Errorf("MustExpand failed on package %q, expecting %v got %v", k, v, IsPlatformSpecific(k))
 		}
 	}
 }

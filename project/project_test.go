@@ -2418,12 +2418,12 @@ func TestGetPath(t *testing.T) {
 	}
 
 	for i, v := range testPkgs {
-		defaultPath, err := v.GetPath()
+		defaultPath, err := v.ResolvePath()
 		if err != nil {
 			t.Errorf("TestGetPath failed due to error: %v", err)
 		}
 		if strings.HasSuffix(testResults[i], "/") {
-			testResults[i] += cipd.CipdPlatform.String()
+			testResults[i] += cipd.CurrentPlatform.String()
 		}
 		if testResults[i] != defaultPath {
 			t.Errorf("expecting %q, got %q", testResults[i], defaultPath)

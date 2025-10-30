@@ -492,6 +492,10 @@ type Package struct {
 	Version string `xml:"version,attr"`
 
 	// Path stores the local path of fetched cipd package.
+	//
+	// Note that this may contain {{.OS}} and {{.Arch}} template variables if
+	// the path varies between platforms. Use `ResolvePath()` to get the actual
+	// path for the current platform.
 	Path string `xml:"path,attr,omitempty"`
 
 	// Internal marks if this package require special permission
@@ -600,14 +604,14 @@ type PackageInstance struct {
 // FillDefaults function fills default platforms information into
 // Package struct if it is not defined and path is using template.
 func (p *Package) FillDefaults() error {
-	if cipd.MustExpand(p.Name) && p.Platforms == "" {
+	if cipd.IsPlatformSpecific(p.Name) && p.Platforms == "" {
 		p.Platforms = p.defaultPlatforms()
 	}
 	return nil
 }
 
 func (p *Package) unfillDefaults() error {
-	if cipd.MustExpand(p.Name) && p.Platforms == p.defaultPlatforms() {
+	if cipd.IsPlatformSpecific(p.Name) && p.Platforms == p.defaultPlatforms() {
 		p.Platforms = ""
 	}
 	return nil
@@ -621,15 +625,23 @@ func (p *Package) defaultPlatforms() string {
 	return strings.Join(platforms, ",")
 }
 
-// GetPath returns the relative path that Package p should be
-// downloaded to.
-func (p *Package) GetPath() (string, error) {
+// ResolvePath returns the relative path that Package p should be
+// downloaded to for the *current* platform.
+func (p *Package) ResolvePath() (string, error) {
+	return p.ResolvePathForPlatform(cipd.CurrentPlatform)
+}
+
+// ResolvePathForPlatform returns the relative path that Package p should be
+// downloaded to for the given platform.
+func (p *Package) ResolvePathForPlatform(plat cipd.Platform) (string, error) {
+	// TODO(olivernewman): Is this needed? I don't think we should be having
+	// default paths, `path` should be required.
 	if p.Path == "" {
 		cipdPath := p.Name
 		// Replace template with current platform information.
 		// If failed, skip filling in default path.
-		if cipd.MustExpand(cipdPath) {
-			expanded, err := cipd.Expand(cipdPath, []cipd.Platform{cipd.CipdPlatform})
+		if cipd.IsPlatformSpecific(cipdPath) {
+			expanded, err := cipd.ResolvePlatforms(cipdPath, []cipd.Platform{plat})
 			if err != nil {
 				return "", err
 			}
@@ -637,7 +649,7 @@ func (p *Package) GetPath() (string, error) {
 				cipdPath = expanded[0]
 			}
 		}
-		if !cipd.MustExpand(cipdPath) {
+		if !cipd.IsPlatformSpecific(cipdPath) {
 			base := path.Base(cipdPath)
 			if _, err := cipd.NewPlatform(base); err == nil {
 				// base is the name for a platform
@@ -647,7 +659,22 @@ func (p *Package) GetPath() (string, error) {
 		}
 		return "prebuilt", nil
 	}
-	return p.Path, nil
+
+	// Resolve {{.OS}} and {{.Arch}} template variables, if any, in the raw
+	// path.
+	tmpl, err := template.New("packagepath").Parse(p.Path)
+	if err != nil {
+		return "", fmt.Errorf("parsing package path %q failed", p.Path)
+	}
+	var buf strings.Builder
+	// Directories use the fuchsia platform format instead of the cipd platform
+	// format. The only difference is that CIPD uses the term "amd64" whereas
+	// Fuchsia uses "x64".
+	fuchsiaPlatform := cipd.FuchsiaPlatform(plat)
+	if err := tmpl.Execute(&buf, fuchsiaPlatform); err != nil {
+		return "", err
+	}
+	return buf.String(), nil
 }
 
 // GetPlatforms returns the platforms information of
@@ -740,7 +767,7 @@ func (ld *loader) enforceLocks(jirix *jiri.X) error {
 			if err != nil {
 				return err
 			}
-			pkgs, err := cipd.Expand(v.Name, plats)
+			pkgs, err := cipd.ResolvePlatforms(v.Name, plats)
 			if err != nil {
 				return err
 			}
@@ -847,7 +874,7 @@ func resolvePackageLocks(jirix *jiri.X, pkgs Packages) (PackageLocks, error) {
 	}
 	defer os.Remove(ensureFilePath)
 
-	pkgInstances, err := cipd.Resolve(jirix, ensureFilePath)
+	pkgInstances, err := cipd.ResolveEnsureFile(jirix, ensureFilePath)
 	if err != nil {
 		return nil, err
 	}
@@ -1106,19 +1133,10 @@ func generateEnsureFile(jirix *jiri.X, pkgs Packages, ignoreCryptoCheck bool, ve
 func (p *Package) cipdDecl(jirix *jiri.X) (string, error) {
 	var buf bytes.Buffer
 	// Write "@Subdir" line to cipd declaration
-	subdir, err := p.GetPath()
+	subdir, err := p.ResolvePath()
 	if err != nil {
 		return "", err
 	}
-	tmpl, err := template.New("pack").Parse(subdir)
-	if err != nil {
-		return "", fmt.Errorf("parsing package path %q failed", subdir)
-	}
-	var subdirBuf bytes.Buffer
-	// subdir is using fuchsia platform format instead of
-	// using cipd platform format
-	tmpl.Execute(&subdirBuf, cipd.FuchsiaPlatform(cipd.CipdPlatform))
-	subdir = subdirBuf.String()
 	buf.WriteString(fmt.Sprintf("@Subdir %s\n", subdir))
 	// Write package version line to cipd declaration
 	plats, err := p.GetPlatforms()
@@ -1132,7 +1150,7 @@ func (p *Package) cipdDecl(jirix *jiri.X) (string, error) {
 		return "", err
 	}
 	if jirix.UsingSnapshot && len(p.Instances) != 0 {
-		candPath, err := cipd.Expand(p.Name, []cipd.Platform{cipd.CipdPlatform})
+		candPath, err := cipd.ResolvePlatforms(p.Name, []cipd.Platform{cipd.CurrentPlatform})
 		if err != nil {
 			return "", err
 		}
@@ -1150,7 +1168,7 @@ func (p *Package) cipdDecl(jirix *jiri.X) (string, error) {
 			// in cipd.CipdPlatform. E.g.
 			// "example/linux-${arch=amd64}" expanded with "linux-arm64".
 			// Leave a log in Debug log.
-			jirix.Logger.Debugf("cipd.Expand failed to expand cipd path %q using platforms %v", p.Name, cipd.CipdPlatform)
+			jirix.Logger.Debugf("cipd.Expand failed to expand cipd path %q using platforms %v", p.Name, cipd.CurrentPlatform)
 		}
 	}
 	buf.WriteString(fmt.Sprintf("%s %s\n", cipdPath, version))

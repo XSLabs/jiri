@@ -41,17 +41,17 @@ const (
 )
 
 var (
-	// CipdPlatform represents the current runtime platform in cipd platform notation.
-	CipdPlatform   Platform
-	cipdOS         string
-	cipdArch       string
-	selfUpdateOnce sync.Once
-	templateRE     = regexp.MustCompile(`\${[^}]*}`)
+	// CurrentPlatform represents the current runtime platform in cipd platform notation.
+	CurrentPlatform Platform
+	cipdOS          string
+	cipdArch        string
+	selfUpdateOnce  sync.Once
+	templateRE      = regexp.MustCompile(`\${[^}]*}`)
 
-	// ErrSkipTemplate may be returned from Expander.Expand to indicate that
-	// a given expansion doesn't apply to the current template parameters. For
-	// example, expanding `"foo/${os=linux,mac}"` with a template parameter of "os"
-	// == "win", would return ErrSkipTemplate.
+	// ErrSkipTemplate may be returned from Resolver.Resolve to indicate that
+	// a given resolution doesn't apply to the current template parameters. For
+	// example, resolving `"foo/${os=linux,mac}"` with a template parameter of
+	// "os" == "win", would return ErrSkipTemplate.
 	ErrSkipTemplate = errors.New("package template does not apply to the current system")
 
 	//go:embed cipd_client_version
@@ -83,17 +83,17 @@ func init() {
 	if cipdArch == "arm" {
 		cipdArch = "armv6l"
 	}
-	CipdPlatform = Platform{cipdOS, cipdArch}
+	CurrentPlatform = Platform{cipdOS, cipdArch}
 }
 
 // FetchBinary downloads CIPD to the specified path.
 func FetchBinary(jirix *jiri.X, binaryPath string) error {
 	// Fetch cipd digest
-	digest, _, err := fetchDigest(CipdPlatform.String())
+	digest, _, err := fetchDigest(CurrentPlatform.String())
 	if err != nil {
 		return err
 	}
-	return fetchBinaryImpl(jirix, binaryPath, CipdPlatform.String(), cipdVersion, digest)
+	return fetchBinaryImpl(jirix, binaryPath, CurrentPlatform.String(), cipdVersion, digest)
 }
 
 func fetchBinaryImpl(jirix *jiri.X, binaryPath, platform, version, digest string) error {
@@ -491,9 +491,9 @@ type PackageInstance struct {
 	InstanceID  string
 }
 
-// Resolve runs cipd binary's ensure-file-resolve functionality over file.
-// It returns a slice containing resolved packages and cipd instance ids.
-func Resolve(jirix *jiri.X, file string) ([]PackageInstance, error) {
+// ResolveEnsureFile runs cipd binary's ensure-file-resolve functionality over
+// file.  It returns a slice containing resolved packages and cipd instance ids.
+func ResolveEnsureFile(jirix *jiri.X, file string) ([]PackageInstance, error) {
 	if err := Bootstrap(jirix); err != nil {
 		return nil, err
 	}
@@ -668,40 +668,40 @@ func (p Platform) String() string {
 	return p.OS + "-" + p.Arch
 }
 
-// Expander returns an Expander populated with p's fields.
-func (p Platform) Expander() Expander {
-	return Expander{
+// Resolver returns an Resolver populated with p's fields.
+func (p Platform) Resolver() Resolver {
+	return Resolver{
 		"os":       p.OS,
 		"arch":     p.Arch,
 		"platform": p.String(),
 	}
 }
 
-// Expander is a mapping of simple string substitutions which is used to
-// expand cipd package name templates. For example:
+// Resolver is a mapping of simple string substitutions which is used to
+// resolve cipd package name templates. For example:
 //
-//	ex, err := template.Expander{
+//	ex, err := template.Resolver{
 //	  "platform": "mac-amd64"
-//	}.Expand("foo/${platform}")
+//	}.Resolve("foo/${platform}")
 //
 // `ex` would be "foo/mac-amd64".
-type Expander map[string]string
+type Resolver map[string]string
 
-// Expand applies package template expansion rules to the package template,
+// Resolve applies package template resolution rules to the package template,
 //
 // If err == ErrSkipTemplate, that means that this template does not apply to
 // this os/arch combination and should be skipped.
 //
-// The expansion rules are as follows:
+// The resolution rules are as follows:
 //   - "some text" will pass through unchanged
 //   - "${variable}" will directly substitute the given variable
 //   - "${variable=val1,val2}" will substitute the given variable, if its value
 //     matches one of the values in the list of values. If the current value
 //     does not match, this returns ErrSkipTemplate.
 //
-// Attempting to expand an unknown variable is an error.
-// After expansion, any lingering '$' in the template is an error.
-func (t Expander) Expand(template string) (pkg string, err error) {
+// Attempting to resolve an unknown variable is an error.
+// After resolution, any lingering '$' in the template is an error.
+func (t Resolver) Resolve(template string) (pkg string, err error) {
 	skip := false
 
 	pkg = templateRE.ReplaceAllStringFunc(template, func(parm string) string {
@@ -742,19 +742,18 @@ func (t Expander) Expand(template string) (pkg string, err error) {
 	return
 }
 
-// Expand method expands a cipdPath that contains templates such as ${platform}
-// into concrete full paths. It might return an empty slice if platforms
-// do not match the requirements in cipdPath.
-func Expand(cipdPath string, platforms []Platform) ([]string, error) {
+// ResolvePlatforms method resolves a cipdPath that contains templates such as
+// ${platform} into concrete full paths. It might return an empty slice if
+// platforms do not match the requirements in cipdPath.
+func ResolvePlatforms(cipdPath string, platforms []Platform) ([]string, error) {
 	output := make([]string, 0)
-	//expanders := make([]Expander, 0)
-	if !MustExpand(cipdPath) {
+	if !IsPlatformSpecific(cipdPath) {
 		output = append(output, cipdPath)
 		return output, nil
 	}
 
 	for _, plat := range platforms {
-		pkg, err := plat.Expander().Expand(cipdPath)
+		pkg, err := plat.Resolver().Resolve(cipdPath)
 		if err == ErrSkipTemplate {
 			continue
 		}
@@ -766,9 +765,9 @@ func Expand(cipdPath string, platforms []Platform) ([]string, error) {
 	return output, nil
 }
 
-// Decl method expands a cipdPath that contains ${platform}, ${os}, ${arch}
-// with information in platforms. Unlike the Expand method which
-// returns a list of expanded cipd paths, the Decl method only returns a
+// Decl method resolves a cipdPath that contains ${platform}, ${os}, ${arch}
+// with information in platforms. Unlike the ResolvePlatforms method which
+// returns a list of resolved cipd paths, the Decl method only returns a
 // single path containing all platforms. For example, if platforms contain
 // "linux-amd64" and "linux-arm64", ${platform} will be replaced to
 // ${platform=linux-amd64,linux-arm64}. This is a workaround for a limitation
@@ -778,7 +777,7 @@ func Expand(cipdPath string, platforms []Platform) ([]string, error) {
 // explicitly list all supporting platforms in the cipdPath, we can avoid
 // crashing cipd.
 func Decl(cipdPath string, platforms []Platform) (string, error) {
-	if !MustExpand(cipdPath) || len(platforms) == 0 {
+	if !IsPlatformSpecific(cipdPath) || len(platforms) == 0 {
 		return cipdPath, nil
 	}
 
@@ -814,10 +813,10 @@ func Decl(cipdPath string, platforms []Platform) (string, error) {
 	return cipdPath, nil
 }
 
-// MustExpand checks if template usages such as "${platform}" exist
-// in cipdPath. If they exist, this function will return true. Otherwise
-// it returns false.
-func MustExpand(cipdPath string) bool {
+// IsPlatformSpecific checks if template usages such as "${platform}" exist in
+// cipdPath. If they exist, this function will return true. Otherwise it returns
+// false.
+func IsPlatformSpecific(cipdPath string) bool {
 	return templateRE.MatchString(cipdPath)
 }
 
