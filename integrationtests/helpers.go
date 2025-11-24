@@ -94,8 +94,6 @@ func runSubprocess(t *testing.T, dir string, args ...string) string {
 	cmd.Env = os.Environ()
 	gitConfig := map[string]string{
 		"init.defaultbranch": "main",
-		// Allow adding local git directories as submodules.
-		"protocol.file.allow": "always",
 	}
 	for k, v := range gitutil.GitConfigEnvVars(gitConfig) {
 		cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", k, v))

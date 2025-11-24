@@ -35,7 +35,6 @@ type updateCmd struct {
 	fetchPkgsTimeout      uint
 	rebaseAll             bool
 	rebaseCurrent         bool
-	rebaseSubmodules      bool
 	rebaseTracked         bool
 	runHooks              bool
 	fetchPkgs             bool
@@ -55,7 +54,6 @@ func (c *updateCmd) SetFlags(f *flag.FlagSet) {
 	f.UintVar(&c.fetchPkgsTimeout, "fetch-packages-timeout", project.DefaultPackageTimeout, "Timeout in minutes for fetching prebuilt packages using cipd.")
 	f.BoolVar(&c.rebaseAll, "rebase-all", false, "Rebase all tracked branches. Also rebase all untracked branches if -rebase-untracked is passed")
 	f.BoolVar(&c.rebaseCurrent, "rebase-current", false, "Deprecated. Implies -rebase-tracked. Would be removed in future.")
-	f.BoolVar(&c.rebaseSubmodules, "rebase-submodules", false, "Rebase current tracked branches for submodules.")
 	f.BoolVar(&c.rebaseTracked, "rebase-tracked", false, "Rebase current tracked branches instead of fast-forwarding them.")
 	f.BoolVar(&c.runHooks, "run-hooks", true, "Run hooks after updating sources.")
 	f.BoolVar(&c.fetchPkgs, "fetch-packages", true, "Use cipd to fetch packages.")
@@ -147,7 +145,6 @@ func (c *updateCmd) run(jirix *jiri.X, args []string) error {
 			RebaseAll:             c.rebaseAll,
 			RunHooks:              c.runHooks,
 			FetchPackages:         c.fetchPkgs,
-			RebaseSubmodules:      c.rebaseSubmodules,
 			RunHookTimeout:        c.hookTimeout,
 			FetchPackagesTimeout:  c.fetchPkgsTimeout,
 			PackagesToSkip:        c.packagesToSkip,

@@ -37,7 +37,6 @@ type initCmd struct {
 	enableLockfile    string
 	lockfileName      string
 	prebuiltJSON      string
-	enableSubmodules  string
 	optionalAttrs     string
 	partial           bool
 	partialSkip       arrayFlag
@@ -75,7 +74,6 @@ func (c *initCmd) SetFlags(f *flag.FlagSet) {
 	f.StringVar(&c.enableLockfile, "enable-lockfile", "", "Enable lockfile enforcement")
 	f.StringVar(&c.lockfileName, "lockfile-name", "", "Set up filename of lockfile")
 	f.StringVar(&c.prebuiltJSON, "prebuilt-json", "", "Set up filename for prebuilt json file")
-	f.StringVar(&c.enableSubmodules, "enable-submodules", "", "Enable submodules structure")
 	// Empty string is not used as default value for optionalAttrs as we
 	// use empty string to clear existing saved attributes.
 	f.StringVar(&c.optionalAttrs, "fetch-optional", optionalAttrsNotSet, "Set up attributes of optional projects and packages that should be fetched by jiri.")
@@ -173,13 +171,6 @@ func (c *initCmd) run(_ context.Context, args []string) error {
 		} else {
 			config.KeepGitHooks = val
 		}
-	}
-
-	if c.enableSubmodules != "" {
-		if c.enableSubmodules != jiri.EnableSubmodulesMagicValue && c.enableSubmodules != "false" {
-			return fmt.Errorf("'enable-submodules' is deprecated")
-		}
-		config.EnableSubmodules = c.enableSubmodules
 	}
 
 	if c.rewriteSsoToHttps != "" {

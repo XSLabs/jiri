@@ -7,7 +7,6 @@ package gitutil
 import (
 	"bytes"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -16,7 +15,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
 
 	"go.fuchsia.dev/jiri"
 	"go.fuchsia.dev/jiri/envvar"
@@ -289,18 +287,12 @@ func (g *Git) Checkout(ref string, opts ...CheckoutOpt) error {
 	args := []string{"checkout"}
 	var force ForceOpt = false
 	var detach DetachOpt = false
-	var recurseSubmodules RecurseSubmodulesOpt = false
-	var rebaseSubmodules RebaseSubmodulesOpt = false
 	for _, opt := range opts {
 		switch typedOpt := opt.(type) {
 		case ForceOpt:
 			force = typedOpt
 		case DetachOpt:
 			detach = typedOpt
-		case RecurseSubmodulesOpt:
-			recurseSubmodules = typedOpt
-		case RebaseSubmodulesOpt:
-			rebaseSubmodules = typedOpt
 		}
 	}
 	if force {
@@ -314,104 +306,7 @@ func (g *Git) Checkout(ref string, opts ...CheckoutOpt) error {
 	if err := g.run(args...); err != nil {
 		return err
 	}
-	// Update all submodules, both current and new.
-	// Un-initialized submodules are updated one by one.
-	if recurseSubmodules {
-		if err := g.SubmoduleUpdateAll(bool(rebaseSubmodules)); err != nil {
-			return err
-		}
-	}
 	return nil
-}
-
-// SubmoduleDeinit de-initiates all local submodules.
-func (g *Git) SubmoduleDeinit() error {
-	args := []string{"submodule", "deinit", "--all"}
-	return g.run(args...)
-}
-
-// SubmodulePaths returns uninitialized submodules' paths.
-func (g *Git) SubmodulePaths() ([]string, error) {
-	submoduleStatus, _ := g.SubmoduleStatus()
-	return SubmodulePathFromStatus(submoduleStatus)
-}
-
-// SubmoduleUpdate updates submodules for current branch.
-func (g *Git) SubmoduleUpdate(opts ...SubmoduleUpdateOpt) error {
-	args := []string{"submodule", "update"}
-	for _, opt := range opts {
-		switch typedOpt := opt.(type) {
-		case RebaseSubmodulesOpt:
-			if typedOpt {
-				args = append(args, "--rebase")
-			}
-		case InitOpt:
-			if typedOpt {
-				args = append(args, "--init")
-			}
-		}
-	}
-	// TODO(iankaz): Use Jiri jobsFlag setting (or set submodule.fetchJobs on superproject init)
-	// Number of parallel children to be used for fetching submodules.
-	args = append(args, "--jobs=50")
-	return g.run(args...)
-}
-
-// SubmoduleUpdateAll updates all submodules, including the ones that are not yet inited.
-func (g *Git) SubmoduleUpdateAll(rebaseSubmodules bool) error {
-	var multiErr error
-	// Update submodules that are currently inited first.
-	if err := g.SubmoduleUpdate(InitOpt(false), RebaseSubmodulesOpt(rebaseSubmodules)); err != nil {
-		multiErr = errors.Join(multiErr, err)
-	}
-	// Update un-inited submodules one by one with path.
-	if err := g.SubmoduleUpdateNew(); err != nil {
-		multiErr = errors.Join(multiErr, err)
-	}
-	return multiErr
-}
-
-func (g *Git) SubmoduleUpdateNew() error {
-	var multiErr error
-	submPaths, err := g.SubmodulePaths()
-	if err != nil {
-		multiErr = errors.Join(multiErr, err)
-		return multiErr
-	}
-	if err := g.SubmoduleInit(submPaths); err != nil {
-		multiErr = errors.Join(multiErr, err)
-		return multiErr
-	}
-	var wg sync.WaitGroup
-	fetchLimit := make(chan struct{}, 50)
-	for _, path := range submPaths {
-		wg.Add(1)
-		fetchLimit <- struct{}{}
-		go func(path string) {
-			defer func() { <-fetchLimit }()
-			defer wg.Done()
-			if err := g.SubmoduleUpdateModule(path); err != nil {
-				multiErr = errors.Join(multiErr, err)
-			}
-		}(path)
-	}
-	wg.Wait()
-	return multiErr
-}
-
-// SubmoduleUpdateModule updates specific module by relative path.
-func (g *Git) SubmoduleUpdateModule(path string) error {
-	args := []string{"submodule", "update", "--", path}
-	return g.run(args...)
-}
-
-// SubmoduleInit inits submodules by paths.
-func (g *Git) SubmoduleInit(submPaths []string) error {
-	args := []string{"submodule", "init", "--"}
-	for _, path := range submPaths {
-		args = append(args, path)
-	}
-	return g.run(args...)
 }
 
 // Clone clones the given repository to the given local path.  If reference is
@@ -444,11 +339,6 @@ func (g *Git) Clone(repo, path string, opts ...CloneOpt) error {
 		case OmitBlobsOpt:
 			if typedOpt {
 				args = append(args, "--filter=blob:none")
-			}
-		case RecurseSubmodulesOpt:
-			// TODO(iankaz): Add setting submodule.fetchJobs in git config to jiri init
-			if typedOpt {
-				args = append([]string{"--recurse-submodules", "--jobs=16"}, args...)
 			}
 		case DissociateOpt:
 			if typedOpt {
@@ -857,7 +747,6 @@ func (g *Git) FetchRefspec(remote, refspec string, opts ...FetchOpt) error {
 	fetchTag := ""
 	updateHeadOk := false
 	jobs := uint(0)
-	recurseSubmodules := false
 	for _, opt := range opts {
 		switch typedOpt := opt.(type) {
 		case TagsOpt:
@@ -876,15 +765,10 @@ func (g *Git) FetchRefspec(remote, refspec string, opts ...FetchOpt) error {
 			updateHeadOk = bool(typedOpt)
 		case JobsOpt:
 			jobs = uint(typedOpt)
-		case RecurseSubmodulesOpt:
-			recurseSubmodules = bool(typedOpt)
 		}
 	}
 	args := []string{}
 	args = append(args, "fetch")
-	if recurseSubmodules {
-		args = append(args, "--recurse-submodules")
-	}
 	if prune {
 		args = append(args, "-p")
 	}
@@ -1378,19 +1262,6 @@ func (g *Git) SetRemoteHead() error {
 	return g.run("remote", "set-head", "origin", "-a")
 }
 
-// SubmoduleConfig gets the field of the submodule from the submodule config.
-func (g *Git) SubmoduleConfig(name, field string) (string, error) {
-	configKey := fmt.Sprintf("submodule.%s.%s", name, field)
-	out, err := g.runOutput("config", "--file", ".gitmodules", "--get", configKey)
-	if err != nil {
-		return "", err
-	}
-	if got := len(out); got != 1 {
-		return "", fmt.Errorf("SubmoduleConfig: unexpected length of output field %v: got %v, want 1", out, got)
-	}
-	return out[0], nil
-}
-
 // DeleteRemote deletes the named remote
 func (g *Git) DeleteRemote(name string) error {
 	return g.run("remote", "rm", name)
@@ -1431,17 +1302,6 @@ func (g *Git) StashSize() (int, error) {
 // StashPop pops the stash into the current working tree.
 func (g *Git) StashPop() error {
 	return g.run("stash", "pop")
-}
-
-// SubmoduleStatus returns the status of the modules for under the superproject.
-// If run under submodule directory, the directories of other submoudles will be
-// relative to the submodule rootDir.
-func (g *Git) SubmoduleStatus() ([]string, error) {
-	out, err := g.runOutput("submodule", "status")
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
 }
 
 // TopLevel returns the top level path of the current repository.
@@ -1581,8 +1441,6 @@ func (g *Git) runGit(stdout, stderr io.Writer, args ...string) error {
 	if g.jirix.OffloadPackfiles {
 		config["fetch.uriprotocols"] = "https"
 	}
-	// Allow add local directories as submodules, for testing purposes.
-	config["protocol.file.allow"] = "always"
 
 	var outbuf bytes.Buffer
 	var errbuf bytes.Buffer

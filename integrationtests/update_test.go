@@ -131,42 +131,6 @@ func TestImportRemoteManifest(t *testing.T) {
 	})
 }
 
-func TestSuperprojectChange(t *testing.T) {
-	t.Parallel()
-
-	remoteDir := t.TempDir()
-	setupGitRepo(t, remoteDir, map[string]any{
-		"manifest": project.Manifest{
-			Projects: []project.Project{
-				{
-					Name:          "manifest",
-					Path:          "manifest_dir",
-					Remote:        remoteDir,
-					GitSubmodules: true,
-				},
-			},
-		},
-	})
-
-	root := t.TempDir()
-	jiri := jiriInit(t, root, "-enable-submodules=yes-please")
-	jiri("import", "manifest", remoteDir)
-	jiri("update")
-
-	// Commit a new file to the superproject's upstream.
-	writeFile(t, filepath.Join(remoteDir, "bar.txt"), "bar")
-	runSubprocess(t, remoteDir, "git", "add", ".")
-	runSubprocess(t, remoteDir, "git", "commit", "-m", "Add bar.txt")
-
-	// Do an update, which should pull in the superproject changes.
-	jiri("update")
-
-	checkDirContents(t, root, []string{
-		"manifest_dir/bar.txt",
-		"manifest_dir/manifest",
-	})
-}
-
 // Checks that -local-manifest works.
 func TestUpdateWithLocalManifestChange(t *testing.T) {
 	t.Parallel()

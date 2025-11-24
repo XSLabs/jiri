@@ -78,7 +78,7 @@ func (c *statusCmd) run(jirix *jiri.X, args []string) error {
 	cwd := jirix.Cwd
 	if c.deleted {
 		for key, localProject := range localProjects {
-			if _, remoteOk := remoteProjects[key]; !remoteOk && !localProject.IsSubmodule {
+			if _, remoteOk := remoteProjects[key]; !remoteOk {
 				relativePath, err := filepath.Rel(cwd, localProject.Path)
 				if err != nil {
 					return err
@@ -102,7 +102,7 @@ func (c *statusCmd) run(jirix *jiri.X, args []string) error {
 	for _, key := range keys {
 		localProject := localProjects[key]
 		remoteProject, foundRemote := remoteProjects[key]
-		if !foundRemote && !localProject.IsSubmodule {
+		if !foundRemote {
 			deletedProjects++
 			continue
 		}
@@ -193,7 +193,7 @@ func (c *statusCmd) getStatus(jirix *jiri.X, local project.Project, remote proje
 			return "", "", nil, err
 		}
 	}
-	if c.checkHead && (remote.Name != "" || local.IsSubmodule) {
+	if c.checkHead && remote.Name != "" {
 		// try getting JIRI_HEAD first
 		if r, err := scm.CurrentRevisionForRef("JIRI_HEAD"); err == nil {
 			headRev = r

@@ -330,15 +330,13 @@ func (c *branchCmd) deleteProjectMergedClsBranches(jirix *jiri.X, local project.
 			continue
 		}
 
-		recurseSubmodules := gitutil.RecurseSubmodulesOpt(remote.GitSubmodules && jirix.EnableSubmodules)
-
 		if b.IsHead {
 			revision, err := project.GetHeadRevision(remote)
 			if err != nil {
 				retErr = errors.Join(retErr, fmt.Errorf("Not deleting current branch %q as can't get head revision: %s\n", b.Name, err))
 				continue
 			}
-			if err := scm.Checkout(revision, recurseSubmodules, gitutil.DetachOpt(true)); err != nil {
+			if err := scm.Checkout(revision, gitutil.DetachOpt(true)); err != nil {
 				retErr = errors.Join(retErr, fmt.Errorf("Not deleting current branch %q as can't checkout JIRI_HEAD: %s\n", b.Name, err))
 				continue
 			}
@@ -352,7 +350,7 @@ func (c *branchCmd) deleteProjectMergedClsBranches(jirix *jiri.X, local project.
 		if err := scm.DeleteBranch(b.Name, gitutil.ForceOpt(true)); err != nil {
 			retErr = errors.Join(retErr, fmt.Errorf("Cannot delete branch %q: %s\n", b.Name, err))
 			if b.IsHead {
-				if err := scm.Checkout(b.Name, recurseSubmodules); err != nil {
+				if err := scm.Checkout(b.Name); err != nil {
 					retErr = errors.Join(retErr, fmt.Errorf("Not able to put project back on branch %q: %s\n", b.Name, err))
 				}
 			}
@@ -403,8 +401,6 @@ func (c *branchCmd) deleteProjectMergedBranches(jirix *jiri.X, local project.Pro
 			deleteForced = true
 		}
 
-		recurseSubmodules := gitutil.RecurseSubmodulesOpt(remote.GitSubmodules && jirix.EnableSubmodules)
-
 		if b.IsHead {
 			untracked, err := scm.HasUntrackedFiles()
 			if err != nil {
@@ -425,7 +421,7 @@ func (c *branchCmd) deleteProjectMergedBranches(jirix *jiri.X, local project.Pro
 				retErr = errors.Join(retErr, fmt.Errorf("Not deleting current branch %q as can't get head revision: %s\n", b.Name, err))
 				continue
 			}
-			if err := scm.Checkout(revision, recurseSubmodules, gitutil.DetachOpt(true)); err != nil {
+			if err := scm.Checkout(revision, gitutil.DetachOpt(true)); err != nil {
 				retErr = errors.Join(retErr, fmt.Errorf("Not deleting current branch %q as can't checkout JIRI_HEAD: %s\n", b.Name, err))
 				continue
 			}
@@ -441,7 +437,7 @@ func (c *branchCmd) deleteProjectMergedBranches(jirix *jiri.X, local project.Pro
 				retErr = errors.Join(retErr, fmt.Errorf("Cannot delete branch %q: %s\n", b.Name, err))
 			}
 			if b.IsHead {
-				if err := scm.Checkout(b.Name, recurseSubmodules); err != nil {
+				if err := scm.Checkout(b.Name); err != nil {
 					retErr = errors.Join(retErr, fmt.Errorf("Not able to put project back on branch %q: %s\n", b.Name, err))
 				}
 			}

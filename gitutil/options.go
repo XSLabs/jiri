@@ -40,10 +40,6 @@ type RebaseOpt interface {
 	rebaseOpt()
 }
 
-type SubmoduleUpdateOpt interface {
-	submoduleUpdateOpt()
-}
-
 type FollowTagsOpt bool
 
 func (FollowTagsOpt) pushOpt() {}
@@ -140,15 +136,7 @@ type UpdateHeadOkOpt bool
 
 func (UpdateHeadOkOpt) fetchOpt() {}
 
-type RecurseSubmodulesOpt bool
-
-func (RecurseSubmodulesOpt) cloneOpt()    {}
-func (RecurseSubmodulesOpt) fetchOpt()    {}
-func (RecurseSubmodulesOpt) checkoutOpt() {}
-
 type InitOpt bool
-
-func (InitOpt) submoduleUpdateOpt() {}
 
 type JobsOpt uint
 
@@ -165,8 +153,3 @@ func (RepackAllOpt) repackOpt() {}
 type RemoveRedundantOpt bool
 
 func (RemoveRedundantOpt) repackOpt() {}
-
-type RebaseSubmodulesOpt bool
-
-func (RebaseSubmodulesOpt) submoduleUpdateOpt() {}
-func (RebaseSubmodulesOpt) checkoutOpt()        {}

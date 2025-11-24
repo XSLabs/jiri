@@ -42,15 +42,6 @@ const (
 	// non-empty value, causes jiri tools to use the existing PATH variable,
 	// rather than mutating it.
 	PreservePathEnv = "JIRI_PRESERVE_PATH"
-
-	// EnableSubmodulesMagicValue is the only accepted value of the
-	// -enable-submodules flag to jiri init. "true" is no longer accepted, in
-	// order to force checkouts where the value is "true" to switch back to
-	// Jiri-managed projects. This value is not intended to be used by users,
-	// only by unit tests.
-	// TODO(fxbug.dev/386810791): Delete this once submodule support is fully
-	// removed from Jiri.
-	EnableSubmodulesMagicValue = "yes-please"
 )
 
 // Config represents jiri global config
@@ -74,7 +65,6 @@ type Config struct {
 	// version user has opted-in to
 	AnalyticsVersion string   `xml:"analytics>version,omitempty"`
 	KeepGitHooks     bool     `xml:"keepGitHooks,omitempty"`
-	EnableSubmodules string   `xml:"enableSubmodules,omitempty"`
 	ExcludeDirs      []string `xml:"excludeDirs,omitempty"`
 
 	XMLName struct{} `xml:"config"`
@@ -155,7 +145,6 @@ type X struct {
 	cleanupFuncs        []func()
 	AnalyticsSession    *analytics_util.AnalyticsSession
 	OverrideWarned      bool
-	EnableSubmodules    bool
 	ExcludeDirs         []string
 }
 
@@ -289,21 +278,6 @@ func NewX(env *cmdline.Env, flags TopLevelFlags) (*X, error) {
 		if err != nil {
 			return nil, err
 		}
-		// enableSubmodules=true is no longer respected due to the submodules
-		// rollback.
-		//
-		// Only accept a special magic value in order to keep running unit tests
-		// that validate the submodules rollback.
-		// TODO(fxbug.dev/386810791): Delete this once submodule support is
-		// fully removed from Jiri.
-		if x.config.EnableSubmodules != "" && x.config.EnableSubmodules != EnableSubmodulesMagicValue {
-			// Remove the enableSubmodules value from the config file to reflect
-			// that it's no longer supported.
-			x.config.EnableSubmodules = ""
-			if err := x.config.Write(configPath); err != nil {
-				return nil, err
-			}
-		}
 	} else if os.IsNotExist(err) {
 		x.config = &Config{}
 	} else {
@@ -313,8 +287,6 @@ func NewX(env *cmdline.Env, flags TopLevelFlags) (*X, error) {
 		x.KeepGitHooks = x.config.KeepGitHooks
 		x.RewriteSsoToHttps = x.config.RewriteSsoToHttps
 		x.SsoCookiePath = x.config.SsoCookiePath
-
-		x.EnableSubmodules = x.config.EnableSubmodules == EnableSubmodulesMagicValue
 
 		if x.config.LockfileEnabled == "" {
 			x.LockfileEnabled = true
