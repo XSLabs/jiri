@@ -98,17 +98,6 @@ func checkJiriRevFiles(t *testing.T, p project.Project) {
 			t.Fatalf("JIRI_HEAD contains %s (%s) expected %s (%s)", headFileContents, headFileCommit, projectRevision, revisionCommit)
 		}
 	}
-
-	file := filepath.Join(gitDir, "JIRI_LAST_BASE")
-	data, err := os.ReadFile(file)
-	if err != nil {
-		t.Fatalf("ReadFile(%v) failed: %s", file, err)
-	}
-	if rev, err := g.CurrentRevision(); err != nil {
-		t.Fatalf("CurrentRevision() failed: %s", err)
-	} else if rev != string(data) {
-		t.Fatalf("JIRI_LAST_BASE contains %s expected %s", string(data), rev)
-	}
 }
 
 func commitFile(t *testing.T, jirix *jiri.X, dir, file, msg string) {

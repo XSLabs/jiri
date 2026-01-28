@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"net/http"
 	"net/url"
 	"os"
@@ -717,12 +718,17 @@ func (p *Project) writeJiriRevisionFiles(jirix *jiri.X) error {
 		return err
 	}
 
+	// Jiri used to write a JIRI_LAST_BASE file but it was removed as it was not
+	// needed. This is a best-effort attempt at cleaning up old JIRI_LAST_BASE
+	// files to avoid leaving confusing stale entries around in people's
+	// checkouts.
+	// TODO(olivernewman): Delete this logic after 2027-02-01.
 	lastBaseFile := filepath.Join(gitDir, "JIRI_LAST_BASE")
-	rev, err := scm.CurrentRevision()
-	if err != nil {
-		return fmt.Errorf("Cannot find current revision for for project %s(%s): %s", p.Name, p.Path, err)
+	if err := os.Remove(lastBaseFile); err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return fmt.Errorf("failed to clean up JIRI_LAST_BASE file: %w", err)
 	}
-	return SafeWriteFile(jirix, lastBaseFile, []byte(rev))
+
+	return nil
 }
 
 func (p *Project) setDefaultConfigs(jirix *jiri.X) error {
