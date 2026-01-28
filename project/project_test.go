@@ -70,16 +70,6 @@ func checkJiriRevFiles(t *testing.T, p project.Project) {
 	if err != nil {
 		t.Fatalf("AbsoluteGitDir failed: %s", err)
 	}
-	file := filepath.Join(gitDir, "JIRI_HEAD")
-	data, err := os.ReadFile(file)
-	if err != nil {
-		t.Fatalf("ReadFile(%v) failed: %s", file, err)
-	}
-	headFileContents := string(data)
-	headFileCommit, err := g.CurrentRevisionForRef(headFileContents)
-	if err != nil {
-		t.Fatalf("CurrentRevisionForRef failed: %s", err)
-	}
 
 	projectRevision := p.Revision
 	if projectRevision == "" {
@@ -94,11 +84,23 @@ func checkJiriRevFiles(t *testing.T, p project.Project) {
 		t.Fatalf("CurrentRevisionForRef failed: %s", err)
 	}
 
-	if revisionCommit != headFileCommit {
-		t.Fatalf("JIRI_HEAD contains %s (%s) expected %s (%s)", headFileContents, headFileCommit, projectRevision, revisionCommit)
+	for _, file := range []string{"JIRI_HEAD", filepath.Join("refs", "remotes", "jiri", "head")} {
+		data, err := os.ReadFile(filepath.Join(gitDir, file))
+		if err != nil {
+			t.Fatalf("ReadFile(.git/%s) failed: %s", file, err)
+		}
+		headFileContents := strings.TrimSpace(string(data))
+		headFileCommit, err := g.CurrentRevisionForRef(headFileContents)
+		if err != nil {
+			t.Fatalf("CurrentRevisionForRef failed: %s", err)
+		}
+		if revisionCommit != headFileCommit {
+			t.Fatalf("JIRI_HEAD contains %s (%s) expected %s (%s)", headFileContents, headFileCommit, projectRevision, revisionCommit)
+		}
 	}
-	file = filepath.Join(gitDir, "JIRI_LAST_BASE")
-	data, err = os.ReadFile(file)
+
+	file := filepath.Join(gitDir, "JIRI_LAST_BASE")
+	data, err := os.ReadFile(file)
 	if err != nil {
 		t.Fatalf("ReadFile(%v) failed: %s", file, err)
 	}

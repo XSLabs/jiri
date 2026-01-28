@@ -509,6 +509,11 @@ func (g *Git) SetUpstream(branch, upstream string) error {
 	return g.run("branch", "-u", upstream, branch)
 }
 
+// UpdateRef updates a ref to the given revision.
+func (g *Git) UpdateRef(ref, revision string) error {
+	return g.run("update-ref", ref, revision)
+}
+
 // LsRemote lists references in a remote repository.
 func (g *Git) LsRemote(args ...string) (string, error) {
 	a := []string{"ls-remote"}

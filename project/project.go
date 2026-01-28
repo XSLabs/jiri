@@ -687,30 +687,42 @@ func (p *Project) CacheDirPath(jirix *jiri.X) (string, error) {
 
 func (p *Project) writeJiriRevisionFiles(jirix *jiri.X) error {
 	scm := gitutil.New(jirix, gitutil.RootDirOpt(p.Path))
-	gitDir, err := scm.AbsoluteGitDir()
-	if err != nil {
-		return err
-	}
-	file := filepath.Join(gitDir, "JIRI_HEAD")
 	head := "refs/remotes/origin/main"
 	if p.Revision != "" && p.Revision != "HEAD" {
 		head = p.Revision
 	} else if p.RemoteBranch != "" {
 		head = "refs/remotes/origin/" + p.RemoteBranch
 	}
-	head, err = scm.CurrentRevisionForRef(head)
+	head, err := scm.CurrentRevisionForRef(head)
 	if err != nil {
 		return fmt.Errorf("Cannot find revision for ref %q for project %s(%s): %s", head, p.Name, p.Path, err)
 	}
-	if err := SafeWriteFile(jirix, file, []byte(head)); err != nil {
+
+	for _, ref := range []string{
+		"JIRI_HEAD",
+		// Also create refs/remotes/jiri/head, creating a fake "jiri" remote
+		// with a fake "head" branch. Unlike JIRI_HEAD, which is a pseudo ref,
+		// this is a real ref that can be tracked by jj.
+		// TODO(olivernewman): Consider eventually deprecating JIRI_HEAD
+		// entirely in favor of this. In the meantime we keep them in sync.
+		"refs/remotes/jiri/head",
+	} {
+		if err := scm.UpdateRef(ref, head); err != nil {
+			return err
+		}
+	}
+
+	gitDir, err := scm.AbsoluteGitDir()
+	if err != nil {
 		return err
 	}
-	file = filepath.Join(gitDir, "JIRI_LAST_BASE")
+
+	lastBaseFile := filepath.Join(gitDir, "JIRI_LAST_BASE")
 	rev, err := scm.CurrentRevision()
 	if err != nil {
 		return fmt.Errorf("Cannot find current revision for for project %s(%s): %s", p.Name, p.Path, err)
 	}
-	return SafeWriteFile(jirix, file, []byte(rev))
+	return SafeWriteFile(jirix, lastBaseFile, []byte(rev))
 }
 
 func (p *Project) setDefaultConfigs(jirix *jiri.X) error {
