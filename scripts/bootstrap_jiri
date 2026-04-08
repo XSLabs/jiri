@@ -84,8 +84,31 @@ fi
 readonly TARGET="${HOST_OS}-${ARCH}"
 readonly COMMIT_URL="${JIRI_REPO_URL}/+refs/heads/main?format=JSON"
 readonly LOG_URL="${JIRI_REPO_URL}/+log/refs/heads/main?format=JSON"
-readonly VERSION=$(curl -sSf "${COMMIT_URL}" | sed -n 's/.*"value": "\([0-9a-f]\{40\}\)"/\1/p')
-readonly VERSIONS=$(curl -sSf "${LOG_URL}" | sed -n 's/.*"commit": "\([0-9a-f]\{40\}\)".*/\1/p')
+COMMIT_RESPONSE=$(curl -sS "${COMMIT_URL}")
+readonly VERSION=$(echo "${COMMIT_RESPONSE}" | sed -n 's/.*"value": "\([0-9a-f]\{40\}\)"/\1/p')
+if [[ -z "${VERSION}" ]]; then
+  echo "ERROR: Failed to fetch latest version from ${COMMIT_URL}" 1>&2
+  if [[ "${COMMIT_RESPONSE}" == *"google.com/sorry"* ]]; then
+    echo "Hint: This is likely due to bot detection (CAPTCHA) on fuchsia.googlesource.com." 1>&2
+  else
+    echo "Response was:" 1>&2
+    echo "${COMMIT_RESPONSE}" 1>&2
+  fi
+  exit 1
+fi
+
+LOG_RESPONSE=$(curl -sS "${LOG_URL}")
+readonly VERSIONS=$(echo "${LOG_RESPONSE}" | sed -n 's/.*"commit": "\([0-9a-f]\{40\}\)".*/\1/p')
+if [[ -z "${VERSIONS}" ]]; then
+  echo "ERROR: Failed to fetch log from ${LOG_URL}" 1>&2
+  if [[ "${LOG_RESPONSE}" == *"google.com/sorry"* ]]; then
+    echo "Hint: This is likely due to bot detection (CAPTCHA) on fuchsia.googlesource.com." 1>&2
+  else
+    echo "Response was:" 1>&2
+    echo "${LOG_RESPONSE}" 1>&2
+  fi
+  exit 1
+fi
 readonly TEMP_FILE=$(mktemp)
 
 JIRI_URL=""
