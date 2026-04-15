@@ -40,8 +40,6 @@ func NewCommander(args []string) (*subcommands.Commander, error) {
 
 	b := cmdBase{topLevelFlags: flags}
 
-	lowLevelGroup := "low-level operations"
-
 	cdr.Register(cdr.HelpCommand(), "")
 	cdr.Register(cdr.FlagsCommand(), "")
 	cdr.Register(&branchCmd{cmdBase: b}, "")
@@ -56,6 +54,7 @@ func NewCommander(args []string) (*subcommands.Commander, error) {
 	cdr.Register(&uploadCmd{cmdBase: b}, "")
 	cdr.Register(&versionCmd{cmdBase: b}, "")
 
+	lowLevelGroup := "advanced operations"
 	cdr.Register(&bootstrapCmd{cmdBase: b}, lowLevelGroup)
 	cdr.Register(&checkCleanCmd{cmdBase: b}, lowLevelGroup)
 	cdr.Register(&editCmd{cmdBase: b}, lowLevelGroup)
@@ -72,13 +71,12 @@ func NewCommander(args []string) (*subcommands.Commander, error) {
 	cdr.Register(&snapshotCmd{cmdBase: b}, lowLevelGroup)
 	cdr.Register(&sourceManifestCmd{cmdBase: b}, lowLevelGroup)
 
+	// Register "jiri help <topic>" subcommands.
+	helpTopicsGroup := "jiri help"
+	cdr.Register(&helpTopicCmd{topic: topicFileSystem}, helpTopicsGroup)
+	cdr.Register(&helpTopicCmd{topic: topicManifestFiles}, helpTopicsGroup)
+
 	return cdr, nil
-}
-
-type jiriSubcommand interface {
-	subcommands.Command
-
-	run(jirix *jiri.X, args []string) error
 }
 
 // executeWrapper converts a Jiri-style subcommand implementation into a
@@ -119,9 +117,22 @@ func errToExitStatus(ctx context.Context, err error) subcommands.ExitStatus {
 	return subcommands.ExitSuccess
 }
 
-// TODO(olivernewman): Add back support for printing help topics.
 type topic struct {
 	Name, Short, Long string
+}
+
+type helpTopicCmd struct {
+	topic
+}
+
+func (t *helpTopicCmd) Name() string             { return t.topic.Name }
+func (t *helpTopicCmd) Synopsis() string         { return t.topic.Short }
+func (t *helpTopicCmd) Usage() string            { return t.topic.Long }
+func (t *helpTopicCmd) SetFlags(*flag.FlagSet) {}
+func (t *helpTopicCmd) Execute(ctx context.Context, _ *flag.FlagSet, _ ...any) subcommands.ExitStatus {
+	env := cmdline.EnvFromContext(ctx)
+	fmt.Fprintln(env.Stdout, t.topic.Long)
+	return subcommands.ExitSuccess
 }
 
 var topicFileSystem = topic{
@@ -170,7 +181,7 @@ The jiri binary is located at [root]/.jiri_root/bin/jiri
 `,
 }
 
-var topicManifest = topic{
+var topicManifestFiles = topic{
 	Name:  "manifest-files",
 	Short: "Description of manifest files",
 	Long: `
